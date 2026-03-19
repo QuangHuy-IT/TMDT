@@ -1,8 +1,9 @@
 const quickMenuRight = document.getElementById("quickMenuRight");
 const quickMenuLeft = document.getElementById("quickMenuLeft");
+const quickMenu = document.getElementById("quickMenu");
 
-const qm_fullWidth = quickMenu.scrollWidth;
-const qm_viewWidth = quickMenu.offsetWidth;
+const qm_fullWidth = quickMenu ? quickMenu.scrollWidth : 0;
+const qm_viewWidth = quickMenu ? quickMenu.offsetWidth : 0;
 
 var count1 = 0;
 var count2 = 0;
@@ -13,6 +14,9 @@ var n2 = 4;
 
 function scrollToLeft() {
     var quickMenu = document.getElementById("quickMenu");
+    if (!quickMenu) {
+        return;
+    }
     // quickMenu.scrollLeft -= 100;
     qm_worker1 = setInterval(() => {
         if (count1 < 150) {
@@ -37,6 +41,9 @@ function scrollToLeft() {
 
 function scrollToRight() {
     var quickMenu = document.getElementById("quickMenu");
+    if (!quickMenu) {
+        return;
+    }
     // quickMenu.scrollLeft += 100;
     qm_worker2 = setInterval(() => {
         if (count2 < 100) {
@@ -66,6 +73,97 @@ function scrollToRight() {
 
 var loginBtn_clicked;
 var registerBtn_clicked;
+
+const AUTH_API_BASE_URL = "http://localhost:8080/api/auth";
+
+function getErrorMessage(error, fallbackMessage) {
+    if (error && error.message) {
+        return error.message;
+    }
+    return fallbackMessage;
+}
+
+async function requestAuth(endpoint, payload) {
+    const response = await fetch(`${AUTH_API_BASE_URL}/${endpoint}`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+    });
+
+    let data;
+    try {
+        data = await response.json();
+    } catch (e) {
+        data = null;
+    }
+
+    if (!response.ok) {
+        throw new Error(data?.message || "Request failed");
+    }
+
+    return data;
+}
+
+function initAuthForms() {
+    const loginForm = document.getElementById("loginForm");
+    const registerForm = document.getElementById("registerForm");
+
+    if (!loginForm || !registerForm) {
+        return;
+    }
+
+    loginBtn_clicked = 1;
+    registerBtn_clicked = 0;
+
+    loginForm.addEventListener("submit", async function (event) {
+        event.preventDefault();
+
+        const email = loginForm.querySelector('input[type="email"]').value.trim();
+        const password = loginForm.querySelector("#inputPassword1").value;
+
+        try {
+            const result = await requestAuth("login", { email, password });
+            localStorage.setItem("authToken", result.token);
+            localStorage.setItem("currentUser", JSON.stringify(result));
+            alert("Dang nhap thanh cong.");
+            window.location.href = "profile.html";
+        } catch (error) {
+            alert(getErrorMessage(error, "Dang nhap that bai."));
+        }
+    });
+
+    registerForm.addEventListener("submit", async function (event) {
+        event.preventDefault();
+
+        const firstName = registerForm.querySelector("#inputFirstName").value.trim();
+        const lastName = registerForm.querySelector("#inputLastName").value.trim();
+        const phoneNumber = registerForm.querySelector("#inputPhoneNo").value.trim();
+        const address = registerForm.querySelector("#InputAddress").value.trim();
+        const email = registerForm.querySelector('input[type="email"]').value.trim();
+        const password = registerForm.querySelector("#inputPassword2").value;
+
+        try {
+            await requestAuth("register", {
+                firstName,
+                lastName,
+                phoneNumber,
+                address,
+                email,
+                password
+            });
+
+            alert("Dang ky thanh cong. Vui long dang nhap.");
+            registerForm.reset();
+            showLoginForm();
+        } catch (error) {
+            alert(getErrorMessage(error, "Dang ky that bai."));
+        }
+    });
+}
+
+document.addEventListener("DOMContentLoaded", initAuthForms);
 
 function showLoginForm() {
     if (loginBtn_clicked == 0) {
