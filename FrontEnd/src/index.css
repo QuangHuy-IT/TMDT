@@ -1,0 +1,92 @@
+:root {
+  /* Sử dụng font chữ đồng bộ với toàn bộ ứng dụng */
+  font-family: 'Plus Jakarta Sans', system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.6;
+  font-weight: 400;
+
+  /* Hỗ trợ Dark/Light mode dựa trên hệ điều hành */
+  color-scheme: light dark;
+  color: #1a1a1a;
+  background-color: #ffffff;
+
+  /* Tối ưu hóa hiển thị chữ */
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Định dạng liên kết theo tông màu đỏ chủ đạo của New Tech */
+a {
+  font-weight: 600;
+  color: var(--primary-color, #ff0000);
+  text-decoration: none;
+  transition: opacity 0.25s;
+}
+
+a:hover {
+  opacity: 0.8;
+  color: #cc0000;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  /* Đảm bảo body không can thiệp vào layout Flex của App-container */
+}
+
+h1 {
+  font-size: 3.2em;
+  line-height: 1.2;
+  font-weight: 800;
+}
+
+/* Tùy chỉnh nút bấm mặc định */
+button {
+  border-radius: 8px;
+  border: 1px solid transparent;
+  padding: 0.6em 1.2em;
+  font-size: 1em;
+  font-weight: 600;
+  font-family: inherit;
+  background-color: #1a1a1a;
+  color: #ffffff;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+button:hover {
+  background-color: #333;
+  border-color: var(--primary-color, #ff0000);
+}
+
+button:focus,
+button:focus-visible {
+  outline: 4px auto rgba(255, 0, 0, 0.2);
+}
+
+/* Xử lý giao diện sáng (Light Mode) */
+@media (prefers-color-scheme: light) {
+  :root {
+    color: #1a1a1a;
+    background-color: #ffffff;
+  }
+  button {
+    background-color: #f9f9f9;
+    color: #1a1a1a;
+    border: 1px solid #ddd;
+  }
+}
+
+/* Xử lý giao diện tối (Dark Mode) */
+@media (prefers-color-scheme: dark) {
+  :root {
+    color: #f8f9fa;
+    background-color: #121212;
+  }
+  button {
+    background-color: #2d2d2d;
+    color: #ffffff;
+  }
+}
