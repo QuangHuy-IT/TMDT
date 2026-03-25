@@ -6,9 +6,13 @@ const initialState = {
   cart: JSON.parse(localStorage.getItem('cart')) || [],
   isAuthenticated: localStorage.getItem('token') ? true : false,
   user: JSON.parse(localStorage.getItem('user')) || null,
+  token: localStorage.getItem('token') || null,
+  refreshToken: localStorage.getItem('refreshToken') || null,
   orders: JSON.parse(localStorage.getItem('orders')) || [
     { id: 'HD9421', date: '12/03/2026', total: 25900000, status: 'Đang giao', items: 2 },
   ],
+  loading: false,
+  error: null,
 };
 
 const shopReducer = (state, action) => {
@@ -19,7 +23,6 @@ const shopReducer = (state, action) => {
       if (existingItem) {
         updatedCart = state.cart.map(item =>
           item.id === action.payload.id
-            // Sửa: Dùng || 1 để tránh cộng undefined → NaN khi quantity không được truyền
             ? { ...item, quantity: item.quantity + (action.payload.quantity || 1) }
             : item
         );
@@ -48,17 +51,73 @@ const shopReducer = (state, action) => {
       localStorage.removeItem('cart');
       return { ...state, cart: [] };
 
-    case 'LOGIN_SUCCESS':
-      localStorage.setItem('token', 'fake-jwt-token');
-      localStorage.setItem('user', JSON.stringify(action.payload));
-      return { ...state, isAuthenticated: true, user: action.payload };
+    // Xử lý authentication actions
+    case 'LOGIN_SUCCESS': {
+      const { token, refreshToken, user } = action.payload;
+      localStorage.setItem('token', token);
+      localStorage.setItem('refreshToken', refreshToken);
+      localStorage.setItem('user', JSON.stringify(user));
+      return {
+        ...state,
+        isAuthenticated: true,
+        user,
+        token,
+        refreshToken,
+        error: null,
+        loading: false,
+      };
+    }
+
+    case 'REGISTER_SUCCESS': {
+      const { token, refreshToken, user } = action.payload;
+      localStorage.setItem('token', token);
+      localStorage.setItem('refreshToken', refreshToken);
+      localStorage.setItem('user', JSON.stringify(user));
+      return {
+        ...state,
+        isAuthenticated: true,
+        user,
+        token,
+        refreshToken,
+        error: null,
+        loading: false,
+      };
+    }
 
     case 'LOGOUT':
-      localStorage.clear();
-      return { ...initialState, cart: [], isAuthenticated: false, user: null };
+      localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
+      localStorage.removeItem('user');
+      localStorage.removeItem('cart');
+      return {
+        ...state,
+        cart: [],
+        isAuthenticated: false,
+        user: null,
+        token: null,
+        refreshToken: null,
+        error: null,
+      };
+
+    case 'UPDATE_USER': {
+      const updatedUser = { ...state.user, ...action.payload };
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      return { ...state, user: updatedUser };
+    }
+
+    case 'AUTH_LOADING':
+      return { ...state, loading: true, error: null };
+
+    case 'AUTH_ERROR':
+      return { ...state, loading: false, error: action.payload };
+
+    case 'REFRESH_TOKEN_SUCCESS': {
+      const { token } = action.payload;
+      localStorage.setItem('token', token);
+      return { ...state, token };
+    }
 
     case 'PLACE_ORDER': {
-      // Sửa: Tạo đơn hàng mới từ cart hiện tại và lưu vào orders, sau đó xóa cart
       const newOrder = {
         id: `HD${Math.floor(1000 + Math.random() * 9000)}`,
         date: new Date().toLocaleDateString('vi-VN'),

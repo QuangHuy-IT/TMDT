@@ -1,0 +1,140 @@
+package com.tmdt.phone_store_backend.controller;
+
+import com.tmdt.phone_store_backend.domain.entity.User;
+import com.tmdt.phone_store_backend.dto.AuthResponseDto;
+import com.tmdt.phone_store_backend.dto.LoginRequestDto;
+import com.tmdt.phone_store_backend.dto.RegisterRequestDto;
+import com.tmdt.phone_store_backend.dto.UserResponseDto;
+import com.tmdt.phone_store_backend.security.JwtTokenProvider;
+import com.tmdt.phone_store_backend.service.UserService;
+import jakarta.validation.Valid;
+import java.security.Principal;
+import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+/**
+ * AuthController - xử lý các request liên quan đến authentication
+ */
+@Slf4j
+@RestController
+@RequestMapping("/api/auth")
+@AllArgsConstructor
+public class AuthController {
+
+    private final UserService userService;
+    private final JwtTokenProvider jwtTokenProvider;
+
+    /**
+     * POST /api/auth/register - Đăng ký người dùng mới
+     */
+    @PostMapping("/register")
+    public ResponseEntity<?> register(@Valid @RequestBody RegisterRequestDto requestDto) {
+        log.info("Register request for email: {}", requestDto.getEmail());
+
+        try {
+            UserResponseDto userDto = userService.register(requestDto);
+
+            User savedUser = userService.getUserByEmail(userDto.getEmail());
+            String token = jwtTokenProvider.generateToken(userDto.getEmail());
+            String refreshToken = jwtTokenProvider.generateRefreshToken(userDto.getEmail());
+
+            AuthResponseDto response = new AuthResponseDto(token, refreshToken, userDto);
+
+            return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        } catch (Exception e) {
+            log.error("Registration failed: {}", e.getMessage());
+            throw e;
+        }
+    }
+
+    /**
+     * POST /api/auth/login - Đăng nhập
+     */
+    @PostMapping("/login")
+    public ResponseEntity<?> login(@Valid @RequestBody LoginRequestDto requestDto) {
+        log.info("Login request for email: {}", requestDto.getEmail());
+
+        try {
+            User user = userService.login(requestDto);
+            UserResponseDto userDto = userService.convertToDto(user);
+
+            String token = jwtTokenProvider.generateToken(user.getEmail());
+            String refreshToken = jwtTokenProvider.generateRefreshToken(user.getEmail());
+
+            AuthResponseDto response = new AuthResponseDto(token, refreshToken, userDto);
+
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Login failed: {}", e.getMessage());
+            throw e;
+        }
+    }
+
+    /**
+     * GET /api/auth/me - Lấy thông tin người dùng hiện tại
+     */
+    @GetMapping("/me")
+    public ResponseEntity<?> getCurrentUser() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        String email = authentication.getName();
+        log.info("Get current user info for email: {}", email);
+
+        try {
+            User user = userService.getUserByEmail(email);
+            UserResponseDto response = userService.convertToDto(user);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Failed to get current user: {}", e.getMessage());
+            throw e;
+        }
+    }
+
+    /**
+     * POST /api/auth/refresh-token - Refresh access token
+     */
+    @PostMapping("/refresh-token")
+    public ResponseEntity<?> refreshToken(@RequestBody java.util.Map<String, String> request) {
+        String refreshToken = request.get("refreshToken");
+
+        log.info("Refresh token request");
+
+        try {
+            String newAccessToken = userService.refreshAccessToken(refreshToken);
+
+            java.util.Map<String, String> response = new java.util.HashMap<>();
+            response.put("token", newAccessToken);
+            response.put("type", "Bearer");
+
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Token refresh failed: {}", e.getMessage());
+            throw e;
+        }
+    }
+
+    /**
+     * POST /api/auth/logout - Đăng xuất
+     */
+    @PostMapping("/logout")
+    public ResponseEntity<?> logout() {
+        log.info("Logout request");
+        SecurityContextHolder.clearContext();
+        return ResponseEntity.ok(new java.util.HashMap<String, String>() {{
+            put("message", "Đăng xuất thành công");
+        }});
+    }
+}

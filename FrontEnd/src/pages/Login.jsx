@@ -1,7 +1,7 @@
 import React, { useState, useContext } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { ShopContext } from '../context/ShopContext';
-import { findUserByCredentials } from '../data/users';
+import AuthService from '../services/authService';
 
 export const Login = () => {
   const [email, setEmail] = useState('');
@@ -15,28 +15,40 @@ export const Login = () => {
 
   const from = location.state?.from?.pathname || '/';
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
-    // Giả lập độ trễ API
-    setTimeout(() => {
-      const found = findUserByCredentials(email, password);
+    try {
+      // Gọi API login từ backend
+      const response = await AuthService.login(email, password);
+      
+      if (response.data) {
+        const { token, refreshToken, user } = response.data;
+        
+        // Dispatch LOGIN_SUCCESS với token, refreshToken và user info
+        dispatch({
+          type: 'LOGIN_SUCCESS',
+          payload: { token, refreshToken, user }
+        });
 
-      if (!found) {
-        setError('Email hoặc mật khẩu không đúng!');
         setLoading(false);
-        return;
+        navigate(from, { replace: true });
       }
-
-      // Đăng nhập thành công — loại bỏ password trước khi lưu vào context
-      const { password: _pw, ...safeUser } = found;
-      dispatch({ type: 'LOGIN_SUCCESS', payload: safeUser });
-
+    } catch (err) {
       setLoading(false);
-      navigate(from, { replace: true });
-    }, 1000);
+      
+      // Xử lý lỗi từ backend
+      if (err.response?.data?.message) {
+        setError(err.response.data.message);
+      } else if (err.response?.status === 401) {
+        setError('Email hoặc mật khẩu không đúng!');
+      } else {
+        setError('Lỗi đăng nhập. Vui lòng thử lại!');
+      }
+      console.error('Login error:', err);
+    }
   };
 
   return (
@@ -71,6 +83,7 @@ export const Login = () => {
                 placeholder="email@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                disabled={loading}
               />
             </div>
             <div>
@@ -82,6 +95,7 @@ export const Login = () => {
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                disabled={loading}
               />
             </div>
           </div>
@@ -119,3 +133,4 @@ export const Login = () => {
     </main>
   );
 };
+
