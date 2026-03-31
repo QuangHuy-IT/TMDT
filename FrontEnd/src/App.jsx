@@ -64,6 +64,9 @@ function App() {
             <Route path="orders"   element={<AdminOrders />} />
             <Route path="users"    element={<AdminUsers />} />
           </Route>
+          {/* ===== AUTH ROUTES (không có Navbar + Footer) ===== */}
+          <Route path="/login"       element={<Login />} />
+          <Route path="/signup"      element={<Register />} />
 
           {/* ===== SHOP ROUTES (có Navbar + Footer) ===== */}
           <Route path="/*" element={
@@ -74,8 +77,6 @@ function App() {
                   <Route path="/"            element={<Home />} />
                   <Route path="/tim-kiem"    element={<TimKiem />} />
                   <Route path="/product/:id" element={<ProductDetail />} />
-                  <Route path="/login"       element={<Login />} />
-                  <Route path="/signup"      element={<Register />} />
                   <Route path="/cart"        element={<ProtectedRoute><Cart /></ProtectedRoute>} />
                   <Route path="/checkout"    element={<ProtectedRoute><Checkout /></ProtectedRoute>} />
                   <Route path="/profile"     element={<ProtectedRoute><Profile /></ProtectedRoute>} />

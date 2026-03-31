@@ -217,7 +217,7 @@ export const ProductDetail = () => {
         <nav className="flex items-center text-[10px] font-black uppercase tracking-widest text-gray-400 mb-8 gap-3">
           <span className="hover:text-red-600 cursor-pointer" onClick={() => navigate('/')}>Trang chủ</span>
           <span className="text-gray-300">/</span>
-          <span className="hover:text-red-600 cursor-pointer" onClick={() => navigate('/tim-kiem')}>Cửa hàng</span>
+          <span className="hover:text-red-600 cursor-pointer" onClick={() => navigate(`/${product.brand}`)}>{product.brand}</span>
           <span className="text-gray-300">/</span>
           <span className="text-gray-700 font-black">{product.name}</span>
         </nav>
