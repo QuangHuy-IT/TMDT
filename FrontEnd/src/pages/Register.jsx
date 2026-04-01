@@ -1,27 +1,30 @@
-import React, { useState, useContext } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { ShopContext } from '../context/ShopContext';
+import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
+import AuthService from '../services/authService';
 
 export const Register = () => {
   const [formData, setFormData] = useState({
-    name: '',
+    fullName: '',
     email: '',
+    phone: '',
+    yearOfBirth: '',
     password: '',
     confirmPassword: ''
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  
-  const { dispatch } = useContext(ShopContext);
-  const navigate = useNavigate();
+  const [success, setSuccess] = useState('');
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
     if (error) setError('');
+    if (success) setSuccess('');
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setError('');
+    setSuccess('');
     
     // Kiểm tra mật khẩu khớp nhau
     if (formData.password !== formData.confirmPassword) {
@@ -31,20 +34,44 @@ export const Register = () => {
 
     setLoading(true);
 
-    // Giả lập gọi API đăng ký
-    setTimeout(() => {
-      const newUser = { 
-        name: formData.name, 
-        email: formData.email, 
-        role: 'user' 
-      };
+    try {
+      // Gọi API đăng ký từ backend
+      const response = await AuthService.register({
+        fullName: formData.fullName,
+        email: formData.email,
+        phone: formData.phone,
+        yearOfBirth: formData.yearOfBirth ? parseInt(formData.yearOfBirth) : null,
+        password: formData.password,
+        confirmPassword: formData.confirmPassword
+      });
 
-      // Đăng ký xong thì tự động đăng nhập luôn
-      dispatch({ type: 'LOGIN_SUCCESS', payload: newUser });
-      
+      if (response.data) {
+        setFormData({
+          fullName: '',
+          email: '',
+          phone: '',
+          yearOfBirth: '',
+          password: '',
+          confirmPassword: ''
+        });
+        setSuccess('Bạn đã đăng ký thành công! Vui lòng đăng nhập để tiếp tục.');
+        setLoading(false);
+      }
+    } catch (err) {
       setLoading(false);
-      navigate('/'); // Chuyển về trang chủ
-    }, 1500);
+      
+      // Xử lý lỗi từ backend
+      if (err.response?.data?.message) {
+        setError(err.response.data.message);
+      } else if (err.response?.status === 409) {
+        setError('Email hoặc số điện thoại đã tồn tại!');
+      } else if (err.response?.status === 400) {
+        setError('Vui lòng kiểm tra lại thông tin đăng ký!');
+      } else {
+        setError('Lỗi đăng ký. Vui lòng thử lại!');
+      }
+      console.error('Register error:', err);
+    }
   };
 
   return (
@@ -69,6 +96,13 @@ export const Register = () => {
           </div>
         )}
 
+        {/* Success Message */}
+        {success && (
+          <div className="bg-green-50 text-green-700 text-xs p-3 rounded-xl border border-green-100 font-bold">
+            ✓ {success}
+          </div>
+        )}
+
         {/* Form */}
         <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
           <div className="space-y-4">
@@ -78,13 +112,14 @@ export const Register = () => {
                 Họ và Tên
               </label>
               <input
-                name="name"
+                name="fullName"
                 type="text"
                 required
                 className="block w-full px-4 py-3 rounded-2xl bg-gray-50 border border-gray-200 text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-500 focus:bg-white transition-all sm:text-sm"
                 placeholder="Nguyễn Văn A"
-                value={formData.name}
+                value={formData.fullName}
                 onChange={handleChange}
+                disabled={loading}
               />
             </div>
 
@@ -101,6 +136,42 @@ export const Register = () => {
                 placeholder="example@gmail.com"
                 value={formData.email}
                 onChange={handleChange}
+                disabled={loading}
+              />
+            </div>
+
+            {/* Số điện thoại */}
+            <div>
+              <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1 ml-1">
+                Số Điện Thoại
+              </label>
+              <input
+                name="phone"
+                type="tel"
+                required
+                className="block w-full px-4 py-3 rounded-2xl bg-gray-50 border border-gray-200 text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-500 focus:bg-white transition-all sm:text-sm"
+                placeholder="0901234567"
+                value={formData.phone}
+                onChange={handleChange}
+                disabled={loading}
+              />
+            </div>
+
+            {/* Năm sinh */}
+            <div>
+              <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1 ml-1">
+                Năm Sinh (Tùy Chọn)
+              </label>
+              <input
+                name="yearOfBirth"
+                type="number"
+                min="1900"
+                max={new Date().getFullYear()}
+                className="block w-full px-4 py-3 rounded-2xl bg-gray-50 border border-gray-200 text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-500 focus:bg-white transition-all sm:text-sm"
+                placeholder="2000"
+                value={formData.yearOfBirth}
+                onChange={handleChange}
+                disabled={loading}
               />
             </div>
 
@@ -118,6 +189,7 @@ export const Register = () => {
                   placeholder="••••••••"
                   value={formData.password}
                   onChange={handleChange}
+                  disabled={loading}
                 />
               </div>
               <div>
@@ -132,6 +204,7 @@ export const Register = () => {
                   placeholder="••••••••"
                   value={formData.confirmPassword}
                   onChange={handleChange}
+                  disabled={loading}
                 />
               </div>
             </div>
