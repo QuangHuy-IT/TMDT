@@ -25,6 +25,8 @@ public class RegisterRequestDto {
     @Size(min = 3, max = 150, message = "Tên phải từ 3 đến 150 ký tự")
     private String fullName;
     
+    private Integer yearOfBirth;
+    
     @NotBlank(message = "Số điện thoại không được để trống")
     @Size(min = 10, max = 20, message = "Số điện thoại không hợp lệ")
     private String phone;

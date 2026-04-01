@@ -22,6 +22,8 @@ public class UserResponseDto {
     
     private String fullName;
     
+    private Integer yearOfBirth;
+    
     private String phone;
     
     private UserRole role;

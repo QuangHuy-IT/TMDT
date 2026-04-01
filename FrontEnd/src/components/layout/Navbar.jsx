@@ -86,10 +86,10 @@ export const Navbar = () => {
                   className="flex items-center gap-2 p-1 pr-3 hover:bg-gray-800 rounded-full transition-all border border-gray-700"
                 >
                   <div className="h-8 w-8 rounded-full bg-red-600 flex items-center justify-center font-bold text-sm uppercase">
-                    {user?.name?.charAt(0) || 'U'}
+                    {user?.fullName?.charAt(0) || 'U'}
                   </div>
                   <span className="hidden md:inline text-sm font-medium max-w-[100px] truncate">
-                    {user?.name || 'Tài khoản'}
+                    {user?.fullName || 'Tài khoản'}
                   </span>
                   <svg className={`h-4 w-4 transition-transform ${isUserMenuOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -100,7 +100,7 @@ export const Navbar = () => {
                   <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl py-2 z-50 text-gray-800 border border-gray-100">
                     <div className="px-4 py-2 md:hidden">
                       <p className="text-xs text-gray-400">Xin chào,</p>
-                      <p className="font-bold truncate">{user?.name}</p>
+                      <p className="font-bold truncate">{user?.fullName}</p>
                     </div>
                     <Link to="/profile" className="block px-4 py-2 text-sm hover:bg-gray-50 hover:text-red-600" onClick={() => setIsUserMenuOpen(false)}>Hồ sơ của tôi</Link>
                     <Link to="/orders" className="block px-4 py-2 text-sm hover:bg-gray-50 hover:text-red-600" onClick={() => setIsUserMenuOpen(false)}>Đơn hàng</Link>

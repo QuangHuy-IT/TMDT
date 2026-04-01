@@ -388,7 +388,7 @@ CREATE TABLE IF NOT EXISTS reviews (
 	id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
 	product_id BIGINT UNSIGNED NOT NULL,
 	user_id BIGINT UNSIGNED NOT NULL,
-	rating TINYINT UNSIGNED NOT NULL,
+	rating INT UNSIGNED NOT NULL,
 	title VARCHAR(200) NULL,
 	content TEXT NULL,
 	is_approved BOOLEAN NOT NULL DEFAULT FALSE,
@@ -430,3 +430,9 @@ SELECT 'admin@phonestore.local', '0900000000', '$2a$10$wH9E8sXeN8R6m2U8gQ2P2e9C6
 WHERE NOT EXISTS (
 	SELECT 1 FROM users WHERE email = 'admin@phonestore.local'
 );
+
+-- Add year_of_birth column to users table
+ALTER TABLE users ADD COLUMN `year_of_birth` INT NULL COMMENT 'Năm sinh của người dùng';
+
+-- Add index for faster queries
+CREATE INDEX idx_users_year_of_birth ON users(year_of_birth);

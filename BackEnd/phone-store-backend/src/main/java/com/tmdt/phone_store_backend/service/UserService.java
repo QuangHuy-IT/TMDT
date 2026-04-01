@@ -58,6 +58,7 @@ public class UserService {
         User user = new User();
         user.setEmail(requestDto.getEmail());
         user.setFullName(requestDto.getFullName());
+        user.setYearOfBirth(requestDto.getYearOfBirth());
         user.setPhone(requestDto.getPhone());
         user.setPasswordHash(passwordEncoder.encode(requestDto.getPassword()));
         user.setRole(UserRole.USER);
@@ -129,6 +130,9 @@ public class UserService {
         if (updateDto.getFullName() != null) {
             user.setFullName(updateDto.getFullName());
         }
+        if (updateDto.getYearOfBirth() != null) {
+            user.setYearOfBirth(updateDto.getYearOfBirth());
+        }
         if (updateDto.getPhone() != null && !updateDto.getPhone().equals(user.getPhone())) {
             if (userRepository.existsByPhone(updateDto.getPhone())) {
                 throw new ResourceAlreadyExistsException(
@@ -155,6 +159,7 @@ public class UserService {
         dto.setId(user.getId());
         dto.setEmail(user.getEmail());
         dto.setFullName(user.getFullName());
+        dto.setYearOfBirth(user.getYearOfBirth());
         dto.setPhone(user.getPhone());
         dto.setRole(user.getRole());
         dto.setStatus(user.getStatus());

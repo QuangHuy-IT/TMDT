@@ -7,6 +7,7 @@ export const Register = () => {
     fullName: '',
     email: '',
     phone: '',
+    yearOfBirth: '',
     password: '',
     confirmPassword: ''
   });
@@ -39,6 +40,7 @@ export const Register = () => {
         fullName: formData.fullName,
         email: formData.email,
         phone: formData.phone,
+        yearOfBirth: formData.yearOfBirth ? parseInt(formData.yearOfBirth) : null,
         password: formData.password,
         confirmPassword: formData.confirmPassword
       });
@@ -48,6 +50,7 @@ export const Register = () => {
           fullName: '',
           email: '',
           phone: '',
+          yearOfBirth: '',
           password: '',
           confirmPassword: ''
         });
@@ -149,6 +152,24 @@ export const Register = () => {
                 className="block w-full px-4 py-3 rounded-2xl bg-gray-50 border border-gray-200 text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-500 focus:bg-white transition-all sm:text-sm"
                 placeholder="0901234567"
                 value={formData.phone}
+                onChange={handleChange}
+                disabled={loading}
+              />
+            </div>
+
+            {/* Năm sinh */}
+            <div>
+              <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1 ml-1">
+                Năm Sinh (Tùy Chọn)
+              </label>
+              <input
+                name="yearOfBirth"
+                type="number"
+                min="1900"
+                max={new Date().getFullYear()}
+                className="block w-full px-4 py-3 rounded-2xl bg-gray-50 border border-gray-200 text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-500 focus:bg-white transition-all sm:text-sm"
+                placeholder="2000"
+                value={formData.yearOfBirth}
                 onChange={handleChange}
                 disabled={loading}
               />

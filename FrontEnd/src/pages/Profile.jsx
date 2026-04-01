@@ -5,13 +5,13 @@ export const Profile = () => {
   const { state } = useContext(ShopContext);
   const { user } = state; // Lấy thông tin user từ Context thực tế
 
-  // Thông tin hiển thị (kết hợp dữ liệu context và mặc định)
+  // Thông tin hiển thị (kết hợp dữ liệu context)
   const displayUser = {
-    fullName: user?.name || "Nguyễn Văn Hoàng",
-    email: user?.email || "hoang.nguyen@example.com",
-    phone: user?.phone || "+84 000 000 000",
-    birthYear: user?.birthYear || 2004,
-    avatar: user?.avatar || "/assets/images/profile/avatar-default.png"
+    fullName: user?.fullName || "Chưa cập nhật",
+    email: user?.email || "Chưa cập nhật",
+    phone: user?.phone || "Chưa cập nhật",
+    yearOfBirth: user?.yearOfBirth || "Chưa cập nhật",
+    avatar: user?.avatarUrl || "/assets/images/profile/avatar-default.png"
   };
 
   return (
@@ -87,7 +87,7 @@ export const Profile = () => {
                 </div>
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Năm sinh</label>
-                  <input type="text" className="w-full bg-gray-50 border-0 rounded-2xl px-4 py-3 text-gray-900 focus:ring-2 focus:ring-red-500 transition-all" value={displayUser.birthYear} readOnly />
+                  <input type="text" className="w-full bg-gray-50 border-0 rounded-2xl px-4 py-3 text-gray-900 focus:ring-2 focus:ring-red-500 transition-all" value={displayUser.yearOfBirth} readOnly />
                 </div>
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Số điện thoại</label>
