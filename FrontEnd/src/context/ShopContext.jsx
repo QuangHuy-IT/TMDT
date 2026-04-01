@@ -14,32 +14,38 @@ const initialState = {
 const shopReducer = (state, action) => {
   switch (action.type) {
     case 'ADD_TO_CART': {
-      const existingItem = state.cart.find(item => item.id === action.payload.id);
+      const actionId = action.payload.id || action.payload._id;
+      const existingItem = state.cart.find(item => (item.id || item._id) === actionId);
+
       let updatedCart;
       if (existingItem) {
         updatedCart = state.cart.map(item =>
-          item.id === action.payload.id
-            // Sửa: Dùng || 1 để tránh cộng undefined → NaN khi quantity không được truyền
+          (item.id || item._id) === actionId
             ? { ...item, quantity: item.quantity + (action.payload.quantity || 1) }
             : item
         );
       } else {
-        updatedCart = [...state.cart, action.payload];
+        updatedCart = [...state.cart, { ...action.payload, quantity: action.payload.quantity || 1 }];
       }
-      localStorage.setItem('cart', JSON.stringify(updatedCart));
-      return { ...state, cart: updatedCart };
+
+      localStorage.setItem('cart', JSON.stringify(updatedCart)); // ← thiếu dòng này
+      return { ...state, cart: updatedCart };                    // ← thiếu dòng này
     }
 
     case 'UPDATE_CART_QUANTITY': {
       const cartAfterUpdate = state.cart.map(item =>
-        item.id === action.payload.id ? { ...item, quantity: action.payload.quantity } : item
+        (item.id || item._id) === action.payload.id   // ← thêm fallback
+          ? { ...item, quantity: action.payload.quantity }
+          : item
       );
       localStorage.setItem('cart', JSON.stringify(cartAfterUpdate));
       return { ...state, cart: cartAfterUpdate };
     }
 
     case 'REMOVE_FROM_CART': {
-      const cartAfterRemove = state.cart.filter(item => item.id !== action.payload);
+      const cartAfterRemove = state.cart.filter(
+        item => (item.id || item._id) !== action.payload  // ← thêm fallback
+      );
       localStorage.setItem('cart', JSON.stringify(cartAfterRemove));
       return { ...state, cart: cartAfterRemove };
     }

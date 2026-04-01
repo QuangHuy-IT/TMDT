@@ -74,13 +74,13 @@ export const Cart = () => {
             {cart.map((item) => (
               <div key={item.id} className="bg-white rounded-2xl p-4 flex gap-4 shadow-sm border border-gray-100 group">
                 <div className="w-24 h-24 md:w-32 md:h-32 bg-gray-50 rounded-xl overflow-hidden flex-shrink-0">
-                  <img src={item.image} alt={item.name} className="w-full h-full object-contain group-hover:scale-110 transition-transform" />
+                  <img src={item.images[0]} alt={item.name} className="w-full h-full object-contain group-hover:scale-110 transition-transform" />
                 </div>
 
                 <div className="flex-grow flex flex-col justify-between py-1">
                   <div className="flex justify-between items-start">
                     <div>
-                      <Link to={`/product/${item.id}`} className="font-bold text-gray-900 hover:text-red-600 transition-colors line-clamp-1">
+                      <Link to={`/product/${item._id}`}>   {/* ← dùng _id gốc */}
                         {item.name}
                       </Link>
                       {/* Sửa: item.category → item.brand (data không có field category) */}

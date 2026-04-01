@@ -15,12 +15,28 @@ export const ProductCard = ({ product }) => {
   const productId = product._id || product.id;
   const thumbnail = (product.images && product.images[0]) || product.image;
 
-  const handleAddToCart = () => {
+  const handleAddToCart = (e) => {
+    e.preventDefault(); // Chặn Link chuyển trang
     if (!isAuthenticated) {
       navigate('/login', { state: { from: location } });
       return;
     }
-    dispatch({ type: 'ADD_TO_CART', payload: { ...product, quantity: 1 } });
+
+    // Lấy cấu hình mặc định (phần tử đầu tiên)
+    const defaultStorage = product.variants?.storages?.[0] || "";
+    const finalPrice = product.variants?.basePrices?.[defaultStorage] || product.price;
+
+    dispatch({
+      type: 'ADD_TO_CART',
+      payload: {
+        ...product,
+        id: defaultStorage ? `${product._id}-${defaultStorage}` : product._id,
+        _id: product._id,        // ← giữ lại _id gốc để dùng cho link
+        price: finalPrice,
+        selectedStorage: defaultStorage,
+        quantity: 1,
+      }
+    });
   };
 
   return (
