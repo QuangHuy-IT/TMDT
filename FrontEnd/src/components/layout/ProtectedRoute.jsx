@@ -8,6 +8,7 @@ const ProtectedRoute = ({ children, isAdmin = false }) => {
 
   // Giả sử trong state của bạn có thông tin user
   const { user, isAuthenticated } = state;
+  const hasAdminRole = user?.role?.toLowerCase?.() === 'admin';
 
   // 1. Kiểm tra xem đã đăng nhập chưa
   if (!isAuthenticated) {
@@ -17,7 +18,7 @@ const ProtectedRoute = ({ children, isAdmin = false }) => {
   }
 
   // 2. Nếu trang yêu cầu quyền Admin (dành cho các trang trong pages/admin)
-  if (isAdmin && user?.role !== 'admin') {
+  if (isAdmin && !hasAdminRole) {
     // Nếu không phải admin, đẩy về trang chủ hoặc trang báo lỗi 403
     return <Navigate to="/" replace />;
   }

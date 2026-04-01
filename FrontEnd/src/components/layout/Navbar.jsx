@@ -5,6 +5,7 @@ import { ShopContext } from '../../context/ShopContext';
 export const Navbar = () => {
   const { state, dispatch } = useContext(ShopContext);
   const { user, isAuthenticated } = state;
+  const isAdmin = user?.role?.toLowerCase?.() === 'admin';
   const navigate = useNavigate();
   const [searchValue, setSearchValue] = useState("");
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -104,7 +105,7 @@ export const Navbar = () => {
                     </div>
                     <Link to="/profile" className="block px-4 py-2 text-sm hover:bg-gray-50 hover:text-red-600" onClick={() => setIsUserMenuOpen(false)}>Hồ sơ của tôi</Link>
                     <Link to="/orders" className="block px-4 py-2 text-sm hover:bg-gray-50 hover:text-red-600" onClick={() => setIsUserMenuOpen(false)}>Đơn hàng</Link>
-                    {user?.role === 'admin' && (
+                    {isAdmin && (
                       <Link to="/admin" className="block px-4 py-2 text-sm text-blue-600 font-bold hover:bg-gray-50" onClick={() => setIsUserMenuOpen(false)}>Trang quản trị</Link>
                     )}
                     <hr className="my-1 border-gray-100" />

@@ -2,6 +2,14 @@ import React, { createContext, useReducer } from 'react';
 
 export const ShopContext = createContext();
 
+const normalizeUserRole = (user) => {
+  if (!user) return user;
+  return {
+    ...user,
+    role: typeof user.role === 'string' ? user.role.toLowerCase() : user.role,
+  };
+};
+
 const initialState = {
   cart: JSON.parse(localStorage.getItem('cart')) || [],
   isAuthenticated: localStorage.getItem('token') ? true : false,
@@ -54,13 +62,14 @@ const shopReducer = (state, action) => {
     // Xử lý authentication actions
     case 'LOGIN_SUCCESS': {
       const { token, refreshToken, user } = action.payload;
+      const normalizedUser = normalizeUserRole(user);
       localStorage.setItem('token', token);
       localStorage.setItem('refreshToken', refreshToken);
-      localStorage.setItem('user', JSON.stringify(user));
+      localStorage.setItem('user', JSON.stringify(normalizedUser));
       return {
         ...state,
         isAuthenticated: true,
-        user,
+        user: normalizedUser,
         token,
         refreshToken,
         error: null,
@@ -70,13 +79,14 @@ const shopReducer = (state, action) => {
 
     case 'REGISTER_SUCCESS': {
       const { token, refreshToken, user } = action.payload;
+      const normalizedUser = normalizeUserRole(user);
       localStorage.setItem('token', token);
       localStorage.setItem('refreshToken', refreshToken);
-      localStorage.setItem('user', JSON.stringify(user));
+      localStorage.setItem('user', JSON.stringify(normalizedUser));
       return {
         ...state,
         isAuthenticated: true,
-        user,
+        user: normalizedUser,
         token,
         refreshToken,
         error: null,
