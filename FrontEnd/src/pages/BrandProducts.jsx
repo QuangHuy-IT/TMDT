@@ -116,7 +116,7 @@ export const BrandProducts = () => {
 
             {displayedProducts.length > 0 ? (
               <>
-                <div className="grid [grid-template-columns:repeat(auto-fit,minmax(200px,1fr))] gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
                   {displayedProducts.map((product) => (
                     <ProductCard key={product._id || product.id} product={product} />
                   ))}

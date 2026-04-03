@@ -11,7 +11,7 @@ import { Home } from './pages/Home';
 import { TimKiem } from './pages/TimKiem';
 import { BrandProducts } from './pages/BrandProducts';
 import { ProductDetail } from './pages/ProductDetail';
-import { Cart } from './pages/Cart';
+import { Cart } from './pages/Cart/Cart';
 import { Checkout } from './pages/Checkout';
 import { Orders } from './pages/Orders';
 import { OrderDetail } from './pages/OrderDetail';

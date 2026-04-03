@@ -148,7 +148,7 @@ export const TimKiem = () => {
             {displayed.length > 0 ? (
               <>
                 {/* Grid Sản phẩm Responsive */}
-                <div className="grid [grid-template-columns:repeat(auto-fit,minmax(200px,1fr))] gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
                   {displayed.map((product) => (
                     <ProductCard key={product._id || product.id} product={product} />
                   ))}
