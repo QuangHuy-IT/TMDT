@@ -169,6 +169,7 @@ export const ProductDetail = () => {
       type: 'ADD_TO_CART',
       payload: {
         ...product,
+        id: selStorage ? `${product._id}-${selStorage}` : product._id, // Đồng bộ format ID
         quantity,
         selectedStorage: selStorage,
         selectedColor: selColor,
@@ -217,7 +218,7 @@ export const ProductDetail = () => {
         <nav className="flex items-center text-[10px] font-black uppercase tracking-widest text-gray-400 mb-8 gap-3">
           <span className="hover:text-red-600 cursor-pointer" onClick={() => navigate('/')}>Trang chủ</span>
           <span className="text-gray-300">/</span>
-          <span className="hover:text-red-600 cursor-pointer" onClick={() => navigate('/tim-kiem')}>Cửa hàng</span>
+          <span className="hover:text-red-600 cursor-pointer" onClick={() => navigate(`/${product.brand}`)}>{product.brand}</span>
           <span className="text-gray-300">/</span>
           <span className="text-gray-700 font-black">{product.name}</span>
         </nav>
@@ -388,19 +389,6 @@ export const ProductDetail = () => {
                     );
                   })}
                 </div>
-                {/* Màu tên hàng ngang */}
-                {/* <div className="flex flex-wrap gap-1.5 mt-2.5">
-                  {variants.colors.map((c) => (
-                    <button key={c.name} onClick={() => setSelColor(c)}
-                      className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all border ${
-                        selColor?.name === c.name
-                          ? 'bg-gray-900 text-white border-gray-900'
-                          : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'
-                      }`}>
-                      {c.name}
-                    </button>
-                  ))}
-                </div> */}
               </div>
             )}
 

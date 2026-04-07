@@ -15,16 +15,32 @@ export const ProductCard = ({ product }) => {
   const productId = product._id || product.id;
   const thumbnail = (product.images && product.images[0]) || product.image;
 
-  const handleAddToCart = () => {
+  const handleAddToCart = (e) => {
+    e.preventDefault(); // Chặn Link chuyển trang
     if (!isAuthenticated) {
       navigate('/login', { state: { from: location } });
       return;
     }
-    dispatch({ type: 'ADD_TO_CART', payload: { ...product, quantity: 1 } });
+
+    // Lấy cấu hình mặc định (phần tử đầu tiên)
+    const defaultStorage = product.variants?.storages?.[0] || "";
+    const finalPrice = product.variants?.basePrices?.[defaultStorage] || product.price;
+
+    dispatch({
+      type: 'ADD_TO_CART',
+      payload: {
+        ...product,
+        id: defaultStorage ? `${product._id}-${defaultStorage}` : product._id,
+        _id: product._id,        // ← giữ lại _id gốc để dùng cho link
+        price: finalPrice,
+        selectedStorage: defaultStorage,
+        quantity: 1,
+      }
+    });
   };
 
   return (
-    <div className="group bg-white border border-gray-100 rounded-2xl p-3 shadow-sm hover:shadow-xl transition-all duration-300">
+    <div className="group bg-white border border-gray-50 rounded-lg p-3 shadow-sm hover:shadow-xl transition-all duration-300">
       <Link to={`/product/${productId}`}>
         <div className="relative overflow-hidden rounded-xl mb-3">
           {product.discount && (
@@ -53,10 +69,26 @@ export const ProductCard = ({ product }) => {
         </Link>
         <Stars rating={product.rating} />
         <div className="flex items-center justify-between pt-2">
-          <span className="text-lg font-black text-red-600">{product.price.toLocaleString()}đ</span>
-          <Button className="!p-2 !px-3 text-xs" onClick={handleAddToCart} disabled={product.stock === 0}>
-            <i className="bi bi-cart-plus text-base"></i>
-          </Button>
+        {/* Giá tiền */}
+        <span className="text-lg font-black text-red-600">
+          {product.price.toLocaleString()}đ
+        </span>
+
+        {/* Nút thêm vào giỏ hàng dùng thuần Tailwind */}
+        <button
+          onClick={handleAddToCart}
+          disabled={product.stock === 0}
+          className={`
+            flex items-center justify-center 
+            p-2 px-3 rounded-lg transition-all duration-200
+            ${product.stock === 0 
+              ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
+              : 'bg-red-600 text-white hover:bg-red-700 active:scale-95 shadow-sm hover:shadow-md'
+            }
+          `}
+        >
+          <img src="/assets/images/icon/main/cart.svg" alt="cart" className="h-3 w-3 invert" />
+        </button>
         </div>
       </div>
     </div>

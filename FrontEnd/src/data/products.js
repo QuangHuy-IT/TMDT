@@ -1,6 +1,34 @@
 // src/data/products.js
 export const products = [
-  { _id:"65f1a2b3c4d5e6f7a8b9c001",name:"iPhone 15 Pro Max",brand:"Apple",price:29990000,description:"iPhone 15 Pro Max với thiết kế titan, chip A17 Pro mạnh mẽ nhất và hệ thống camera chuyên nghiệp với ống kính telephoto 5x.",images:["https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=800&q=80","https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=800&q=80"],stock:24,rating:4.9,numReviews:128,specifications:{screen:"6.7-inch Super Retina XDR OLED, 120Hz ProMotion",cpu:"Apple A17 Pro, 3nm",ram:"8GB",storage:"256GB / 512GB / 1TB",battery:"4422 mAh, sạc nhanh 27W",camera:"48MP chính + 12MP siêu rộng + 12MP telephoto 5x",os:"iOS 17",connectivity:"5G, Wi-Fi 6E, Bluetooth 5.3, USB-C"},variants:{storages:["256GB","512GB","1TB"],colors:[{name:"Natural Titanium",hex:"#B5A99A"},{name:"Blue Titanium",hex:"#5B7FA6"},{name:"White Titanium",hex:"#F0EFED"},{name:"Black Titanium",hex:"#3D3935"}],basePrices:{"256GB":29990000,"512GB":33990000,"1TB":38990000}},isFeatured:true,reviews:[],createdAt:"2026-01-10T08:00:00.000Z"},
+  { _id:"65f1a2b3c4d5e6f7a8b9c001",
+    name:"iPhone 15 Pro Max",
+    brand:"Apple",price:29990000,
+    description:"iPhone 15 Pro Max với thiết kế titan, chip A17 Pro mạnh mẽ nhất và hệ thống camera chuyên nghiệp với ống kính telephoto 5x.",
+    images:["https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=800&q=80","https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=800&q=80"],
+    stock:24,
+    rating:4.9,
+    numReviews:128,
+    specifications:{
+      screen:"6.7-inch Super Retina XDR OLED, 120Hz ProMotion",
+      cpu:"Apple A17 Pro, 3nm",
+      ram:"8GB",
+      storage:"256GB / 512GB / 1TB",
+      battery:"4422 mAh, sạc nhanh 27W",
+      camera:"48MP chính + 12MP siêu rộng + 12MP telephoto 5x",
+      os:"iOS 17",
+      connectivity:"5G, Wi-Fi 6E, Bluetooth 5.3, USB-C"
+    },
+    variants:{storages:["256GB","512GB","1TB"],
+      colors:[
+        {name:"Natural Titanium",hex:"#B5A99A"},
+        {name:"Blue Titanium",hex:"#5B7FA6"},
+        {name:"White Titanium",hex:"#F0EFED"},
+        {name:"Black Titanium",hex:"#3D3935"}
+      ],
+        basePrices:{"256GB":29990000,"512GB":33990000,"1TB":38990000}
+      },
+        isFeatured:true,reviews:[],createdAt:"2026-01-10T08:00:00.000Z"
+      },
   { _id:"65f1a2b3c4d5e6f7a8b9c002",name:"Samsung Galaxy S24 Ultra",brand:"Samsung",price:26500000,description:"Galaxy S24 Ultra với bút S Pen tích hợp, camera 200MP và AI thông minh Galaxy AI.",images:["https://images.unsplash.com/photo-1610945415295-d9bbf067e59c?w=800&q=80","https://images.unsplash.com/photo-1610945264803-c22b62d2a7b3?w=800&q=80"],stock:18,rating:4.8,numReviews:95,specifications:{screen:"6.8-inch Dynamic AMOLED 2X, 120Hz",cpu:"Snapdragon 8 Gen 3",ram:"12GB",storage:"256GB / 512GB / 1TB",battery:"5000 mAh, sạc nhanh 45W",camera:"200MP chính + 12MP siêu rộng + 10MP telephoto 3x + 50MP telephoto 5x",os:"Android 14, One UI 6.1",connectivity:"5G, Wi-Fi 7, Bluetooth 5.3, USB-C"},variants:{storages:["256GB","512GB","1TB"],colors:[{name:"Titanium Black",hex:"#2C2C2E"},{name:"Titanium Gray",hex:"#8C8C8E"},{name:"Titanium Violet",hex:"#7E6A96"},{name:"Titanium Yellow",hex:"#D4B96A"}],basePrices:{"256GB":26500000,"512GB":30500000,"1TB":35500000}},isFeatured:true,reviews:[],createdAt:"2026-01-12T08:00:00.000Z"},
   { _id:"65f1a2b3c4d5e6f7a8b9c003",name:"Xiaomi 14 Ultra",brand:"Xiaomi",price:22000000,description:"Xiaomi 14 Ultra trang bị hệ thống camera Leica chuyên nghiệp với ống kính 1 inch.",images:["https://images.unsplash.com/photo-1598327105666-5b89351aff97?w=800&q=80","https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=800&q=80"],stock:30,rating:4.7,numReviews:72,specifications:{screen:"6.73-inch LTPO AMOLED, 120Hz",cpu:"Snapdragon 8 Gen 3",ram:"16GB",storage:"256GB / 512GB",battery:"5000 mAh, sạc nhanh 90W",camera:"50MP Leica 1-inch + 50MP siêu rộng + 50MP telephoto 5x",os:"Android 14, HyperOS",connectivity:"5G, Wi-Fi 7, Bluetooth 5.4, USB-C"},variants:{storages:["256GB","512GB"],colors:[{name:"Titanium Gray",hex:"#8B8D8E"},{name:"Titanium White",hex:"#E8E4DC"},{name:"Titanium Black",hex:"#2A2A2C"}],basePrices:{"256GB":22000000,"512GB":25000000}},isFeatured:false,reviews:[],createdAt:"2026-01-15T08:00:00.000Z"},
   { _id:"65f1a2b3c4d5e6f7a8b9c004",name:"Oppo Find X7 Ultra",brand:"Oppo",price:19500000,description:"Oppo Find X7 Ultra thiết kế sang trọng, sạc siêu nhanh 100W và camera Hasselblad.",images:["https://images.unsplash.com/photo-1574944985070-8f3ebc6b79d2?w=800&q=80","https://images.unsplash.com/photo-1565849904461-04a58ad377e0?w=800&q=80"],stock:15,rating:4.6,numReviews:54,specifications:{screen:"6.82-inch LTPO AMOLED, 120Hz",cpu:"Snapdragon 8 Gen 3",ram:"16GB",storage:"256GB / 512GB",battery:"5000 mAh, sạc nhanh 100W",camera:"50MP Hasselblad + 50MP siêu rộng + 50MP telephoto",os:"Android 14, ColorOS 14",connectivity:"5G, Wi-Fi 7, Bluetooth 5.4, USB-C"},variants:{storages:["256GB","512GB"],colors:[{name:"Flowy Emerald",hex:"#4A7C6F"},{name:"Silky White",hex:"#F0EDE8"}],basePrices:{"256GB":19500000,"512GB":22500000}},isFeatured:false,reviews:[],createdAt:"2026-01-18T08:00:00.000Z"},
