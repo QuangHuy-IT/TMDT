@@ -1,5 +1,5 @@
-import React, { useState, useMemo, useRef } from 'react';
-import { products as initialProducts } from '../../data/products';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import ProductService from '../../services/productService';
 
 const ITEMS_PER_PAGE = 8;
 
@@ -13,7 +13,7 @@ const emptyForm = {
 };
 
 export const AdminProducts = () => {
-  const [productList, setProductList] = useState(initialProducts);
+  const [productList, setProductList] = useState([]);
   const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [showModal, setShowModal] = useState(false);
@@ -21,7 +21,27 @@ export const AdminProducts = () => {
   const [form, setForm] = useState(emptyForm);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [activeTab, setActiveTab] = useState('basic'); // 'basic' | 'specs'
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef(null);
+
+  useEffect(() => {
+    fetchProducts();
+  }, []);
+
+  const fetchProducts = async () => {
+    setLoading(true);
+    try {
+      const response = await ProductService.getAdminProducts();
+      setProductList(response.data || []);
+    } catch (error) {
+      console.error('Cannot load products', error);
+      alert('Không thể tải danh sách sản phẩm');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filtered = useMemo(() =>
     productList.filter(p =>
@@ -55,20 +75,30 @@ export const AdminProducts = () => {
   };
 
   // Xử lý upload ảnh — đọc file thành base64
-  const handleImageUpload = (e) => {
+  const handleImageUpload = async (e) => {
     const files = Array.from(e.target.files);
     if (!files.length) return;
 
-    files.forEach(file => {
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        setForm(f => ({
-          ...f,
-          images: [...f.images, ev.target.result],
-        }));
-      };
-      reader.readAsDataURL(file);
-    });
+    setUploading(true);
+    try {
+      const uploadedUrls = [];
+      for (const file of files) {
+        const response = await ProductService.uploadImage(file);
+        uploadedUrls.push(response.data.imageUrl);
+      }
+
+      setForm(f => ({
+        ...f,
+        images: [...f.images, ...uploadedUrls],
+      }));
+    } catch (error) {
+      console.error('Upload image failed', error);
+      const serverMessage = error.response?.data?.message || error.response?.data?.error;
+      alert(serverMessage || 'Upload ảnh thất bại');
+    } finally {
+      setUploading(false);
+    }
+
     // Reset input để có thể chọn lại cùng file
     e.target.value = '';
   };
@@ -77,36 +107,44 @@ export const AdminProducts = () => {
     setForm(f => ({ ...f, images: f.images.filter((_, i) => i !== index) }));
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.name.trim() || !form.brand.trim() || !form.price) return;
     const payload = {
       ...form,
       price: Number(form.price),
       stock: Number(form.stock) || 0,
     };
-    if (editingProduct) {
-      const id = editingProduct._id || editingProduct.id;
-      setProductList(prev => prev.map(p =>
-        (p._id === id || p.id === id) ? { ...p, ...payload } : p
-      ));
-    } else {
-      const newProduct = {
-        ...payload,
-        _id: `local_${Date.now()}`,
-        rating: 5,
-        numReviews: 0,
-        isFeatured: false,
-        reviews: [],
-        createdAt: new Date().toISOString(),
-      };
-      setProductList(prev => [newProduct, ...prev]);
+
+    setSaving(true);
+    try {
+      if (editingProduct) {
+        const id = editingProduct._id || editingProduct.id;
+        const response = await ProductService.updateProduct(id, payload);
+        setProductList(prev => prev.map(p =>
+          (p._id === id || p.id === id) ? response.data : p
+        ));
+      } else {
+        const response = await ProductService.createProduct(payload);
+        setProductList(prev => [response.data, ...prev]);
+      }
+      setShowModal(false);
+    } catch (error) {
+      console.error('Save product failed', error);
+      alert(error.response?.data?.message || 'Lưu sản phẩm thất bại');
+    } finally {
+      setSaving(false);
     }
-    setShowModal(false);
   };
 
-  const handleDelete = (id) => {
-    setProductList(prev => prev.filter(p => p._id !== id && p.id !== id));
-    setDeleteConfirm(null);
+  const handleDelete = async (id) => {
+    try {
+      await ProductService.deleteProduct(id);
+      setProductList(prev => prev.filter(p => p._id !== id && p.id !== id));
+      setDeleteConfirm(null);
+    } catch (error) {
+      console.error('Delete product failed', error);
+      alert(error.response?.data?.message || 'Xóa sản phẩm thất bại');
+    }
   };
 
   const getThumbnail = (p) => (p.images && p.images[0]) || p.image || '';
@@ -136,6 +174,9 @@ export const AdminProducts = () => {
 
       {/* Table */}
       <div className="bg-[#13151e] border border-white/5 rounded-2xl overflow-hidden">
+        {loading && (
+          <div className="px-6 py-4 text-sm text-gray-400 border-b border-white/5">Đang tải dữ liệu...</div>
+        )}
         <table className="w-full">
           <thead>
             <tr className="text-[10px] text-gray-500 uppercase tracking-widest border-b border-white/5">
@@ -280,12 +321,12 @@ export const AdminProducts = () => {
                     </label>
 
                     {/* Khu vực upload */}
-                    <button type="button" onClick={() => fileInputRef.current?.click()}
+                      <button type="button" onClick={() => fileInputRef.current?.click()} disabled={uploading}
                       className="w-full border-2 border-dashed border-white/10 rounded-xl py-6 flex flex-col items-center gap-2 text-gray-500 hover:border-red-500/40 hover:text-gray-300 transition-all">
                       <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                       </svg>
-                      <span className="text-xs font-bold">Nhấn để chọn ảnh</span>
+                      <span className="text-xs font-bold">{uploading ? 'Đang upload ảnh...' : 'Nhấn để chọn ảnh'}</span>
                       <span className="text-[10px] text-gray-600">JPG, PNG, WEBP — nhiều file cùng lúc</span>
                     </button>
                     <input
@@ -340,9 +381,9 @@ export const AdminProducts = () => {
                 className="flex-1 py-2.5 rounded-xl border border-white/10 text-sm text-gray-400 hover:text-white hover:border-white/20 transition-all">
                 Hủy
               </button>
-              <button onClick={handleSave}
+              <button onClick={handleSave} disabled={saving || uploading}
                 className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-sm font-bold text-white transition-all active:scale-95">
-                {editingProduct ? 'Lưu thay đổi' : 'Thêm sản phẩm'}
+                {saving ? 'Đang lưu...' : (editingProduct ? 'Lưu thay đổi' : 'Thêm sản phẩm')}
               </button>
             </div>
           </div>
