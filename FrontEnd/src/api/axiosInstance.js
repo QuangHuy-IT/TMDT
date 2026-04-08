@@ -1,14 +1,13 @@
 import axios from 'axios';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
+
 /**
  * Axios instance với cấu hình mặc định
  * Kết nối tới backend tại http://localhost:8080
  */
 const api = axios.create({
-  baseURL: 'http://localhost:8080/api',
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  baseURL: API_BASE_URL,
 });
 
 /**
@@ -63,7 +62,7 @@ api.interceptors.response.use(
 
         // Gọi API refresh token
         const response = await axios.post(
-          'http://localhost:8080/api/auth/refresh-token',
+          `${API_BASE_URL}/auth/refresh-token`,
           { refreshToken }
         );
 
