@@ -76,8 +76,27 @@ export const Register = () => {
 
   return (
     <main className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8 bg-white p-10 rounded-3xl shadow-xl border border-gray-100 animate-fade-in">
-        
+      <div className=" relative max-w-md w-full space-y-8 bg-white p-10 rounded-3xl shadow-xl border border-gray-100 animate-fade-in">
+        <Link 
+          to="/" 
+          className="absolute top-5 right-5 text-gray-400 hover:text-red-600 transition-colors p-2 hover:bg-red-50 rounded-full"
+          title="Quay lại trang chủ"
+        >
+          <svg 
+            xmlns="http://www.w3.org/2000/svg" 
+            className="h-6 w-6" 
+            fill="none" 
+            viewBox="0 0 24 24" 
+            stroke="currentColor"
+          >
+            <path 
+              strokeLinecap="round" 
+              strokeLinejoin="round" 
+              strokeWidth={2} 
+              d="M6 18L18 6M6 6l12 12" 
+            />
+          </svg>
+        </Link>
         {/* Header */}
         <div className="text-center">
           <h2 className="text-3xl font-black text-gray-900 tracking-tighter uppercase">
@@ -157,8 +176,8 @@ export const Register = () => {
               />
             </div>
 
-            {/* Năm sinh */}
-            <div>
+           
+            {/* <div>
               <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1 ml-1">
                 Năm Sinh (Tùy Chọn)
               </label>
@@ -173,7 +192,7 @@ export const Register = () => {
                 onChange={handleChange}
                 disabled={loading}
               />
-            </div>
+            </div> */}
 
             {/* Mật khẩu */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

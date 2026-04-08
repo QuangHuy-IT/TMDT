@@ -26,7 +26,7 @@ const fmt = (n) => n.toLocaleString('vi-VN') + '₫';
 // ─── Column header ─────────────────────────────────────────────────────────────
 const ColHeader = ({ allChecked, onToggleAll, totalItems }) => (
   <div
-    className="grid items-center gap-3 px-5 py-3 bg-white border-b border-gray-200"
+    className="grid items-center gap-3 px-5 py-3 bg-white border-b border-gray-100"
     style={{ gridTemplateColumns: '44px 1fr 130px 138px 120px 80px' }}
   >
     <div className="flex justify-center">
@@ -34,7 +34,7 @@ const ColHeader = ({ allChecked, onToggleAll, totalItems }) => (
         type="checkbox"
         checked={allChecked}
         onChange={(e) => onToggleAll(e.target.checked)}
-        className="w-[17px] h-[17px] rounded accent-[#ee4d2d] cursor-pointer"
+        className="w-[17px] h-[17px] rounded accent-red-600 cursor-pointer"
       />
     </div>
     <span className="text-[13px] text-gray-500">
@@ -61,8 +61,8 @@ const EmptyCart = () => (
     <p className="text-[13px] text-gray-400 mb-7">Hãy khám phá và thêm sản phẩm bạn yêu thích!</p>
     <Link
       to="/"
-      className="px-8 py-2.5 bg-[#ee4d2d] text-white text-[14px] font-medium
-                 rounded hover:bg-[#d73211] active:scale-[0.98] transition-all"
+      className="px-8 py-2.5 bg-red-600 text-white text-[14px] font-medium
+                 rounded hover:bg-red-700 active:scale-[0.98] transition-all"
     >
       Mua ngay
     </Link>
@@ -89,9 +89,7 @@ export const Cart = () => {
   }));
 
   // ── Selection state ──────────────────────────────────────────────────────────
-  const [selectedIds, setSelectedIds] = useState(
-    () => new Set(enriched.map((i) => i.cartId))
-  );
+  const [selectedIds, setSelectedIds] = useState(() => new Set());
 
   // Prune stale ids when cart items are removed
   useEffect(() => {
@@ -157,12 +155,12 @@ export const Cart = () => {
 
   // ── Render ───────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-[#f5f5f5] pb-28">
-      <div className="max-w-[980px] mx-auto px-3 py-5 space-y-2.5">
+    <div className="min-h-screen bg-gray-50 pb-28">
+      <div className="max-w-6xl mx-auto px-4 py-8 space-y-3">
 
         {/* ── Page title ── */}
-        <div className="flex items-center gap-2 text-[13px] text-gray-500 mb-1">
-          <Link to="/" className="hover:text-[#ee4d2d] transition-colors">Trang chủ</Link>
+        <div className="flex items-center gap-2 text-[13px] text-gray-500 mb-2">
+          <Link to="/" className="hover:text-red-600 transition-colors">Trang chủ</Link>
           <span>/</span>
           <span className="text-gray-700 font-medium">Giỏ hàng</span>
           {cart.length > 0 && (
@@ -172,13 +170,13 @@ export const Cart = () => {
 
         {cart.length === 0 ? (
           /* ── Empty state ── */
-          <div className="rounded-sm border border-gray-200 overflow-hidden">
+          <div className="rounded-2xl border border-gray-100 overflow-hidden shadow-sm bg-white">
             <EmptyCart />
           </div>
         ) : (
           <>
             {/* ── Cart table ── */}
-            <div className="rounded-sm border border-gray-200 overflow-hidden bg-white">
+            <div className="rounded-[28px] border border-gray-100 overflow-hidden bg-white shadow-sm">
               {/* Column header */}
               <ColHeader
                 allChecked={allChecked}
@@ -194,14 +192,14 @@ export const Cart = () => {
                 return (
                   <div key={brand}>
                     {/* Shop / brand sub-header */}
-                    <div className="flex items-center gap-2.5 px-5 py-2.5 bg-orange-50 border-b border-gray-100">
+                    <div className="flex items-center gap-2.5 px-5 py-2.5 bg-red-50 border-b border-gray-100">
                       <input
                         type="checkbox"
                         checked={brandChecked}
                         onChange={(e) => handleToggleBrand(brand, e.target.checked)}
-                        className="w-[17px] h-[17px] rounded accent-[#ee4d2d] cursor-pointer"
+                        className="w-[17px] h-[17px] rounded accent-red-600 cursor-pointer"
                       />
-                      <div className="flex items-center gap-1.5 text-[13px] font-semibold text-[#ee4d2d]">
+                      <div className="flex items-center gap-1.5 text-[13px] font-semibold text-red-600">
                         {/* Store icon */}
                         <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none"
                              stroke="currentColor" strokeWidth="2">
@@ -237,7 +235,7 @@ export const Cart = () => {
             />
 
             {/* ── Order summary card (above sticky bar) ── */}
-            <div className="bg-white rounded-sm border border-gray-200 px-5 py-4">
+            <div className="bg-white rounded-[28px] border border-gray-100 px-6 py-5 shadow-sm">
               <div className="flex items-center justify-between text-[13.5px] text-gray-500 mb-2">
                 <span>Tạm tính ({selectedQty} sản phẩm)</span>
                 <span className="font-medium text-gray-700">{fmt(grandTotal)}</span>
@@ -248,11 +246,11 @@ export const Cart = () => {
               </div>
               <div className="flex items-center justify-between text-[13.5px] text-gray-500 mb-3">
                 <span>Giảm giá voucher</span>
-                <span className="text-[#ee4d2d] font-medium">−0₫</span>
+                <span className="text-red-600 font-medium">−0₫</span>
               </div>
               <div className="border-t border-dashed border-gray-200 pt-3 flex items-center justify-between">
                 <span className="text-[14px] font-semibold text-gray-800">Tổng cộng</span>
-                <span className="text-[20px] font-bold text-[#ee4d2d]">{fmt(grandTotal)}</span>
+                <span className="text-[20px] font-bold text-red-600">{fmt(grandTotal)}</span>
               </div>
             </div>
           </>
