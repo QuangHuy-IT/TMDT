@@ -4,6 +4,7 @@ import { ShopContext } from '../../context/ShopContext';
 import Stars from './Stars';
 import Badge from './Badge';
 import Button from './Button';
+import { getProductThumbnail, priceToNumber } from '../../utils/catalog';
 
 export const ProductCard = ({ product }) => {
   const { state, dispatch } = useContext(ShopContext);
@@ -13,7 +14,7 @@ export const ProductCard = ({ product }) => {
 
   // Schema mới dùng _id và images[], fallback cho schema cũ
   const productId = product._id || product.id;
-  const thumbnail = (product.images && product.images[0]) || product.image;
+  const thumbnail = getProductThumbnail(product);
 
   const handleAddToCart = (e) => {
     e.preventDefault(); // Chặn Link chuyển trang
@@ -24,7 +25,7 @@ export const ProductCard = ({ product }) => {
 
     // Lấy cấu hình mặc định (phần tử đầu tiên)
     const defaultStorage = product.variants?.storages?.[0] || "";
-    const finalPrice = product.variants?.basePrices?.[defaultStorage] || product.price;
+    const finalPrice = priceToNumber(product.variants?.basePrices?.[defaultStorage] || product.price);
 
     dispatch({
       type: 'ADD_TO_CART',
@@ -71,7 +72,7 @@ export const ProductCard = ({ product }) => {
         <div className="flex items-center justify-between pt-2">
         {/* Giá tiền */}
         <span className="text-lg font-black text-red-600">
-          {product.price.toLocaleString()}đ
+          {priceToNumber(product.price).toLocaleString()}đ
         </span>
 
         {/* Nút thêm vào giỏ hàng dùng thuần Tailwind */}

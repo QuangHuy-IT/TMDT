@@ -1,10 +1,11 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { products } from '../data/products';
 import { brands } from '../data/brands';
 import { ProductCard } from '../components/ui/ProductCard';
-import { FilterSidebar, DEFAULT_FILTERS, applyFilters } from '../components/ui/FilterSidebar';
+import { FilterSidebar, DEFAULT_FILTERS } from '../components/ui/FilterSidebar';
 import LoadMoreButton from '../components/ui/LoadMoreButton';
+import { usePublicProducts } from '../hooks/usePublicProducts';
+import { applyCatalogFilters, deriveCatalogOptions } from '../utils/catalog';
 
 const ITEMS_PER_PAGE = 20;
 const ALL_BRANDS = brands.map((b) => b.name);
@@ -13,6 +14,7 @@ export const TimKiem = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const searchQuery = searchParams.get('key') || '';
+  const { products, loading } = usePublicProducts();
 
   const [sortBy, setSortBy] = useState('default');
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
@@ -30,6 +32,8 @@ export const TimKiem = () => {
     setVisibleCount(ITEMS_PER_PAGE); 
   }, [filters, sortBy]);
 
+  const catalogOptions = useMemo(() => deriveCatalogOptions(products), [products]);
+
   // Logic Lọc và Sắp xếp
   const filteredProducts = useMemo(() => {
     let result = [...products];
@@ -44,7 +48,7 @@ export const TimKiem = () => {
     }
 
     // 2. Áp dụng bộ lọc specifications (RAM, Pin, Giá...)
-    result = applyFilters(result, filters);
+    result = applyCatalogFilters(result, filters);
 
     // 3. Sắp xếp
     if (sortBy === 'low-to-high') result.sort((a, b) => a.price - b.price);
@@ -139,13 +143,18 @@ export const TimKiem = () => {
             allBrands={ALL_BRANDS}
             isOpen={isSidebarOpen}
             onClose={() => setIsSidebarOpen(false)}
+            availableColors={catalogOptions.colors}
+            availableStorages={catalogOptions.storages}
+            availableRams={catalogOptions.rams}
           />
 
           {/* Main Content */}
           <div className="flex-1 min-w-0">
-            
-
-            {displayed.length > 0 ? (
+            {loading ? (
+              <div className="py-32 text-center bg-white rounded-[3rem] shadow-sm border border-gray-100">
+                <p className="text-gray-500 text-sm font-bold uppercase tracking-widest">Đang tải sản phẩm...</p>
+              </div>
+            ) : displayed.length > 0 ? (
               <>
                 {/* Grid Sản phẩm Responsive */}
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">

@@ -23,6 +23,15 @@ const navItems = [
     label: 'Sản phẩm',
   },
   {
+    to: '/admin/inventory',
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V7a2 2 0 00-2-2h-3M4 11v6a2 2 0 002 2h3m2-12h2m-1-1v2m-7 8H4m1-1v2m10-2h5m-2.5-2.5v5" />
+      </svg>
+    ),
+    label: 'Kho',
+  },
+  {
     to: '/admin/orders',
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

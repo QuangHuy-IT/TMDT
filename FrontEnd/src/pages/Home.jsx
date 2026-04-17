@@ -1,14 +1,15 @@
 // src/pages/Home.jsx  (updated)
 
-import React, { useContext, useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShopContext } from '../context/ShopContext';
-import { products } from '../data/products';
 import { brands } from '../data/brands';
 import { banners } from '../data/banners';
 import { ProductCard } from '../components/ui/ProductCard';
-import { FilterSidebar, DEFAULT_FILTERS, applyFilters } from '../components/ui/FilterSidebar';
+import { FilterSidebar, DEFAULT_FILTERS } from '../components/ui/FilterSidebar';
 import LoadMoreButton from '../components/ui/LoadMoreButton';
+import { usePublicProducts } from '../hooks/usePublicProducts';
+import { usePublicBrands } from '../hooks/usePublicBrands';
+import { applyCatalogFilters, deriveCatalogOptions } from '../utils/catalog';
 
 const ITEMS_PER_PAGE = 20; // 5 cột × 4 hàng
 const ALL_BRANDS = brands.map((b) => b.name);
@@ -16,6 +17,8 @@ const ALL_BRANDS = brands.map((b) => b.name);
 // ─── Main ────────────────────────────────────────────────────────────────────
 export const Home = () => {
   const navigate = useNavigate();
+  const { products, loading } = usePublicProducts();
+  const { brands: apiBrands } = usePublicBrands();
   const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
   const [activeSlide, setActiveSlide] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
@@ -41,9 +44,12 @@ export const Home = () => {
     setFilters(newFilters);
   };
 
+  const catalogOptions = useMemo(() => deriveCatalogOptions(products), [products]);
+  const displayBrands = apiBrands.length > 0 ? apiBrands : brands;
+
   // Lọc + sắp xếp
   const filtered = useMemo(() => {
-    let list = applyFilters(products, filters);
+    let list = applyCatalogFilters(products, filters);
     switch (sortBy) {
       case 'price-asc':  list.sort((a, b) => a.price - b.price); break;
       case 'price-desc': list.sort((a, b) => b.price - a.price); break;
@@ -104,8 +110,8 @@ export const Home = () => {
           <div className="flex-1 h-px bg-gray-200" />
         </div>
         <div className="flex flex-wrap gap-2">
-          {brands.map((brand) => (
-            <button key={brand._id} onClick={() => navigate(`/${brand.slug}`)}
+          {displayBrands.map((brand) => (
+            <button key={brand.id || brand._id || brand.slug} onClick={() => navigate(`/${brand.slug}`)}
               className="group px-4 py-2 bg-white border border-gray-200 rounded-sm transition-all hover:bg-white">
               <span className="text-xs font-bold text-gray-600 group-hover:text-red-600 uppercase tracking-tight whitespace-nowrap transition-colors">
                 {brand.name}
@@ -124,6 +130,12 @@ export const Home = () => {
             <h2 className="text-2xl font-black text-gray-900 tracking-tight">Tất cả sản phẩm</h2>
             <p className="text-sm text-gray-400 mt-0.5">{filtered.length} sản phẩm</p>
           </div>
+          <button
+            onClick={() => setIsSidebarOpen(true)}
+            className="lg:hidden px-4 py-2 rounded-xl bg-white border border-gray-200 text-[10px] font-black uppercase tracking-widest text-gray-700"
+          >
+            Bộ lọc
+          </button>
           <div className="flex items-center gap-2">
             {[
               { key: 'featured',   label: 'Nổi bật' },
@@ -150,11 +162,20 @@ export const Home = () => {
             filters={filters}
             onChange={handleFiltersChange}
             allBrands={ALL_BRANDS}
+            isOpen={isSidebarOpen}
+            onClose={() => setIsSidebarOpen(false)}
+            availableColors={catalogOptions.colors}
+            availableStorages={catalogOptions.storages}
+            availableRams={catalogOptions.rams}
           />
 
           {/* Grid sản phẩm */}
           <div className="flex-1 min-w-0">
-            {displayed.length === 0 ? (
+            {loading ? (
+              <div className="py-32 text-center bg-white rounded-3xl border border-gray-100">
+                <p className="text-gray-500 text-sm font-bold uppercase tracking-widest">Đang tải sản phẩm...</p>
+              </div>
+            ) : displayed.length === 0 ? (
               <div className="text-center py-32 bg-white rounded-3xl border border-dashed border-gray-200">
                 <p className="text-5xl mb-4">🔍</p>
                 <p className="font-black text-gray-800 text-lg uppercase tracking-widest mb-2">Không có sản phẩm</p>

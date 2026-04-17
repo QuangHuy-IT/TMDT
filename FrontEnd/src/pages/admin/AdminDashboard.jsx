@@ -1,7 +1,7 @@
-import React, { useContext, useMemo } from 'react';
+import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ShopContext } from '../../context/ShopContext';
-import { products } from '../../data/products';
+import ProductService from '../../services/productService';
 
 // Dữ liệu mẫu cho biểu đồ doanh thu
 const revenueData = [
@@ -47,10 +47,39 @@ const StatCard = ({ label, value, sub, icon, accent }) => (
 export const AdminDashboard = () => {
   const { state } = useContext(ShopContext);
   const navigate = useNavigate();
+  const [products, setProducts] = useState([]);
+  const [loadingProducts, setLoadingProducts] = useState(false);
+
+  useEffect(() => {
+    const fetchAdminProducts = async () => {
+      setLoadingProducts(true);
+      try {
+        const response = await ProductService.getAdminProducts();
+        setProducts(Array.isArray(response.data) ? response.data : []);
+      } catch (error) {
+        console.error('Cannot load products for admin dashboard', error);
+        setProducts([]);
+      } finally {
+        setLoadingProducts(false);
+      }
+    };
+
+    fetchAdminProducts();
+  }, []);
+
+  const topProducts = useMemo(() => products.slice(0, 5), [products]);
 
   const totalRevenue = mockOrders
     .filter(o => o.status === 'Đã giao')
     .reduce((s, o) => s + o.total, 0);
+
+  const formatPrice = (price) => Number(price || 0).toLocaleString();
+  const getThumbnail = (product) => {
+    if (Array.isArray(product.images) && product.images.length > 0) {
+      return product.images[0];
+    }
+    return product.image || '';
+  };
 
   return (
     <div className="space-y-6">
@@ -80,7 +109,7 @@ export const AdminDashboard = () => {
         <StatCard
           label="Sản phẩm"
           value={products.length}
-          sub="5 thương hiệu"
+          sub={loadingProducts ? 'Đang đồng bộ dữ liệu...' : 'Từ hệ thống backend'}
           accent="bg-purple-500"
           icon={<svg className="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>}
         />
@@ -132,19 +161,27 @@ export const AdminDashboard = () => {
         <div className="bg-[#13151e] border border-white/5 rounded-2xl p-6">
           <h2 className="text-sm font-bold text-white mb-5">Top sản phẩm</h2>
           <div className="space-y-4">
-            {products.slice(0, 5).map((p, i) => (
-              <div key={p.id} className="flex items-center gap-3">
+            {topProducts.map((p, i) => (
+              <div key={p.id || p._id || `${p.name}-${i}`} className="flex items-center gap-3">
                 <span className="text-[10px] font-black text-gray-600 w-4">{i + 1}</span>
-                <img src={p.image} alt="" className="w-8 h-8 object-contain bg-white/5 rounded-lg p-0.5 flex-shrink-0" />
+                <img
+                  src={getThumbnail(p)}
+                  alt=""
+                  className="w-8 h-8 object-contain bg-white/5 rounded-lg p-0.5 flex-shrink-0"
+                  onError={(e) => { e.target.src = 'https://picsum.photos/seed/fallback/80/80'; }}
+                />
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-medium text-white truncate">{p.name}</p>
-                  <p className="text-[10px] text-gray-500">{p.price.toLocaleString()}₫</p>
+                  <p className="text-[10px] text-gray-500">{formatPrice(p.price)}₫</p>
                 </div>
                 <span className="text-[10px] text-gray-500 font-mono">
                   {Math.floor(Math.random() * 50 + 10)} đã bán
                 </span>
               </div>
             ))}
+            {!loadingProducts && topProducts.length === 0 && (
+              <p className="text-xs text-gray-500">Chưa có dữ liệu sản phẩm từ backend.</p>
+            )}
           </div>
         </div>
       </div>

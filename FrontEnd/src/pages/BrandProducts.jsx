@@ -3,18 +3,21 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { products } from '../data/products';
 import { ProductCard } from '../components/ui/ProductCard';
-import { FilterSidebar, DEFAULT_FILTERS, applyFilters } from '../components/ui/FilterSidebar';
+import { FilterSidebar, DEFAULT_FILTERS } from '../components/ui/FilterSidebar';
+import { usePublicProducts } from '../hooks/usePublicProducts';
+import { applyCatalogFilters, deriveCatalogOptions } from '../utils/catalog';
 
 const ITEMS_PER_PAGE = 20;
 
 export const BrandProducts = () => {
   const { brandName } = useParams();
   const navigate = useNavigate();
+  const { products, loading } = usePublicProducts();
   const [currentPage, setCurrentPage] = useState(1);
   const [sortBy, setSortBy] = useState('default');
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // Reset khi brand đổi
   useEffect(() => {
@@ -24,17 +27,20 @@ export const BrandProducts = () => {
 
   useEffect(() => { setCurrentPage(1); }, [filters, sortBy]);
 
+  const catalogOptions = useMemo(() => deriveCatalogOptions(products), [products]);
+
   const filteredProducts = useMemo(() => {
     // Chỉ lấy sản phẩm đúng brand trước
-    let base = products.filter((p) => p.brand.toLowerCase() === brandName.toLowerCase());
+    let base = products.filter((p) => String(p.brand || '').toLowerCase() === brandName.toLowerCase());
     // Áp dụng sidebar filter (bỏ qua selectedBrands vì đang trong trang brand)
-    base = applyFilters(base, { ...filters, selectedBrands: [] });
+    base = applyCatalogFilters(base, { ...filters, selectedBrands: [] });
     // Sắp xếp
-    if (sortBy === 'low-to-high') base.sort((a, b) => a.price - b.price);
-    if (sortBy === 'high-to-low') base.sort((a, b) => b.price - a.price);
+    if (sortBy === 'low-to-high' || sortBy === 'price-asc') base.sort((a, b) => a.price - b.price);
+    if (sortBy === 'high-to-low' || sortBy === 'price-desc') base.sort((a, b) => b.price - a.price);
     if (sortBy === 'rating')      base.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+    if (sortBy === 'newest')      base.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     return base;
-  }, [brandName, filters, sortBy]);
+  }, [products, brandName, filters, sortBy]);
 
   const totalPages = Math.ceil(filteredProducts.length / ITEMS_PER_PAGE);
   const displayedProducts = filteredProducts.slice(
@@ -74,6 +80,13 @@ export const BrandProducts = () => {
         {/* Sort bar Desktop */}
         <div className="flex items-center justify-between mb-6 gap-4 flex-wrap">
 
+          <button
+            onClick={() => setIsSidebarOpen(true)}
+            className="lg:hidden px-4 py-2 rounded-xl bg-white border border-gray-200 text-[10px] font-black uppercase tracking-widest text-gray-700"
+          >
+            Bộ lọc
+          </button>
+
           {/* Chèn nội dung bên trái ở đây nếu có (ví dụ: "Số lượng sản phẩm") */}
           {/* Nếu không có gì bên trái, ml-auto sẽ đẩy toàn bộ cụm này về phía bên phải cực đại */}
 
@@ -109,12 +122,20 @@ export const BrandProducts = () => {
             filters={filters}
             onChange={setFilters}
             hideBrand
+            isOpen={isSidebarOpen}
+            onClose={() => setIsSidebarOpen(false)}
+            availableColors={catalogOptions.colors}
+            availableStorages={catalogOptions.storages}
+            availableRams={catalogOptions.rams}
           />
 
           {/* Nội dung chính */}
           <div className="flex-1 min-w-0">
-
-            {displayedProducts.length > 0 ? (
+            {loading ? (
+              <div className="py-32 text-center bg-white rounded-[3rem] shadow-sm border border-gray-100">
+                <p className="text-gray-500 text-sm font-bold uppercase tracking-widest">Đang tải sản phẩm...</p>
+              </div>
+            ) : displayedProducts.length > 0 ? (
               <>
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
                   {displayedProducts.map((product) => (

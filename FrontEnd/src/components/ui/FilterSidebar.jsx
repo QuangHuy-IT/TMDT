@@ -1,4 +1,7 @@
 import React, { useEffect } from 'react';
+import { applyCatalogFilters } from '../../utils/catalog';
+
+const DEFAULT_COLOR_OPTIONS = ['Đen', 'Trắng', 'Xanh', 'Tím', 'Vàng', 'Bạc', 'Xám', 'Hồng', 'Đỏ', 'Nâu'];
 
 // --- Constants ---
 const PRICE_RANGES = [
@@ -9,14 +12,13 @@ const PRICE_RANGES = [
   { label: 'Trên 30 triệu', min: 30_000_000, max: Infinity },
 ];
 
-const STORAGE_OPTIONS = ['64GB', '128GB', '256GB', '512GB', '1TB'];
-const RAM_OPTIONS = ['4GB', '6GB', '8GB', '12GB', '16GB'];
 const SCREEN_SIZES = ['Dưới 6.1"', '6.1 – 6.5"', '6.5 – 6.9"', 'Trên 6.9"'];
 
 export const DEFAULT_FILTERS = {
   priceRange: null,
   storages: [],
   rams: [],
+  colors: [],
   screenSizes: [],
   inStockOnly: false,
 };
@@ -52,7 +54,7 @@ const CheckRow = ({ label, checked, onChange }) => (
 );
 
 // --- Main Filter Component ---
-export const FilterSidebar = ({ filters, onChange, isOpen, onClose }) => {
+export const FilterSidebar = ({ filters, onChange, isOpen, onClose, availableColors = [], availableStorages = [], availableRams = [] }) => {
   // Khóa cuộn trang khi mở menu trên mobile
   useEffect(() => {
     document.body.style.overflow = isOpen ? 'hidden' : 'unset';
@@ -71,9 +73,14 @@ export const FilterSidebar = ({ filters, onChange, isOpen, onClose }) => {
     filters.priceRange ? 1 : 0,
     filters.storages.length,
     filters.rams.length,
+    filters.colors?.length || 0,
     filters.screenSizes.length,
     filters.inStockOnly ? 1 : 0
   ].reduce((a, b) => a + b, 0);
+
+  const storageOptions = availableStorages.length > 0 ? availableStorages : ['64GB', '128GB', '256GB', '512GB', '1TB'];
+  const ramOptions = availableRams.length > 0 ? availableRams : ['4GB', '6GB', '8GB', '12GB', '16GB'];
+  const colorOptions = availableColors.length > 0 ? availableColors : DEFAULT_COLOR_OPTIONS;
 
   return (
     <>
@@ -105,13 +112,19 @@ export const FilterSidebar = ({ filters, onChange, isOpen, onClose }) => {
 
           <Section title="RAM">
             <div className="grid grid-cols-3 gap-1.5">
-              {RAM_OPTIONS.map(v => <Chip key={v} label={v} active={filters.rams.includes(v)} onClick={() => toggleArrayFilter('rams', v)} />)}
+              {ramOptions.map(v => <Chip key={v} label={v} active={filters.rams.includes(v)} onClick={() => toggleArrayFilter('rams', v)} />)}
             </div>
           </Section>
 
           <Section title="Bộ nhớ">
             <div className="grid grid-cols-3 gap-1.5">
-              {STORAGE_OPTIONS.map(v => <Chip key={v} label={v} active={filters.storages.includes(v)} onClick={() => toggleArrayFilter('storages', v)} />)}
+              {storageOptions.map(v => <Chip key={v} label={v} active={filters.storages.includes(v)} onClick={() => toggleArrayFilter('storages', v)} />)}
+            </div>
+          </Section>
+
+          <Section title="Màu sắc">
+            <div className="flex flex-wrap gap-1.5">
+              {colorOptions.map(v => <Chip key={v} label={v} active={filters.colors?.includes(v)} onClick={() => toggleArrayFilter('colors', v)} />)}
             </div>
           </Section>
 
@@ -129,15 +142,4 @@ export const FilterSidebar = ({ filters, onChange, isOpen, onClose }) => {
 };
 
 // --- Logic lọc dữ liệu ---
-export const applyFilters = (products, filters) => {
-  return products.filter(p => {
-    if (filters.priceRange && (p.price < filters.priceRange.min || p.price > filters.priceRange.max)) return false;
-    if (filters.inStockOnly && (p.stock || 0) <= 0) return false;
-    
-    const specs = p.specifications || {};
-    if (filters.rams.length > 0 && !filters.rams.some(r => (specs.ram || '').includes(r))) return false;
-    if (filters.storages.length > 0 && !filters.storages.some(s => (specs.storage || '').includes(s))) return false;
-    
-    return true;
-  });
-};
+export const applyFilters = applyCatalogFilters;

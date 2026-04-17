@@ -11,6 +11,11 @@ import com.tmdt.phone_store_backend.domain.enums.ProductStatus;
 import com.tmdt.phone_store_backend.domain.enums.StockStatus;
 import com.tmdt.phone_store_backend.dto.AdminProductDto;
 import com.tmdt.phone_store_backend.dto.AdminProductRequestDto;
+import com.tmdt.phone_store_backend.dto.AdminProductVariantDto;
+import com.tmdt.phone_store_backend.dto.AdminProductVariantRequestDto;
+import com.tmdt.phone_store_backend.dto.ProductVariantColorDto;
+import com.tmdt.phone_store_backend.dto.ProductVariantOptionDto;
+import com.tmdt.phone_store_backend.exception.ResourceAlreadyExistsException;
 import com.tmdt.phone_store_backend.exception.ResourceNotFoundException;
 import com.tmdt.phone_store_backend.repository.BrandRepository;
 import com.tmdt.phone_store_backend.repository.CategoryRepository;
@@ -23,10 +28,13 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.HashSet;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Optional;
+import java.util.Objects;
+import java.util.Set;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -50,6 +58,18 @@ public class ProductAdminService {
                 .toList();
     }
 
+    public AdminProductDto getPublicProductDetail(String idOrSlug) {
+        Product product;
+        if (idOrSlug != null && idOrSlug.matches("^[0-9]+$")) {
+            product = productRepository.findByIdAndDeletedAtIsNull(Long.parseLong(idOrSlug))
+                    .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm: " + idOrSlug));
+        } else {
+            product = productRepository.findBySlugAndDeletedAtIsNull(idOrSlug)
+                    .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm: " + idOrSlug));
+        }
+        return toDto(product);
+    }
+
     public AdminProductDto createProduct(AdminProductRequestDto requestDto) {
         Brand brand = getOrCreateBrand(requestDto.getBrand());
         Category category = getOrCreateDefaultCategory();
@@ -69,24 +89,7 @@ public class ProductAdminService {
         product.setUpdatedAt(now);
         Product savedProduct = productRepository.save(product);
 
-        ProductVariant variant = new ProductVariant();
-        variant.setProduct(savedProduct);
-        variant.setSku("SKU-" + savedProduct.getId() + "-DEFAULT");
-        variant.setColor("Default");
-        variant.setPrice(requestDto.getPrice());
-        variant.setIsActive(Boolean.TRUE);
-        variant.setCreatedAt(now);
-        variant.setUpdatedAt(now);
-        ProductVariant savedVariant = productVariantRepository.save(variant);
-
-        Inventory inventory = new Inventory();
-        inventory.setVariant(savedVariant);
-        inventory.setQuantityOnHand(Math.max(0, requestDto.getStock()));
-        inventory.setQuantityReserved(0);
-        inventory.setReorderLevel(5);
-        inventory.setStockStatus(resolveStockStatus(requestDto.getStock()));
-        inventory.setUpdatedAt(now);
-        inventoryRepository.save(inventory);
+        saveVariants(savedProduct, requestDto, now);
 
         saveImages(savedProduct, requestDto.getImages(), now);
         saveSpecifications(savedProduct, requestDto.getSpecifications(), now);
@@ -109,32 +112,8 @@ public class ProductAdminService {
         product.setUpdatedAt(now);
         productRepository.save(product);
 
-        ProductVariant variant = productVariantRepository.findFirstByProductIdOrderByIdAsc(id)
-                .orElseGet(() -> {
-                    ProductVariant newVariant = new ProductVariant();
-                    newVariant.setProduct(product);
-                    newVariant.setSku("SKU-" + product.getId() + "-DEFAULT");
-                    newVariant.setColor("Default");
-                    newVariant.setCreatedAt(now);
-                    return newVariant;
-                });
-        variant.setPrice(requestDto.getPrice());
-        variant.setIsActive(Boolean.TRUE);
-        variant.setUpdatedAt(now);
-        ProductVariant savedVariant = productVariantRepository.save(variant);
-
-        Inventory inventory = inventoryRepository.findByVariantId(savedVariant.getId())
-                .orElseGet(() -> {
-                    Inventory inv = new Inventory();
-                    inv.setVariant(savedVariant);
-                    inv.setQuantityReserved(0);
-                    inv.setReorderLevel(5);
-                    return inv;
-                });
-        inventory.setQuantityOnHand(Math.max(0, requestDto.getStock()));
-        inventory.setStockStatus(resolveStockStatus(requestDto.getStock()));
-        inventory.setUpdatedAt(now);
-        inventoryRepository.save(inventory);
+        deleteVariantsByProductId(id);
+        saveVariants(product, requestDto, now);
 
         productImageRepository.deleteByProductId(id);
         saveImages(product, requestDto.getImages(), now);
@@ -152,28 +131,56 @@ public class ProductAdminService {
         productImageRepository.deleteByProductId(id);
         productSpecificationRepository.deleteByProductId(id);
 
-        List<ProductVariant> variants = productVariantRepository.findByProductId(id);
-        for (ProductVariant variant : variants) {
-            inventoryRepository.findByVariantId(variant.getId())
-                    .ifPresent(inventoryRepository::delete);
-        }
-        productVariantRepository.deleteAll(variants);
+        deleteVariantsByProductId(id);
         productRepository.delete(product);
     }
 
     private AdminProductDto toDto(Product product) {
-        Optional<ProductVariant> variantOpt = productVariantRepository.findFirstByProductIdOrderByIdAsc(
-                product.getId());
+        List<ProductVariant> variants = productVariantRepository.findByProductId(product.getId());
         int stock = 0;
         BigDecimal price = BigDecimal.ZERO;
+        List<AdminProductVariantDto> variantItems = new ArrayList<>();
+        Map<String, BigDecimal> basePrices = new LinkedHashMap<>();
+        Map<String, ProductVariantColorDto> colorOptions = new LinkedHashMap<>();
 
-        if (variantOpt.isPresent()) {
-            ProductVariant variant = variantOpt.get();
-            price = variant.getPrice();
-            stock = inventoryRepository.findByVariantId(variant.getId())
+        for (ProductVariant variant : variants) {
+            int variantStock = inventoryRepository.findByVariantId(variant.getId())
                     .map(Inventory::getQuantityOnHand)
                     .orElse(0);
+            BigDecimal variantPrice = variant.getPrice() == null ? BigDecimal.ZERO : variant.getPrice();
+
+            stock += variantStock;
+            if (price.compareTo(BigDecimal.ZERO) == 0 || variantPrice.compareTo(price) < 0) {
+                price = variantPrice;
+            }
+
+            String storageLabel = getStorageLabel(variant);
+            String color = normalizeColor(variant.getColor());
+
+            if (!storageLabel.isBlank() && !basePrices.containsKey(storageLabel)) {
+                basePrices.put(storageLabel, variantPrice);
+            }
+            colorOptions.putIfAbsent(
+                    color,
+                    new ProductVariantColorDto(color, mapColorHex(color))
+            );
+
+            AdminProductVariantDto variantDto = new AdminProductVariantDto();
+            variantDto.setId(variant.getId());
+            variantDto.setSku(variant.getSku());
+            variantDto.setColor(color);
+            variantDto.setStorageLabel(storageLabel);
+            variantDto.setRamGb(variant.getRamGb());
+            variantDto.setStorageGb(variant.getStorageGb());
+            variantDto.setPrice(variantPrice);
+            variantDto.setStock(variantStock);
+            variantItems.add(variantDto);
         }
+
+        ProductVariantOptionDto variantOptions = new ProductVariantOptionDto();
+        variantOptions.setStorages(new ArrayList<>(basePrices.keySet()));
+        variantOptions.setColors(new ArrayList<>(colorOptions.values()));
+        variantOptions.setBasePrices(basePrices);
 
         List<ProductImage> images = productImageRepository.findByProductIdOrderBySortOrderAscIdAsc(
                 product.getId());
@@ -192,9 +199,198 @@ public class ProductAdminService {
         dto.setDescription(product.getDetailDescription());
         dto.setImages(images.stream().map(ProductImage::getImageUrl).toList());
         dto.setSpecifications(specs);
+        dto.setVariants(variantOptions);
+        dto.setVariantItems(variantItems);
         dto.setIsFeatured(product.getIsFeatured());
         dto.setCreatedAt(product.getCreatedAt());
         return dto;
+    }
+
+    private void deleteVariantsByProductId(Long productId) {
+        List<ProductVariant> variants = productVariantRepository.findByProductId(productId);
+        for (ProductVariant variant : variants) {
+            inventoryRepository.findByVariantId(variant.getId())
+                    .ifPresent(inventoryRepository::delete);
+        }
+        if (!variants.isEmpty()) {
+            productVariantRepository.deleteAll(variants);
+        }
+        inventoryRepository.flush();
+        productVariantRepository.flush();
+    }
+
+    private void saveVariants(Product product, AdminProductRequestDto requestDto, LocalDateTime now) {
+        List<AdminProductVariantRequestDto> variants = normalizeVariants(requestDto);
+        for (int index = 0; index < variants.size(); index++) {
+            AdminProductVariantRequestDto variantRequest = variants.get(index);
+
+            ProductVariant variant = new ProductVariant();
+            variant.setProduct(product);
+            variant.setSku(generateSku(product.getId(), variantRequest, index + 1));
+            variant.setColor(normalizeColor(variantRequest.getColor()));
+            variant.setRamGb(variantRequest.getRamGb());
+            variant.setStorageGb(resolveStorageGb(variantRequest));
+            variant.setPrice(resolveVariantPrice(variantRequest, requestDto.getPrice()));
+            variant.setIsActive(Boolean.TRUE);
+            variant.setCreatedAt(now);
+            variant.setUpdatedAt(now);
+            ProductVariant savedVariant = productVariantRepository.save(variant);
+
+            int quantityOnHand = Math.max(0, resolveVariantStock(variantRequest, requestDto.getStock()));
+
+            Inventory inventory = new Inventory();
+            inventory.setVariant(savedVariant);
+            inventory.setQuantityOnHand(quantityOnHand);
+            inventory.setQuantityReserved(0);
+            inventory.setReorderLevel(5);
+            inventory.setStockStatus(resolveStockStatus(quantityOnHand));
+            inventory.setUpdatedAt(now);
+            inventoryRepository.save(inventory);
+        }
+    }
+
+    private List<AdminProductVariantRequestDto> normalizeVariants(AdminProductRequestDto requestDto) {
+        List<AdminProductVariantRequestDto> normalized = new ArrayList<>();
+        if (requestDto.getVariants() != null) {
+            for (AdminProductVariantRequestDto variant : requestDto.getVariants()) {
+                if (variant == null) {
+                    continue;
+                }
+                boolean hasValue =
+                        (variant.getColor() != null && !variant.getColor().isBlank())
+                                || (variant.getStorageLabel() != null && !variant.getStorageLabel().isBlank())
+                                || variant.getStorageGb() != null
+                                || variant.getRamGb() != null
+                                || variant.getPrice() != null
+                                || variant.getStock() != null;
+                if (!hasValue) {
+                    continue;
+                }
+                normalized.add(variant);
+            }
+        }
+
+        if (!normalized.isEmpty()) {
+            validateDuplicateVariants(normalized);
+            return normalized;
+        }
+
+        AdminProductVariantRequestDto fallback = new AdminProductVariantRequestDto();
+        fallback.setColor("Default");
+        fallback.setPrice(requestDto.getPrice());
+        fallback.setStock(requestDto.getStock());
+        normalized.add(fallback);
+        return normalized;
+    }
+
+    private void validateDuplicateVariants(List<AdminProductVariantRequestDto> variants) {
+        Set<String> keys = new HashSet<>();
+        for (AdminProductVariantRequestDto variant : variants) {
+            String colorKey = normalizeColor(variant.getColor()).toLowerCase(Locale.ROOT);
+            String ramKey = Objects.toString(variant.getRamGb(), "default").toLowerCase(Locale.ROOT);
+            String storageKey = ((variant.getStorageLabel() == null || variant.getStorageLabel().isBlank())
+                    ? Objects.toString(variant.getStorageGb(), "default")
+                    : variant.getStorageLabel().trim())
+                    .toLowerCase(Locale.ROOT);
+            String compound = colorKey + "|" + ramKey + "|" + storageKey;
+            if (!keys.add(compound)) {
+                throw new ResourceAlreadyExistsException(
+                        "Biến thể bị trùng màu, RAM và dung lượng: " + normalizeColor(variant.getColor())
+                                + " - " + ramKey.toUpperCase(Locale.ROOT) + " - " + storageKey.toUpperCase(Locale.ROOT)
+                );
+            }
+        }
+    }
+
+    private BigDecimal resolveVariantPrice(AdminProductVariantRequestDto variant, BigDecimal defaultPrice) {
+        if (variant.getPrice() != null) {
+            return variant.getPrice();
+        }
+        return Objects.requireNonNullElse(defaultPrice, BigDecimal.ZERO);
+    }
+
+    private int resolveVariantStock(AdminProductVariantRequestDto variant, Integer defaultStock) {
+        if (variant.getStock() != null) {
+            return variant.getStock();
+        }
+        return Objects.requireNonNullElse(defaultStock, 0);
+    }
+
+    private Integer resolveStorageGb(AdminProductVariantRequestDto variant) {
+        if (variant.getStorageGb() != null) {
+            return variant.getStorageGb();
+        }
+        String storageLabel = variant.getStorageLabel();
+        if (storageLabel == null || storageLabel.isBlank()) {
+            return null;
+        }
+        String digitsOnly = storageLabel.replaceAll("[^0-9]", "");
+        if (digitsOnly.isBlank()) {
+            return null;
+        }
+        return Integer.parseInt(digitsOnly);
+    }
+
+    private String getStorageLabel(ProductVariant variant) {
+        if (variant.getStorageGb() != null && variant.getStorageGb() > 0) {
+            return variant.getStorageGb() + "GB";
+        }
+        return "Mặc định";
+    }
+
+    private String normalizeColor(String color) {
+        if (color == null || color.isBlank()) {
+            return "Default";
+        }
+        return color.trim();
+    }
+
+    private String generateSku(Long productId, AdminProductVariantRequestDto variant, int index) {
+        String colorPart = normalizeColor(variant.getColor())
+                .replaceAll("[^a-zA-Z0-9]", "")
+                .toUpperCase(Locale.ROOT);
+        if (colorPart.isBlank()) {
+            colorPart = "DEFAULT";
+        }
+
+        String ramPart = variant.getRamGb() != null ? variant.getRamGb() + "GB" : "RAM";
+
+        String storagePart = "STD";
+        if (variant.getStorageLabel() != null && !variant.getStorageLabel().isBlank()) {
+            storagePart = variant.getStorageLabel().replaceAll("[^a-zA-Z0-9]", "")
+                    .toUpperCase(Locale.ROOT);
+        } else if (variant.getStorageGb() != null) {
+            storagePart = variant.getStorageGb() + "GB";
+        }
+
+        String sku = "SKU-" + productId + "-" + index + "-" + colorPart + "-" + ramPart + "-" + storagePart;
+        if (sku.length() > 120) {
+            return sku.substring(0, 120);
+        }
+        return sku;
+    }
+
+    private String mapColorHex(String colorName) {
+        String normalized = colorName == null ? "" : colorName.toLowerCase(Locale.ROOT);
+        if (normalized.contains("black") || normalized.contains("đen")) {
+            return "#1f2937";
+        }
+        if (normalized.contains("white") || normalized.contains("trắng")) {
+            return "#f3f4f6";
+        }
+        if (normalized.contains("blue") || normalized.contains("xanh")) {
+            return "#2563eb";
+        }
+        if (normalized.contains("green") || normalized.contains("lục")) {
+            return "#16a34a";
+        }
+        if (normalized.contains("red") || normalized.contains("đỏ")) {
+            return "#dc2626";
+        }
+        if (normalized.contains("gold") || normalized.contains("vàng")) {
+            return "#ca8a04";
+        }
+        return "#6b7280";
     }
 
     private void saveImages(Product product, List<String> imageUrls, LocalDateTime now) {

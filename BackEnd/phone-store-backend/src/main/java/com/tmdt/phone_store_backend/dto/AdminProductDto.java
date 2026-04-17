@@ -19,6 +19,8 @@ public class AdminProductDto {
     private String description;
     private List<String> images;
     private Map<String, String> specifications;
+    private ProductVariantOptionDto variants;
+    private List<AdminProductVariantDto> variantItems;
     private Boolean isFeatured;
     private LocalDateTime createdAt;
 }
