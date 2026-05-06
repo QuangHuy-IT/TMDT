@@ -5,6 +5,8 @@ export const getVariantStorages = (product) => product?.variants?.storages || []
 export const getVariantItems = (product) => product?.variantItems || [];
 
 export const getProductThumbnail = (product) => {
+  // Ưu tiên: thumbnailUrl > images[0] > image (legacy)
+  if (product?.thumbnailUrl) return product.thumbnailUrl;
   if (Array.isArray(product?.images) && product.images.length > 0) {
     return product.images[0];
   }

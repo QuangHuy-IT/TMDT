@@ -87,6 +87,7 @@ public class ProductAdminService {
         product.setWarrantyMonths(12);
         product.setCreatedAt(now);
         product.setUpdatedAt(now);
+        product.setThumbnailUrl(requestDto.getThumbnailUrl());
         Product savedProduct = productRepository.save(product);
 
         saveVariants(savedProduct, requestDto, now);
@@ -109,6 +110,7 @@ public class ProductAdminService {
         product.setBrand(brand);
         product.setShortDescription(getDescription(requestDto));
         product.setDetailDescription(getDescription(requestDto));
+        product.setThumbnailUrl(requestDto.getThumbnailUrl());
         product.setUpdatedAt(now);
         productRepository.save(product);
 
@@ -160,15 +162,18 @@ public class ProductAdminService {
             if (!storageLabel.isBlank() && !basePrices.containsKey(storageLabel)) {
                 basePrices.put(storageLabel, variantPrice);
             }
-            colorOptions.putIfAbsent(
+            colorOptions.put(
                     color,
-                    new ProductVariantColorDto(color, mapColorHex(color))
+                    new ProductVariantColorDto(color, mapColorHex(color),
+                            variant.getColorImageUrl() != null ? variant.getColorImageUrl() :
+                                    colorOptions.get(color) != null ? colorOptions.get(color).getImageUrl() : null)
             );
 
             AdminProductVariantDto variantDto = new AdminProductVariantDto();
             variantDto.setId(variant.getId());
             variantDto.setSku(variant.getSku());
             variantDto.setColor(color);
+            variantDto.setColorImageUrl(variant.getColorImageUrl());
             variantDto.setStorageLabel(storageLabel);
             variantDto.setRamGb(variant.getRamGb());
             variantDto.setStorageGb(variant.getStorageGb());
@@ -197,6 +202,7 @@ public class ProductAdminService {
         dto.setPrice(price);
         dto.setStock(stock);
         dto.setDescription(product.getDetailDescription());
+        dto.setThumbnailUrl(product.getThumbnailUrl());
         dto.setImages(images.stream().map(ProductImage::getImageUrl).toList());
         dto.setSpecifications(specs);
         dto.setVariants(variantOptions);
@@ -231,6 +237,7 @@ public class ProductAdminService {
             variant.setRamGb(variantRequest.getRamGb());
             variant.setStorageGb(resolveStorageGb(variantRequest));
             variant.setPrice(resolveVariantPrice(variantRequest, requestDto.getPrice()));
+            variant.setColorImageUrl(variantRequest.getColorImageUrl());
             variant.setIsActive(Boolean.TRUE);
             variant.setCreatedAt(now);
             variant.setUpdatedAt(now);

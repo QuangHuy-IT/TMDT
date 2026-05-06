@@ -25,4 +25,6 @@ public class AdminProductVariantRequestDto {
 
     @Min(value = 0, message = "Tồn kho biến thể phải lớn hơn hoặc bằng 0")
     private Integer stock;
+
+    private String colorImageUrl;
 }

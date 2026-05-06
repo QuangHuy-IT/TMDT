@@ -42,51 +42,8 @@ h1 {
   font-weight: 800;
 }
 
-/* Tùy chỉnh nút bấm mặc định */
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 600;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  color: #ffffff;
-  cursor: pointer;
-  transition: all 0.25s ease;
-}
+/* ===== GLOBAL BUTTON STYLES DISABLED — Tailwind handles all button styling ===== */
 
-button:hover {
-  background-color: #333;
-  border-color: var(--primary-color, #ff0000);
-}
+/* Light mode — only color defaults, no button overrides (Tailwind handles all) */
 
-button:focus,
-button:focus-visible {
-  outline: 4px auto rgba(255, 0, 0, 0.2);
-}
-
-/* Xử lý giao diện sáng (Light Mode) */
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #1a1a1a;
-    background-color: #ffffff;
-  }
-  button {
-    background-color: #f9f9f9;
-    color: #1a1a1a;
-    border: 1px solid #ddd;
-  }
-}
-
-/* Xử lý giao diện tối (Dark Mode) */
-@media (prefers-color-scheme: dark) {
-  :root {
-    color: #f8f9fa;
-    background-color: #121212;
-  }
-  button {
-    background-color: #2d2d2d;
-    color: #ffffff;
-  }
-}
+/* Dark mode — only color defaults, Tailwind handles all button styling */

@@ -58,6 +58,9 @@ public class Product {
     @Column(name = "detail_description", nullable = false, columnDefinition = "TEXT")
     private String detailDescription;
 
+    @Column(name = "thumbnail_url", length = 500)
+    private String thumbnailUrl;
+
     @Column(name = "warranty_months", nullable = false)
     private Integer warrantyMonths = 12;
 

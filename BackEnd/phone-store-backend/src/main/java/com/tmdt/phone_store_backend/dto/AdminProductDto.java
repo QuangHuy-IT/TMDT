@@ -18,6 +18,7 @@ public class AdminProductDto {
     private Integer stock;
     private String description;
     private List<String> images;
+    private String thumbnailUrl;
     private Map<String, String> specifications;
     private ProductVariantOptionDto variants;
     private List<AdminProductVariantDto> variantItems;
