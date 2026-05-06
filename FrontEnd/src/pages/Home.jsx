@@ -111,8 +111,11 @@ export const Home = () => {
         </div>
         <div className="flex flex-wrap gap-2">
           {displayBrands.map((brand) => (
-            <button key={brand.id || brand._id || brand.slug} onClick={() => navigate(`/${brand.slug}`)}
-              className="group px-4 py-2 bg-white border border-gray-200 rounded-sm transition-all hover:bg-white">
+            <button
+              key={brand.id || brand._id || brand.slug}
+              onClick={() => navigate(`/${brand.slug}?name=${encodeURIComponent(brand.name)}`)}
+              className="group px-4 py-2 bg-white border border-gray-200 rounded-sm transition-all hover:bg-white"
+            >
               <span className="text-xs font-bold text-gray-600 group-hover:text-red-600 uppercase tracking-tight whitespace-nowrap transition-colors">
                 {brand.name}
               </span>

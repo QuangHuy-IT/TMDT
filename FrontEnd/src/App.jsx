@@ -26,6 +26,9 @@ import { AdminProducts } from './pages/admin/AdminProducts';
 import { AdminInventory } from './pages/admin/AdminInventory';
 import { AdminOrders } from './pages/admin/AdminOrders';
 import { AdminUsers } from './pages/admin/AdminUsers';
+import AdminBrands from './pages/admin/AdminBrands';
+import AdminBanners from './pages/admin/AdminBanners';
+import AdminPromotions from './pages/admin/AdminPromotions';
 
 // Context
 import { ShopProvider } from './context/ShopContext';
@@ -111,10 +114,13 @@ function App() {
             </ProtectedRoute>
           }>
             <Route index element={<AdminDashboard />} />
-            <Route path="products" element={<AdminProducts />} />
-            <Route path="inventory" element={<AdminInventory />} />
-            <Route path="orders"   element={<AdminOrders />} />
-            <Route path="users"    element={<AdminUsers />} />
+            <Route path="products"    element={<AdminProducts />} />
+            <Route path="brands"      element={<AdminBrands />} />
+            <Route path="banners"    element={<AdminBanners />} />
+            <Route path="promotions"  element={<AdminPromotions />} />
+            <Route path="inventory"   element={<AdminInventory />} />
+            <Route path="orders"      element={<AdminOrders />} />
+            <Route path="users"       element={<AdminUsers />} />
           </Route>
           {/* ===== AUTH ROUTES (không có Navbar + Footer) ===== */}
           <Route path="/login"       element={<Login />} />

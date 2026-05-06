@@ -1,8 +1,10 @@
-// src/pages/BrandProducts.jsx  (updated)
-// Layout: sidebar filter bên trái + grid 5 cột × 4 hàng = 20 sản phẩm / trang
+// src/pages/BrandProducts.jsx
+// URL: /brand/:brandName?name=Apple
+// brandName = slug từ URL (chỉ dùng để hiển thị heading)
+// name     = tên thực từ query param (dùng để lọc sản phẩm)
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { ProductCard } from '../components/ui/ProductCard';
 import { FilterSidebar, DEFAULT_FILTERS } from '../components/ui/FilterSidebar';
 import { usePublicProducts } from '../hooks/usePublicProducts';
@@ -13,34 +15,45 @@ const ITEMS_PER_PAGE = 20;
 export const BrandProducts = () => {
   const { brandName } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { products, loading } = usePublicProducts();
+
+  // Lấy tên thực từ query param (VD: ?name=Apple)
+  // Fallback: dùng slug từ URL rồi format lại thành title case
+  const brandDisplayName = searchParams.get('name') || brandName?.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) || '';
+  const brandFilterName = searchParams.get('name') || '';
+
   const [currentPage, setCurrentPage] = useState(1);
   const [sortBy, setSortBy] = useState('default');
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  // Reset khi brand đổi
   useEffect(() => {
     setCurrentPage(1);
     setFilters(DEFAULT_FILTERS);
-  }, [brandName]);
+  }, [brandName, brandFilterName]);
 
   useEffect(() => { setCurrentPage(1); }, [filters, sortBy]);
 
   const catalogOptions = useMemo(() => deriveCatalogOptions(products), [products]);
 
   const filteredProducts = useMemo(() => {
-    // Chỉ lấy sản phẩm đúng brand trước
-    let base = products.filter((p) => String(p.brand || '').toLowerCase() === brandName.toLowerCase());
-    // Áp dụng sidebar filter (bỏ qua selectedBrands vì đang trong trang brand)
+    // Lọc theo tên THƯƠNG HIỆU (name trong product)
+    // Không lọc theo slug nữa vì slug trong DB brands ≠ brand trong product
+    let base = products;
+    if (brandFilterName) {
+      base = base.filter((p) =>
+        String(p.brand || '').toLowerCase() === brandFilterName.toLowerCase()
+      );
+    }
     base = applyCatalogFilters(base, { ...filters, selectedBrands: [] });
-    // Sắp xếp
+
     if (sortBy === 'low-to-high' || sortBy === 'price-asc') base.sort((a, b) => a.price - b.price);
     if (sortBy === 'high-to-low' || sortBy === 'price-desc') base.sort((a, b) => b.price - a.price);
-    if (sortBy === 'rating')      base.sort((a, b) => (b.rating || 0) - (a.rating || 0));
-    if (sortBy === 'newest')      base.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    if (sortBy === 'rating') base.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+    if (sortBy === 'newest') base.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     return base;
-  }, [products, brandName, filters, sortBy]);
+  }, [products, brandFilterName, filters, sortBy]);
 
   const totalPages = Math.ceil(filteredProducts.length / ITEMS_PER_PAGE);
   const displayedProducts = filteredProducts.slice(
@@ -70,16 +83,16 @@ export const BrandProducts = () => {
           <nav className="flex items-center text-[10px] font-black uppercase tracking-widest text-gray-400 mb-6 gap-3">
             <span className="hover:text-red-600 cursor-pointer" onClick={() => navigate('/')}>Trang chủ</span>
             <span className="text-gray-300">/</span>
-            <span className="text-gray-700 capitalize">{brandName}</span>
+            <span className="text-gray-700 capitalize">{brandDisplayName}</span>
           </nav>
           <h1 className="text-4xl font-black uppercase italic text-gray-900 leading-none">
-            Điện thoại <span className="text-red-600">{brandName}</span>
+            Điện thoại <span className="text-red-600">{brandDisplayName}</span>
           </h1>
           <p className="text-gray-400 text-sm mt-2 font-bold">{filteredProducts.length} sản phẩm</p>
         </div>
-        {/* Sort bar Desktop */}
-        <div className="flex items-center justify-between mb-6 gap-4 flex-wrap">
 
+        {/* Sort bar */}
+        <div className="flex items-center justify-between mb-6 gap-4 flex-wrap">
           <button
             onClick={() => setIsSidebarOpen(true)}
             className="lg:hidden px-4 py-2 rounded-xl bg-white border border-gray-200 text-[10px] font-black uppercase tracking-widest text-gray-700"
@@ -87,11 +100,7 @@ export const BrandProducts = () => {
             Bộ lọc
           </button>
 
-          {/* Chèn nội dung bên trái ở đây nếu có (ví dụ: "Số lượng sản phẩm") */}
-          {/* Nếu không có gì bên trái, ml-auto sẽ đẩy toàn bộ cụm này về phía bên phải cực đại */}
-
-          {/* Bên phải: sort */}
-          <div className="flex items-center gap-2 ml-auto"> 
+          <div className="flex items-center gap-2 ml-auto">
             {[
               { key: 'featured',   label: 'Nổi bật' },
               { key: 'newest',     label: 'Mới nhất' },
@@ -114,10 +123,8 @@ export const BrandProducts = () => {
           </div>
         </div>
 
-        {/* Layout: sidebar + content */}
+        {/* Layout */}
         <div className="flex gap-6 items-start">
-
-          {/* Sidebar — ẩn brand vì đang ở trang brand rồi */}
           <FilterSidebar
             filters={filters}
             onChange={setFilters}
@@ -129,7 +136,6 @@ export const BrandProducts = () => {
             availableRams={catalogOptions.rams}
           />
 
-          {/* Nội dung chính */}
           <div className="flex-1 min-w-0">
             {loading ? (
               <div className="py-32 text-center bg-white rounded-[3rem] shadow-sm border border-gray-100">
@@ -143,7 +149,6 @@ export const BrandProducts = () => {
                   ))}
                 </div>
 
-                {/* Phân trang */}
                 {totalPages > 1 && (
                   <div className="mt-10 flex flex-col items-center gap-3">
                     <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">
