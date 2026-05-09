@@ -13,6 +13,8 @@ import { Link } from 'react-router-dom';
 const CartItem = ({ item, checked, onToggle, onQtyChange, onRemove }) => {
   const thumbnail = item.images?.[0] || item.image || 'https://picsum.photos/80';
   const subtotal  = item.price * item.quantity;
+  // Ưu tiên slug, fallback về _id hoặc id
+  const productSlug = item.slug || item._id || item.id;
 
   const handleQty = (delta) => {
     const next = item.quantity + delta;
@@ -42,7 +44,7 @@ const CartItem = ({ item, checked, onToggle, onQtyChange, onRemove }) => {
 
       {/* ── Product info ── */}
       <div className="flex items-center gap-3 min-w-0">
-        <Link to={`/product/${item._id}`} className="flex-shrink-0">
+        <Link to={`/product/${productSlug}`} className="flex-shrink-0">
           <img
             src={thumbnail}
             alt={item.name}
@@ -52,7 +54,7 @@ const CartItem = ({ item, checked, onToggle, onQtyChange, onRemove }) => {
           />
         </Link>
         <div className="min-w-0">
-          <Link to={`/product/${item._id}`}>
+          <Link to={`/product/${productSlug}`}>
             <p className="text-[13.5px] text-gray-800 leading-[1.45] line-clamp-2
                           hover:text-[#ee4d2d] transition-colors font-medium">
               {item.name}

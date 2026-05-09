@@ -12,10 +12,13 @@ import lombok.Setter;
 public class AdminProductDto {
 
     private Long id;
+    private String slug;
     private String name;
     private String brand;
+    private String brandSlug;
     private BigDecimal price;
     private Integer stock;
+    private Integer sale;
     private String description;
     private List<String> images;
     private Map<String, String> specifications;
@@ -23,4 +26,5 @@ public class AdminProductDto {
     private List<AdminProductVariantDto> variantItems;
     private Boolean isFeatured;
     private LocalDateTime createdAt;
+    private LocalDateTime releaseDate;
 }

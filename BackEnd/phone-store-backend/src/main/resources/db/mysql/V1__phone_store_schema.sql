@@ -84,6 +84,7 @@ CREATE TABLE IF NOT EXISTS products (
 	slug VARCHAR(300) NOT NULL,
 	short_description VARCHAR(500) NOT NULL,
 	detail_description TEXT NOT NULL,
+	sale INT NOT NULL DEFAULT 0,
 	warranty_months INT UNSIGNED NOT NULL DEFAULT 12,
 	status ENUM('DRAFT', 'ACTIVE', 'INACTIVE', 'DISCONTINUED') NOT NULL DEFAULT 'DRAFT',
 	is_featured BOOLEAN NOT NULL DEFAULT FALSE,
@@ -421,6 +422,47 @@ CREATE TABLE IF NOT EXISTS banners (
 	PRIMARY KEY (id),
 	KEY idx_banners_active_window (is_active, start_at, end_at),
 	KEY idx_banners_position_sort (position, sort_order)
+);
+
+CREATE TABLE IF NOT EXISTS flash_sales (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    title VARCHAR(255),
+    start_at DATETIME,
+    end_at DATETIME,
+    is_active BOOLEAN,
+    PRIMARY KEY (id)
+);
+CREATE TABLE IF NOT EXISTS flash_sale_items (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    
+    flash_sale_id BIGINT UNSIGNED NOT NULL,
+    product_id BIGINT UNSIGNED NOT NULL,
+    
+    promotion DECIMAL(10,2) NOT NULL DEFAULT 0,
+    quantity INT NOT NULL DEFAULT 0,
+
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP,
+
+    PRIMARY KEY (id),
+
+    UNIQUE KEY uk_flash_sale_product (
+        flash_sale_id,
+        product_id
+    ),
+
+    CONSTRAINT fk_flash_sale_items_flash_sale
+        FOREIGN KEY (flash_sale_id)
+        REFERENCES flash_sales(id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE,
+
+    CONSTRAINT fk_flash_sale_items_product
+        FOREIGN KEY (product_id)
+        REFERENCES products(id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE
 );
 
 -- Optional bootstrap admin account (change password hash before use in production).

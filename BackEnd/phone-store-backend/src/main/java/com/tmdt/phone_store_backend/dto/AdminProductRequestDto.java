@@ -30,6 +30,8 @@ public class AdminProductRequestDto {
     @NotNull(message = "Tồn kho không được để trống")
     private Integer stock;
 
+    private Integer sale = 0;
+
     private String description;
 
     private List<String> images;

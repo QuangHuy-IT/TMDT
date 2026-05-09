@@ -16,8 +16,18 @@ const ProductService = {
       },
     });
   },
-  getProducts: () => api.get('/products'),
+  getProducts: (params = {}) => api.get('/products', { params }),
   getProductDetail: (idOrSlug) => api.get(`/products/${idOrSlug}`),
+  getFeaturedProducts: () => api.get('/products/featured'),
+  getLatestProducts: (limit = 12) => api.get('/products/featured/latest', { params: { limit } }),
+  getFlashSaleProducts: (limit = 12) => api.get('/products/flash-sale', { params: { limit } }),
+  getHomeBrandSections: (brands = ['apple', 'samsung', 'xiaomi'], limitPerBrand = 8) =>
+    api.get('/products/home/sections', {
+      params: { brands, limitPerBrand },
+      paramsSerializer: {
+        indexes: null,
+      },
+    }),
 };
 
 export default ProductService;
