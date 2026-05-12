@@ -84,9 +84,18 @@ export const Checkout = () => {
                 {cart.map(item => (
                   <div key={item.id} className="flex justify-between items-center gap-4 text-sm">
                     <div className="flex items-center gap-3">
-                      <div className="relative">
-                        <img src={item.image} alt="" className="w-12 h-12 object-contain bg-white rounded-lg p-1" />
-                        <span className="absolute -top-2 -right-2 bg-red-600 text-[10px] w-5 h-5 flex items-center justify-center rounded-full font-bold">{item.quantity}</span>
+                      <div className="relative w-12 h-12">
+                        <img 
+                          src={item.images[0]} 
+                          alt="" 
+                          className="w-full h-full object-contain bg-white rounded-lg p-1" 
+                        />
+
+                        <span className="absolute top-1 right-1 translate-x-0 translate-y-0 
+                                        bg-red-600 text-[10px] w-5 h-5 flex items-center justify-center 
+                                        rounded-full font-bold text-white">
+                          {item.quantity}
+                        </span>
                       </div>
                       <span className="font-medium line-clamp-1">{item.name}</span>
                     </div>

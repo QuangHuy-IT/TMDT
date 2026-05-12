@@ -1,6 +1,7 @@
 package com.tmdt.phone_store_backend.service;
 
 import com.tmdt.phone_store_backend.domain.entity.User;
+import com.tmdt.phone_store_backend.domain.enums.AuthSource;
 import com.tmdt.phone_store_backend.domain.enums.UserRole;
 import com.tmdt.phone_store_backend.domain.enums.UserStatus;
 import com.tmdt.phone_store_backend.dto.LoginRequestDto;
@@ -19,7 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * UserService - xử lý business logic liên quan đến User
+ * UserService - xu ly business logic lien quan den User
  */
 @Slf4j
 @Service
@@ -31,40 +32,35 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
 
-    /**
-     * Đăng ký người dùng mới
-     */
     public UserResponseDto register(RegisterRequestDto requestDto) {
         log.info("Registering new user with email: {}", requestDto.getEmail());
 
-        // Kiểm tra mật khẩu xác nhận
         if (!requestDto.getPassword().equals(requestDto.getConfirmPassword())) {
-            throw new InvalidCredentialsException("Mật khẩu xác nhận không khớp");
+            throw new InvalidCredentialsException("Mat khau xac nhan khong khop");
         }
 
-        // Kiểm tra email đã tồn tại
         if (userRepository.existsByEmail(requestDto.getEmail())) {
             throw new ResourceAlreadyExistsException(
-                    "Email đã được sử dụng: " + requestDto.getEmail());
+                    "Email da duoc su dung: " + requestDto.getEmail());
         }
 
-        // Kiểm tra số điện thoại đã tồn tại
         if (userRepository.existsByPhone(requestDto.getPhone())) {
             throw new ResourceAlreadyExistsException(
-                    "Số điện thoại đã được sử dụng: " + requestDto.getPhone());
+                    "So dien thoai da duoc su dung: " + requestDto.getPhone());
         }
 
-        // Tạo user mới
+        LocalDateTime now = LocalDateTime.now();
         User user = new User();
         user.setEmail(requestDto.getEmail());
         user.setFullName(requestDto.getFullName());
-        user.setYearOfBirth(requestDto.getYearOfBirth());
         user.setPhone(requestDto.getPhone());
         user.setPasswordHash(passwordEncoder.encode(requestDto.getPassword()));
         user.setRole(UserRole.USER);
         user.setStatus(UserStatus.ACTIVE);
-        user.setCreatedAt(LocalDateTime.now());
-        user.setUpdatedAt(LocalDateTime.now());
+        user.setAuthSource(AuthSource.LOCAL);
+        user.setEnabled(true);
+        user.setCreatedAt(now);
+        user.setUpdatedAt(now);
 
         User savedUser = userRepository.save(user);
         log.info("User registered successfully with email: {}", savedUser.getEmail());
@@ -72,27 +68,25 @@ public class UserService {
         return convertToDto(savedUser);
     }
 
-    /**
-     * Đăng nhập người dùng
-     */
     public User login(LoginRequestDto requestDto) {
         log.info("Login attempt for email: {}", requestDto.getEmail());
 
         User user = userRepository.findByEmail(requestDto.getEmail())
                 .orElseThrow(() -> new InvalidCredentialsException(
-                        "Email hoặc mật khẩu không đúng"));
+                        "Email hoac mat khau khong dung"));
 
-        // Kiểm tra password
         if (!passwordEncoder.matches(requestDto.getPassword(), user.getPasswordHash())) {
-            throw new InvalidCredentialsException("Email hoặc mật khẩu không đúng");
+            throw new InvalidCredentialsException("Email hoac mat khau khong dung");
         }
 
-        // Kiểm tra user có bị khóa không
         if (user.getStatus() == UserStatus.BLOCKED) {
-            throw new InvalidCredentialsException("Tài khoản của bạn đã bị khóa");
+            throw new InvalidCredentialsException("Tai khoan cua ban da bi khoa");
         }
 
-        // Cập nhật last login
+        if (!user.isEnabled()) {
+            throw new InvalidCredentialsException("Tai khoan chua duoc xac thuc. Vui long kich hoat tai khoan qua email.");
+        }
+
         user.setLastLoginAt(LocalDateTime.now());
         userRepository.save(user);
 
@@ -100,48 +94,48 @@ public class UserService {
         return user;
     }
 
-    /**
-     * Lấy thông tin người dùng theo ID
-     */
     public UserResponseDto getUserById(Long id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "Không tìm thấy người dùng với ID: " + id));
+                        "Khong tim thay nguoi dung voi ID: " + id));
         return convertToDto(user);
     }
 
-    /**
-     * Lấy thông tin người dùng theo email
-     */
     public User getUserByEmail(String email) {
         return userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "Không tìm thấy người dùng với email: " + email));
+                        "Khong tim thay nguoi dung voi email: " + email));
     }
 
-    /**
-     * Cập nhật thông tin người dùng
-     */
     public UserResponseDto updateUser(Long id, UserResponseDto updateDto) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "Không tìm thấy người dùng với ID: " + id));
+                        "Khong tim thay nguoi dung voi ID: " + id));
 
         if (updateDto.getFullName() != null) {
             user.setFullName(updateDto.getFullName());
         }
-        if (updateDto.getYearOfBirth() != null) {
-            user.setYearOfBirth(updateDto.getYearOfBirth());
-        }
         if (updateDto.getPhone() != null && !updateDto.getPhone().equals(user.getPhone())) {
             if (userRepository.existsByPhone(updateDto.getPhone())) {
                 throw new ResourceAlreadyExistsException(
-                        "Số điện thoại đã được sử dụng");
+                        "So dien thoai da duoc su dung");
             }
             user.setPhone(updateDto.getPhone());
         }
         if (updateDto.getAvatarUrl() != null) {
             user.setAvatarUrl(updateDto.getAvatarUrl());
+        }
+        if (updateDto.getProvince() != null) {
+            user.setProvince(updateDto.getProvince());
+        }
+        if (updateDto.getDistrict() != null) {
+            user.setDistrict(updateDto.getDistrict());
+        }
+        if (updateDto.getWard() != null) {
+            user.setWard(updateDto.getWard());
+        }
+        if (updateDto.getDetailAddress() != null) {
+            user.setDetailAddress(updateDto.getDetailAddress());
         }
 
         user.setUpdatedAt(LocalDateTime.now());
@@ -151,28 +145,58 @@ public class UserService {
         return convertToDto(updatedUser);
     }
 
-    /**
-     * Chuyển đổi User entity thành UserResponseDto
-     */
     public UserResponseDto convertToDto(User user) {
         UserResponseDto dto = new UserResponseDto();
         dto.setId(user.getId());
         dto.setEmail(user.getEmail());
         dto.setFullName(user.getFullName());
-        dto.setYearOfBirth(user.getYearOfBirth());
         dto.setPhone(user.getPhone());
         dto.setRole(user.getRole());
         dto.setStatus(user.getStatus());
         dto.setAvatarUrl(user.getAvatarUrl());
+        dto.setProvince(user.getProvince());
+        dto.setDistrict(user.getDistrict());
+        dto.setWard(user.getWard());
+        dto.setDetailAddress(user.getDetailAddress());
+        dto.setEnabled(user.isEnabled());
+        dto.setAuthSource(user.getAuthSource() != null ? user.getAuthSource().name() : AuthSource.LOCAL.name());
         return dto;
     }
 
-    /**
-     * Refresh access token từ refresh token
-     */
+    public UserResponseDto updateAvatar(Long userId, String avatarUrl) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Khong tim thay nguoi dung"));
+        user.setAvatarUrl(avatarUrl);
+        user.setUpdatedAt(LocalDateTime.now());
+        User saved = userRepository.save(user);
+        log.info("Avatar updated for user: {}", userId);
+        return convertToDto(saved);
+    }
+
+    public void changePasswordWithOtp(String email, String otpCode, String newPassword, String confirmPassword) {
+        if (!newPassword.equals(confirmPassword)) {
+            throw new InvalidCredentialsException("Mat khau xac nhan khong khop");
+        }
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("Khong tim thay nguoi dung"));
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        user.setUpdatedAt(LocalDateTime.now());
+        userRepository.save(user);
+        log.info("Password changed successfully for user: {}", email);
+    }
+
+    public void changePassword(String email, String newPassword) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("Khong tim thay nguoi dung"));
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        user.setUpdatedAt(LocalDateTime.now());
+        userRepository.save(user);
+        log.info("Password changed successfully for user: {}", email);
+    }
+
     public String refreshAccessToken(String refreshToken) {
         if (!jwtTokenProvider.validateToken(refreshToken)) {
-            throw new InvalidCredentialsException("Refresh token không hợp lệ");
+            throw new InvalidCredentialsException("Refresh token khong hop le");
         }
 
         String email = jwtTokenProvider.getEmailFromToken(refreshToken);

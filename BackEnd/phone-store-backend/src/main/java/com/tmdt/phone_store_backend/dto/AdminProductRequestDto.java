@@ -4,6 +4,7 @@ import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import jakarta.validation.Valid;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
@@ -29,9 +30,14 @@ public class AdminProductRequestDto {
     @NotNull(message = "Tồn kho không được để trống")
     private Integer stock;
 
+    private Integer sale = 0;
+
     private String description;
 
     private List<String> images;
 
     private Map<String, String> specifications;
+
+    @Valid
+    private List<AdminProductVariantRequestDto> variants;
 }

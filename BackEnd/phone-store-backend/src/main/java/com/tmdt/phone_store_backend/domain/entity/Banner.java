@@ -27,11 +27,17 @@ public class Banner {
     @Column(nullable = false, length = 200)
     private String title;
 
+    @Column(length = 200)
+    private String subtitle;
+
     @Column(name = "image_url", nullable = false, length = 500)
     private String imageUrl;
 
     @Column(name = "link_url", length = 500)
     private String linkUrl;
+
+    @Column(name = "button_text", length = 60)
+    private String buttonText;
 
     @Column(nullable = false, length = 80)
     private String position;

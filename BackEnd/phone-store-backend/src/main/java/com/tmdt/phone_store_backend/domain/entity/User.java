@@ -1,5 +1,6 @@
 package com.tmdt.phone_store_backend.domain.entity;
 
+import com.tmdt.phone_store_backend.domain.enums.AuthSource;
 import com.tmdt.phone_store_backend.domain.enums.UserRole;
 import com.tmdt.phone_store_backend.domain.enums.UserStatus;
 import jakarta.persistence.Column;
@@ -38,7 +39,7 @@ public class User {
     @Column(nullable = false, length = 255)
     private String email;
 
-    @Column(length = 20)
+    @Column(name = "phone", length = 20)
     private String phone;
 
     @Column(name = "password_hash", nullable = false, length = 255)
@@ -46,9 +47,6 @@ public class User {
 
     @Column(name = "full_name", nullable = false, length = 150)
     private String fullName;
-
-    @Column(name = "year_of_birth")
-    private Integer yearOfBirth;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
@@ -61,6 +59,18 @@ public class User {
     @Column(name = "avatar_url", length = 500)
     private String avatarUrl;
 
+    @Column(name = "province", length = 120)
+    private String province;
+
+    @Column(name = "district", length = 120)
+    private String district;
+
+    @Column(name = "ward", length = 120)
+    private String ward;
+
+    @Column(name = "detail_address", length = 255)
+    private String detailAddress;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
@@ -72,4 +82,14 @@ public class User {
 
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "auth_source", nullable = false, length = 20)
+    private AuthSource authSource = AuthSource.LOCAL;
+
+    @Column(nullable = false)
+    private boolean enabled = true;
+
+    @Column(name = "google_id", length = 255)
+    private String googleId;
 }
