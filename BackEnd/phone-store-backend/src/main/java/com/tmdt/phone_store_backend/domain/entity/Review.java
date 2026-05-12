@@ -12,6 +12,7 @@ import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -20,10 +21,12 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@Builder
 @Entity
 @Table(
         name = "reviews",
-        uniqueConstraints = @UniqueConstraint(name = "uk_reviews_product_user", columnNames = {"product_id", "user_id"})
+        uniqueConstraints = @UniqueConstraint(name = "uk_reviews_product_user",
+                columnNames = {"product_id", "user_id"})
 )
 public class Review {
 
@@ -49,9 +52,14 @@ public class Review {
     private String content;
 
     @Column(name = "is_approved", nullable = false)
-    private Boolean isApproved = Boolean.FALSE;
+    @Builder.Default
+    private Boolean isApproved = false;
 
-    @Column(name = "created_at", nullable = false)
+    @Column(name = "helpful_count", nullable = false)
+    @Builder.Default
+    private Integer helpfulCount = 0;
+
+    @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
     @Column(name = "updated_at", nullable = false)

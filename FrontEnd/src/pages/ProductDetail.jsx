@@ -2,6 +2,7 @@ import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { ShopContext } from '../context/ShopContext';
 import ProductService from '../services/productService';
+import ReviewSection from '../components/review/ReviewSection';
 
 const inferColorHex = (value) => {
   const normalized = String(value || '')
@@ -347,6 +348,8 @@ export const ProductDetail = () => {
           </section>
         </div>
       </div>
+
+      <ReviewSection productId={product.id} currentUserId={state.user?.id || null} />
     </main>
   );
 };

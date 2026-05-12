@@ -13,13 +13,13 @@ import lombok.Setter;
 @AllArgsConstructor
 public class ChangePasswordRequestDto {
 
-    @NotBlank(message = "Ma OTP khong duoc de trong")
-    @Size(min = 6, max = 6, message = "Ma OTP phai gom 6 chu so")
+    @NotBlank(message = "Mã OTP không được để trống")
+    @Size(min = 6, max = 6, message = "Mã OTP phải gồm 6 chữ số")
     private String otpCode;
 
-    @NotBlank(message = "Mat khau moi khong duoc de trong")
+    @NotBlank(message = "Mật khẩu mới không được để trống")
     private String newPassword;
 
-    @NotBlank(message = "Xac nhan mat khau khong duoc de trong")
+    @NotBlank(message = "Xác nhận mật khẩu không được để trống")
     private String confirmPassword;
 }

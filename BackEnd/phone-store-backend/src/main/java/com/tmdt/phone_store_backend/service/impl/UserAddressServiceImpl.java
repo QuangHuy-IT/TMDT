@@ -34,7 +34,7 @@ public class UserAddressServiceImpl implements UserAddressService {
     @Override
     public UserAddressDto createAddress(Long userId, UserAddressDto dto) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("Khong tim thay nguoi dung"));
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người dùng"));
 
         if (dto.getIsDefault() != null && dto.getIsDefault()) {
             addressRepository.clearDefaultForUser(userId);
@@ -55,7 +55,7 @@ public class UserAddressServiceImpl implements UserAddressService {
     @Override
     public UserAddressDto updateAddress(Long addressId, Long userId, UserAddressDto dto) {
         UserAddress entity = addressRepository.findByIdAndUserId(addressId, userId)
-                .orElseThrow(() -> new ResourceNotFoundException("Khong tim thay dia chi"));
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy địa chỉ"));
 
         if (dto.getIsDefault() != null && dto.getIsDefault() && !Boolean.TRUE.equals(entity.getIsDefault())) {
             addressRepository.clearDefaultForUser(userId);
@@ -72,7 +72,7 @@ public class UserAddressServiceImpl implements UserAddressService {
     @Override
     public void deleteAddress(Long addressId, Long userId) {
         UserAddress entity = addressRepository.findByIdAndUserId(addressId, userId)
-                .orElseThrow(() -> new ResourceNotFoundException("Khong tim thay dia chi"));
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy địa chỉ"));
         addressRepository.delete(entity);
         log.info("Deleted address id={} for user id={}", addressId, userId);
     }
@@ -80,7 +80,7 @@ public class UserAddressServiceImpl implements UserAddressService {
     @Override
     public UserAddressDto setDefaultAddress(Long addressId, Long userId) {
         UserAddress entity = addressRepository.findByIdAndUserId(addressId, userId)
-                .orElseThrow(() -> new ResourceNotFoundException("Khong tim thay dia chi"));
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy địa chỉ"));
 
         addressRepository.clearDefaultForUser(userId);
         entity.setIsDefault(true);

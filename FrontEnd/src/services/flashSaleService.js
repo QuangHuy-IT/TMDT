@@ -1,14 +1,19 @@
 import api from '../api/axiosInstance';
 
 export const flashSaleService = {
-  getActiveFlashSale: async () => {
-    const response = await api.get('/flash-sales/active');
+  // Public endpoints
+  getFlashSaleData: async () => {
+    const response = await api.get('/flash-sales');
     return response.data;
   },
-  getAllActiveFlashSales: async () => {
-    const response = await api.get('/flash-sales/all-active');
+  getActiveCampaigns: async () => {
+    const response = await api.get('/flash-sales/campaigns');
     return response.data;
-  }
+  },
+  getSessionById: async (sessionId) => {
+    const response = await api.get(`/flash-sales/sessions/${sessionId}`);
+    return response.data;
+  },
 };
 
 export default flashSaleService;

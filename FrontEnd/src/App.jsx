@@ -16,6 +16,13 @@ import { Register } from './pages/Register';
 import { CompleteGoogleRegister } from './pages/auth/CompleteGoogleRegister';
 import { OtpVerification } from './pages/auth/OtpVerification';
 import { Profile } from './pages/Profile';
+import { About } from './pages/About';
+import { FlashSalePage } from './pages/FlashSalePage';
+import { NewsPage } from './pages/NewsPage';
+import { WarrantyPolicy } from './pages/WarrantyPolicy';
+import { ReturnPolicy } from './pages/ReturnPolicy';
+import { PrivacyPolicy } from './pages/PrivacyPolicy';
+import { ShippingPolicy } from './pages/ShippingPolicy';
 import { AdminLayout } from './pages/admin/AdminLayout';
 import { AdminDashboard } from './pages/admin/AdminDashboard';
 import { AdminProducts } from './pages/admin/AdminProducts';
@@ -25,6 +32,8 @@ import { AdminUsers } from './pages/admin/AdminUsers';
 import { ShopProvider } from './context/ShopContext';
 import { ThemeProvider } from './context/ThemeContext';
 import './App.css';
+import ZaloButton from './components/ui/ZaloButton';
+import ScrollToTop from './components/home/ScrollToTop';
 
 class RouteErrorBoundary extends React.Component {
   constructor(props) {
@@ -49,22 +58,22 @@ class RouteErrorBoundary extends React.Component {
     if (this.state.hasError) {
       return (
         <div className="min-h-[70vh] flex flex-col items-center justify-center px-4 text-center bg-gray-50">
-          <h2 className="text-2xl font-black text-gray-900 tracking-tight">Khong the hien thi trang nay</h2>
+          <h2 className="text-2xl font-black text-gray-900 tracking-tight">Không thể hiển thị trang này</h2>
           <p className="mt-2 max-w-md text-sm text-gray-500">
-            Da xay ra loi khi tai noi dung. Vui long tai lai trang hoac quay ve trang chu.
+            Đã xảy ra lỗi khi tải nội dung. Vui lòng tải lại trang hoặc quay về trang chủ.
           </p>
           <div className="mt-6 flex gap-3">
             <button
               onClick={this.handleReload}
               className="rounded-xl bg-gray-900 px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-black"
             >
-              Tai lai
+              Tải lại
             </button>
             <a
               href="/"
               className="rounded-xl border border-gray-300 px-5 py-2.5 text-sm font-bold text-gray-700 transition-colors hover:bg-white"
             >
-              Ve trang chu
+              Về trang chủ
             </a>
           </div>
         </div>
@@ -75,7 +84,7 @@ class RouteErrorBoundary extends React.Component {
   }
 }
 
-const ScrollToTop = () => {
+const ScrollToRouteTop = () => {
   const { pathname } = useLocation();
   useEffect(() => { window.scrollTo(0, 0); }, [pathname]);
   return null;
@@ -94,7 +103,7 @@ function App() {
     <ThemeProvider>
       <ShopProvider>
         <Router>
-          <ScrollToTop />
+          <ScrollToRouteTop />
           <Routes>
             <Route path="/admin" element={<ProtectedRoute isAdmin><AdminLayout /></ProtectedRoute>}>
               <Route index element={<AdminDashboard />} />
@@ -120,6 +129,13 @@ function App() {
                         <Route path="/" element={<Home />} />
                         <Route path="/products" element={<TimKiem />} />
                         <Route path="/tim-kiem" element={<TimKiem />} />
+                        <Route path="/gioi-thieu" element={<About />} />
+                        <Route path="/tin-tuc" element={<NewsPage />} />
+                        <Route path="/khuyen-mai" element={<FlashSalePage />} />
+                        <Route path="/chinh-sach-bao-hanh" element={<WarrantyPolicy />} />
+                        <Route path="/chinh-sach-doi-tra" element={<ReturnPolicy />} />
+                        <Route path="/chinh-sach-bao-mat" element={<PrivacyPolicy />} />
+                        <Route path="/chinh-sach-giao-hang" element={<ShippingPolicy />} />
                         <Route path="/brands/:brandSlug" element={<BrandProducts />} />
                         <Route path="/product/:slug" element={<ProductDetail />} />
                         <Route path="/cart" element={<ProtectedRoute><Cart /></ProtectedRoute>} />
@@ -134,7 +150,7 @@ function App() {
                             <div className="py-20 text-center">
                               <h1 className="text-4xl font-black italic uppercase">404</h1>
                               <p className="mt-2 text-xs font-bold uppercase tracking-widest text-gray-500">
-                                Trang khong ton tai.
+                                Trang không tồn tại.
                               </p>
                             </div>
                           )}
@@ -142,6 +158,8 @@ function App() {
                       </Routes>
                     </RouteErrorBoundary>
                   </main>
+                  <ZaloButton />
+                  <ScrollToTop />
                   <Footer />
                 </div>
               )}

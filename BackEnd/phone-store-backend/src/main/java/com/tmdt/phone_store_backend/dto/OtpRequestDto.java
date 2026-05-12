@@ -13,7 +13,7 @@ import lombok.Setter;
 @AllArgsConstructor
 public class OtpRequestDto {
 
-    @NotBlank(message = "Email khong duoc de trong")
-    @Email(message = "Email khong hop le")
+    @NotBlank(message = "Email không được để trống")
+    @Email(message = "Email không hợp lệ")
     private String email;
 }
