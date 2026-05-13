@@ -19,4 +19,19 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     Optional<Order> findByIdWithUser(@Param("id") Long id);
 
     long countByOrderStatus(OrderStatus status);
+
+    List<Order> findByUserIdOrderByPlacedAtDesc(Long userId);
+
+    @Query("SELECT o FROM Order o LEFT JOIN FETCH o.orderItems WHERE o.user.id = :userId ORDER BY o.placedAt DESC")
+    List<Order> findByUserIdWithItemsOrderByPlacedAtDesc(@Param("userId") Long userId);
+
+    @Query("SELECT o FROM Order o LEFT JOIN FETCH o.orderItems WHERE o.user.id = :userId AND o.orderStatus = :status ORDER BY o.placedAt DESC")
+    List<Order> findByUserIdAndOrderStatusWithItems(
+            @Param("userId") Long userId,
+            @Param("status") OrderStatus status);
+
+    Optional<Order> findByOrderCode(String orderCode);
+
+    @Query("SELECT o FROM Order o LEFT JOIN FETCH o.orderItems WHERE o.orderCode = :orderCode")
+    Optional<Order> findByOrderCodeWithItems(@Param("orderCode") String orderCode);
 }

@@ -1,14 +1,25 @@
 package com.tmdt.phone_store_backend.controller;
 
 import com.tmdt.phone_store_backend.domain.entity.User;
+import com.tmdt.phone_store_backend.domain.enums.UserStatus;
 import com.tmdt.phone_store_backend.dto.AuthResponseDto;
+import com.tmdt.phone_store_backend.dto.CompleteGoogleRegisterRequestDto;
+import com.tmdt.phone_store_backend.dto.GoogleAuthRequestDto;
+import com.tmdt.phone_store_backend.dto.GoogleAuthResponseDto;
 import com.tmdt.phone_store_backend.dto.LoginRequestDto;
+import com.tmdt.phone_store_backend.dto.OtpRequestDto;
+import com.tmdt.phone_store_backend.dto.OtpVerifyDto;
 import com.tmdt.phone_store_backend.dto.RegisterRequestDto;
 import com.tmdt.phone_store_backend.dto.UserResponseDto;
+import com.tmdt.phone_store_backend.repository.UserRepository;
 import com.tmdt.phone_store_backend.security.JwtTokenProvider;
+import com.tmdt.phone_store_backend.service.EmailService;
+import com.tmdt.phone_store_backend.service.GoogleAuthService;
+import com.tmdt.phone_store_backend.service.OtpService;
 import com.tmdt.phone_store_backend.service.UserService;
 import jakarta.validation.Valid;
-import java.security.Principal;
+import java.util.HashMap;
+import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -21,9 +32,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * AuthController - xử lý các request liên quan đến authentication
- */
 @Slf4j
 @RestController
 @RequestMapping("/api/auth")
@@ -31,11 +39,12 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     private final UserService userService;
+    private final GoogleAuthService googleAuthService;
+    private final OtpService otpService;
+    private final EmailService emailService;
     private final JwtTokenProvider jwtTokenProvider;
+    private final UserRepository userRepository;
 
-    /**
-     * POST /api/auth/register - Đăng ký người dùng mới
-     */
     @PostMapping("/register")
     public ResponseEntity<?> register(@Valid @RequestBody RegisterRequestDto requestDto) {
         log.info("Register request for email: {}", requestDto.getEmail());
@@ -44,10 +53,17 @@ public class AuthController {
             UserResponseDto userDto = userService.register(requestDto);
 
             User savedUser = userService.getUserByEmail(userDto.getEmail());
-            String token = jwtTokenProvider.generateToken(userDto.getEmail());
-            String refreshToken = jwtTokenProvider.generateRefreshToken(userDto.getEmail());
 
-            AuthResponseDto response = new AuthResponseDto(token, refreshToken, userDto);
+            // Gui OTP xac thuc email
+            String otp = otpService.generateOtp(savedUser.getEmail());
+            emailService.sendOtpEmail(savedUser.getEmail(), otp);
+
+            // Tra ve response de frontend chuyen huong den trang xac thuc OTP
+            GoogleAuthResponseDto response = new GoogleAuthResponseDto();
+            response.setStage("verify_otp");
+            response.setMessage("Ma xac thuc da duoc gui den email cua ban. Vui long nhap ma de kich hoat tai khoan.");
+            response.setEmail(savedUser.getEmail());
+            response.setFullName(savedUser.getFullName());
 
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
         } catch (Exception e) {
@@ -56,9 +72,6 @@ public class AuthController {
         }
     }
 
-    /**
-     * POST /api/auth/login - Đăng nhập
-     */
     @PostMapping("/login")
     public ResponseEntity<?> login(@Valid @RequestBody LoginRequestDto requestDto) {
         log.info("Login request for email: {}", requestDto.getEmail());
@@ -79,9 +92,71 @@ public class AuthController {
         }
     }
 
-    /**
-     * GET /api/auth/me - Lấy thông tin người dùng hiện tại
-     */
+    @PostMapping("/google")
+    public ResponseEntity<?> googleAuth(@RequestBody GoogleAuthRequestDto request) {
+        log.info("Google auth request for email: {}", request.getEmail());
+
+        GoogleAuthResponseDto response = googleAuthService.handleGoogleAuth(request);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/google/complete-profile")
+    public ResponseEntity<?> completeGoogleProfile(
+            @Valid @RequestBody CompleteGoogleRegisterRequestDto request) {
+        log.info("Complete Google profile for email: {}", request.getEmail());
+
+        GoogleAuthResponseDto response = googleAuthService.completeGoogleProfile(request);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/otp/send")
+    public ResponseEntity<?> sendOtp(@Valid @RequestBody OtpRequestDto request) {
+        log.info("Send OTP request for email: {}", request.getEmail());
+        String email = request.getEmail().toLowerCase();
+
+        User user = userRepository.findByEmail(email).orElse(null);
+        if (user == null) {
+            Map<String, String> error = new HashMap<>();
+            error.put("message", "Email khong ton tai");
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+        }
+
+        String otp = otpService.generateOtp(email);
+        emailService.sendOtpEmail(email, otp);
+
+        Map<String, String> response = new HashMap<>();
+        response.put("message", "Ma xac thuc da duoc gui den email cua ban");
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/otp/verify")
+    public ResponseEntity<?> verifyOtp(@Valid @RequestBody OtpVerifyDto request) {
+        log.info("Verify OTP request for email: {}", request.getEmail());
+        String email = request.getEmail().toLowerCase();
+
+        boolean valid = otpService.verifyOtp(email, request.getOtpCode());
+        if (!valid) {
+            Map<String, String> error = new HashMap<>();
+            error.put("message", "Ma xac thuc khong hop le hoac da het han");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+        }
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Khong tim thay nguoi dung"));
+
+        user.setStatus(UserStatus.ACTIVE);
+        user.setEnabled(true);
+        user.setUpdatedAt(java.time.LocalDateTime.now());
+        userRepository.save(user);
+
+        String token = jwtTokenProvider.generateToken(user.getEmail());
+        String refreshToken = jwtTokenProvider.generateRefreshToken(user.getEmail());
+        UserResponseDto userDto = userService.convertToDto(user);
+
+        AuthResponseDto response = new AuthResponseDto(token, refreshToken, userDto);
+        return ResponseEntity.ok(response);
+    }
+
     @GetMapping("/me")
     public ResponseEntity<?> getCurrentUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -103,11 +178,8 @@ public class AuthController {
         }
     }
 
-    /**
-     * POST /api/auth/refresh-token - Refresh access token
-     */
     @PostMapping("/refresh-token")
-    public ResponseEntity<?> refreshToken(@RequestBody java.util.Map<String, String> request) {
+    public ResponseEntity<?> refreshToken(@RequestBody Map<String, String> request) {
         String refreshToken = request.get("refreshToken");
 
         log.info("Refresh token request");
@@ -115,7 +187,7 @@ public class AuthController {
         try {
             String newAccessToken = userService.refreshAccessToken(refreshToken);
 
-            java.util.Map<String, String> response = new java.util.HashMap<>();
+            Map<String, String> response = new HashMap<>();
             response.put("token", newAccessToken);
             response.put("type", "Bearer");
 
@@ -126,15 +198,12 @@ public class AuthController {
         }
     }
 
-    /**
-     * POST /api/auth/logout - Đăng xuất
-     */
     @PostMapping("/logout")
     public ResponseEntity<?> logout() {
         log.info("Logout request");
         SecurityContextHolder.clearContext();
-        return ResponseEntity.ok(new java.util.HashMap<String, String>() {{
-            put("message", "Đăng xuất thành công");
-        }});
+        Map<String, String> response = new HashMap<>();
+        response.put("message", "Dang xuat thanh cong");
+        return ResponseEntity.ok(response);
     }
 }

@@ -21,6 +21,8 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.web.filter.CharacterEncodingFilter;
+
 import java.util.Arrays;
 
 /**
@@ -61,8 +63,17 @@ public class SecurityConfig {
     }
 
     @Bean
+    public CharacterEncodingFilter characterEncodingFilter() {
+        CharacterEncodingFilter filter = new CharacterEncodingFilter();
+        filter.setEncoding("UTF-8");
+        filter.setForceEncoding(true);
+        return filter;
+    }
+
+    @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
+                .addFilterBefore(characterEncodingFilter(), UsernamePasswordAuthenticationFilter.class)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(
@@ -70,16 +81,27 @@ public class SecurityConfig {
                 .authorizeHttpRequests(authz -> authz
                         // Public endpoints
                         .requestMatchers(HttpMethod.POST, "/api/auth/register").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/auth/login", "/cloudinary/upload").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/refresh-token").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/auth/google").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/auth/google/complete-profile").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/auth/otp/send").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/auth/otp/verify").permitAll()
                         .requestMatchers("/api/products/**").permitAll()
                         .requestMatchers("/api/categories/**").permitAll()
                         .requestMatchers("/api/brands/**").permitAll()
+                        .requestMatchers("/api/banners/**").permitAll()
+                        .requestMatchers("/api/flash-sales/**").permitAll()
+                        .requestMatchers("/api/orders/**").permitAll()
                         
                         // User endpoints
                         .requestMatchers(HttpMethod.GET, "/api/auth/me").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/users/profile").authenticated()
                         .requestMatchers(HttpMethod.PUT, "/api/users/profile").authenticated()
+                        .requestMatchers(HttpMethod.PUT, "/api/users/avatar").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/users/password/send-otp").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/users/password/change").authenticated()
+                        .requestMatchers("/api/users/addresses/**").authenticated()
                         .requestMatchers(HttpMethod.POST, "/api/auth/logout").authenticated()
                         
                         // Admin endpoints

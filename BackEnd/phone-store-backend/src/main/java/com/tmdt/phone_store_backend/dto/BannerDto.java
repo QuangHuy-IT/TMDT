@@ -8,8 +8,10 @@ import lombok.Setter;
 public class BannerDto {
     private Long id;
     private String title;
+    private String subtitle;
     private String imageUrl;
     private String linkUrl;
+    private String buttonText;
     private String position;
     private String startAt;
     private String endAt;

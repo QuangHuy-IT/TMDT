@@ -28,8 +28,8 @@ public class CustomUserDetailsService implements UserDetailsService {
                 .orElseThrow(() -> new UsernameNotFoundException(
                         "Không tìm thấy người dùng với email: " + email));
 
-        // Kiểm tra user bị khóa hay không - chỉ ACTIVE user mới có thể login
-        boolean isEnabled = user.getStatus() == UserStatus.ACTIVE;
+        // User must be ACTIVE status AND enabled flag must be true
+        boolean isEnabled = user.getStatus() == UserStatus.ACTIVE && user.isEnabled();
         
         // Kiểm tra account không bị xóa (soft delete)
         boolean isNotDeleted = user.getDeletedAt() == null;

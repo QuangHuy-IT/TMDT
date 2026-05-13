@@ -14,35 +14,27 @@ const inferColorHex = (value) => {
   if (normalized.includes('xanh')) return '#2563eb';
   if (normalized.includes('do') || normalized.includes('red')) return '#dc2626';
   if (normalized.includes('vang') || normalized.includes('gold')) return '#ca8a04';
-  if (normalized.includes('tim')) return '#7c3aed';
-  if (normalized.includes('hong') || normalized.includes('pink')) return '#ec4899';
-  if (normalized.includes('bac') || normalized.includes('silver')) return '#9ca3af';
-  if (normalized.includes('nau') || normalized.includes('brown')) return '#92400e';
   return '#6b7280';
 };
 
 const normalizeProduct = (raw, fallbackId) => {
   if (!raw || typeof raw !== 'object') return null;
 
-  // images = TẤT CẢ ảnh gallery mà admin upload (thumbnail + gallery)
-  // KHÔNG chứa ảnh màu sắc — ảnh màu chỉ dùng làm swatch
-  const galleryImages = Array.isArray(raw.images)
+  const images = Array.isArray(raw.images)
     ? raw.images.filter(Boolean)
     : (raw.image ? [raw.image] : []);
 
-  // variants.colors chứa cả color image URL nhưng chỉ dùng làm swatch,
-  // KHÔNG merge vào images array
   const variants = raw.variants && typeof raw.variants === 'object' ? raw.variants : {};
   const storages = Array.isArray(variants.storages) ? variants.storages.filter(Boolean) : [];
   const colors = Array.isArray(variants.colors)
     ? variants.colors
         .map((item) => {
           if (typeof item === 'string') {
-            return { name: item, hex: inferColorHex(item), imageUrl: null };
+            return { name: item, hex: inferColorHex(item) };
           }
           if (!item || typeof item !== 'object') return null;
           const name = item.name || item.color || 'Mặc định';
-          return { name, hex: item.hex || inferColorHex(name), imageUrl: item.imageUrl || null };
+          return { name, hex: item.hex || inferColorHex(name) };
         })
         .filter(Boolean)
     : [];
@@ -58,8 +50,7 @@ const normalizeProduct = (raw, fallbackId) => {
   return {
     ...raw,
     id: raw.id || raw._id || fallbackId,
-    thumbnailUrl: raw.thumbnailUrl || (galleryImages[0] || null),
-    galleryImages,           // chỉ ảnh gallery, không chứa color image
+    images,
     price: Number(raw.price || 0),
     stock,
     variants: {
@@ -72,7 +63,7 @@ const normalizeProduct = (raw, fallbackId) => {
 };
 
 export const ProductDetail = () => {
-  const { id } = useParams();
+  const { slug } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
   const { state, dispatch } = useContext(ShopContext);
@@ -92,10 +83,11 @@ export const ProductDetail = () => {
     const fetchDetail = async () => {
       setLoading(true);
       setError('');
+
       try {
-        const response = await ProductService.getProductDetail(id);
+        const response = await ProductService.getProductDetail(slug);
         if (!mounted) return;
-        const normalized = normalizeProduct(response.data, id);
+        const normalized = normalizeProduct(response.data, slug);
         setProduct(normalized);
       } catch (e) {
         if (!mounted) return;
@@ -107,29 +99,22 @@ export const ProductDetail = () => {
     };
 
     fetchDetail();
-    return () => { mounted = false; };
-  }, [id]);
 
-  // Reset selection khi product thay đổi
+    return () => {
+      mounted = false;
+    };
+  }, [slug]);
+
   useEffect(() => {
-    if (!product) return;
-    const storages = product.variants?.storages || [];
-    const colors = product.variants?.colors || [];
+    const storages = product?.variants?.storages || [];
+    const colors = product?.variants?.colors || [];
     setSelectedStorage(storages.length > 0 ? storages[0] : null);
     setSelectedColor(colors.length > 0 ? colors[0] : null);
     setActiveImage(0);
     setQuantity(1);
   }, [product?.id]);
 
-  // images = galleryImages (tách biệt với color swatches)
-  const galleryImages = product?.galleryImages || [];
-
-  // Ảnh hiển thị chính: ưu tiên gallery theo index
-  const displayImage = useMemo(() => {
-    return galleryImages[activeImage] || product?.thumbnailUrl || 'https://picsum.photos/seed/fallback/700/700';
-  }, [galleryImages, activeImage, product?.thumbnailUrl]);
-
-  // Giá theo storage đã chọn
+  const images = product?.images || [];
   const currentPrice = useMemo(() => {
     if (!product) return 0;
     if (selectedStorage && product.variants?.basePrices?.[selectedStorage] != null) {
@@ -140,49 +125,57 @@ export const ProductDetail = () => {
 
   const maxQuantity = Math.max(1, Number(product?.stock || 0));
 
-  const addToCart = () => {
+    const addToCart = () => {
     if (!product) return;
+
     if (!isAuthenticated) {
       navigate('/login', { state: { from: location } });
       return;
     }
+
     if ((product.stock || 0) <= 0) return;
+
+    // Tìm variantItem phù hợp với storage + color đã chọn
+    const variantItems = product.variantItems || [];
+    const selectedVariant = variantItems.find(
+      (v) =>
+        String(v.storageGb || '') === String(selectedStorage) &&
+        (v.color || '').toLowerCase() === (selectedColor?.name || '').toLowerCase()
+    );
 
     dispatch({
       type: 'ADD_TO_CART',
       payload: {
         ...product,
-        id: selectedStorage ? `${product.id}-${selectedStorage}` : String(product.id),
+        variantId: selectedVariant?.id || null,
+        id: String(product.id),
         quantity,
         price: currentPrice,
-        selectedStorage,
-        selectedColor,
+        ram: selectedVariant?.ramGb ? `${selectedVariant.ramGb}GB` : '',
+        storage: selectedVariant?.storageGb ? `${selectedVariant.storageGb}GB` : String(selectedStorage || ''),
+        color: selectedColor?.name || '',
+        sku: selectedVariant?.sku || '',
+        images: product.images,
       },
     });
   };
 
   if (loading) {
     return (
-      <div className="min-h-[70vh] flex items-center justify-center bg-gray-50">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-2 border-gray-200 border-t-red-500 rounded-full animate-spin" />
-          <p className="text-sm font-bold text-gray-500">Đang tải thông tin sản phẩm...</p>
-        </div>
+      <div className="flex min-h-[70vh] items-center justify-center bg-gray-50">
+        <p className="text-sm font-bold text-gray-500">Đang tải chi tiết sản phẩm...</p>
       </div>
     );
   }
 
   if (!product) {
     return (
-      <div className="min-h-[70vh] flex flex-col items-center justify-center bg-gray-50 px-4 text-center">
-        <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center mb-4">
-          <span className="text-3xl">🔍</span>
-        </div>
+      <div className="flex min-h-[70vh] flex-col items-center justify-center bg-gray-50 px-4 text-center">
         <h2 className="text-2xl font-black text-gray-800">Không tìm thấy sản phẩm</h2>
-        <p className="text-sm text-gray-500 mt-2">{error || 'Sản phẩm không tồn tại hoặc đã bị xóa.'}</p>
+        <p className="mt-2 text-sm text-gray-500">{error || 'Sản phẩm không tồn tại hoặc đã bị xóa.'}</p>
         <button
           onClick={() => navigate('/')}
-          className="mt-6 px-6 py-3 bg-red-600 text-white rounded-xl text-sm font-bold hover:bg-red-700 transition-all"
+          className="mt-6 rounded-xl bg-red-600 px-6 py-3 text-sm font-bold text-white hover:bg-red-700"
         >
           Về trang chủ
         </button>
@@ -190,103 +183,129 @@ export const ProductDetail = () => {
     );
   }
 
-  const { variants, specifications } = product;
-
   return (
     <main className="min-h-screen bg-[#f8f8f6] pb-20">
-      <div className="max-w-6xl mx-auto px-4 pt-8">
-        {/* Breadcrumb */}
-        <nav className="flex items-center gap-2 text-xs text-gray-400 mb-6">
-          <button onClick={() => navigate('/')} className="hover:text-red-600 font-medium transition-colors">Trang chủ</button>
+      <div className="mx-auto max-w-6xl px-4 pt-8">
+        <nav className="mb-6 flex items-center gap-2 text-xs text-gray-400">
+          <button onClick={() => navigate('/')} className="hover:text-red-600">Trang chủ</button>
           <span>/</span>
-          <span className="text-gray-600">{product.name}</span>
+          <button onClick={() => navigate(`/brands/${product.brandSlug || product.brand}`)} className="hover:text-red-600">{product.brand || 'Khác'}</button>
+          <span>/</span>
+          <span className="text-gray-700">{product.name}</span>
         </nav>
 
-        {/* Main grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+          {/* ===== LEFT: Image Gallery ===== */}
+          <section className="space-y-3">
+            {/* Main Image */}
+            <div className="relative rounded-2xl border border-gray-100 bg-white overflow-hidden">
+              <div className="relative aspect-square flex items-center justify-center overflow-hidden bg-gray-50">
+                <img
+                  src={images[activeImage] || 'https://picsum.photos/seed/fallback/700/700'}
+                  alt={product.name}
+                  className="h-full w-full object-contain"
+                  onError={(e) => {
+                    e.currentTarget.src = 'https://picsum.photos/seed/fallback/700/700';
+                  }}
+                />
 
-          {/* ── LEFT: Gallery ─────────────────────────────────────────── */}
-          <section className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
-            {/* Main image */}
-            <div className="aspect-square bg-gray-50 flex items-center justify-center overflow-hidden">
-              <img
-                src={displayImage}
-                alt={product.name}
-                className="w-full h-full object-contain"
-                onError={(e) => { e.currentTarget.src = 'https://picsum.photos/seed/fallback/700/700'; }}
-              />
+                {/* Prev / Next Buttons */}
+                {images.length > 1 && (
+                  <>
+                    <button
+                      onClick={() => setActiveImage((i) => (i - 1 + images.length) % images.length)}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 shadow-lg hover:bg-white disabled:opacity-30"
+                      aria-label="Ảnh trước"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 12L6 8l4-4" stroke="#374151" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                    </button>
+                    <button
+                      onClick={() => setActiveImage((i) => (i + 1) % images.length)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 shadow-lg hover:bg-white"
+                      aria-label="Ảnh sau"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 12l4-4-4-4" stroke="#374151" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                    </button>
+                  </>
+                )}
+
+                {/* Dots indicator */}
+                {images.length > 1 && (
+                  <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
+                    {images.map((_, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => setActiveImage(idx)}
+                        className={`h-1.5 rounded-full transition-all ${activeImage === idx ? 'w-5 bg-red-500' : 'w-1.5 bg-white/60'}`}
+                        aria-label={`Ảnh ${idx + 1}`}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
 
-            {/* Gallery thumbnails */}
-            {galleryImages.length > 1 && (
-              <div className="px-4 pb-4">
-                <p className="text-[10px] text-gray-400 uppercase font-bold tracking-widest mb-2">
-                  {galleryImages.length} ảnh
-                </p>
-                <div className="flex gap-2 flex-wrap">
-                  {galleryImages.map((image, index) => (
-                    <button
-                      key={`gallery-${index}`}
-                      onClick={() => setActiveImage(index)}
-                      className={`w-16 h-16 rounded-xl border-2 overflow-hidden transition-all ${
-                        activeImage === index ? 'border-red-500 shadow-md' : 'border-gray-200 hover:border-gray-400'
-                      }`}
-                    >
-                      <img
-                        src={image}
-                        alt={`Ảnh ${index + 1}`}
-                        className="w-full h-full object-cover"
-                        onError={(e) => { e.currentTarget.src = 'https://picsum.photos/seed/fallback/80/80'; }}
-                      />
-                    </button>
+            {/* Thumbnail Strip */}
+            {images.length > 1 && (
+              <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                {images.map((image, index) => (
+                  <button
+                    key={`${image}-${index}`}
+                    onClick={() => setActiveImage(index)}
+                    className={`h-16 w-16 shrink-0 overflow-hidden rounded-lg border-2 transition-all ${activeImage === index ? 'border-red-500' : 'border-gray-200'}`}
+                  >
+                    <img src={image} alt={`Thumb ${index + 1}`} className="h-full w-full object-cover" />
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* ===== Below images: Description + Specifications ===== */}
+            <div className="rounded-2xl border border-gray-100 bg-white p-4">
+              <h2 className="mb-2 text-sm font-black uppercase tracking-wide text-gray-900">Mô tả</h2>
+              <p className="text-sm leading-relaxed text-gray-600">
+                {product.description || 'Sản phẩm đang được cập nhật mô tả.'}
+              </p>
+            </div>
+
+            {Object.keys(product.specifications || {}).length > 0 && (
+              <div className="rounded-2xl border border-gray-100 bg-white p-4">
+                <h2 className="mb-3 text-sm font-black uppercase tracking-wide text-gray-900">Thông số kỹ thuật</h2>
+                <div className="space-y-2">
+                  {Object.entries(product.specifications).map(([key, value]) => (
+                    <div key={key} className="flex justify-between gap-4 border-b border-gray-100 pb-2 text-sm last:border-0 last:pb-0">
+                      <span className="text-gray-500">{key}</span>
+                      <span className="text-right font-medium text-gray-800">{String(value || '')}</span>
+                    </div>
                   ))}
                 </div>
               </div>
             )}
           </section>
 
-          {/* ── RIGHT: Product Info ──────────────────────────────────── */}
           <section className="space-y-5">
-
-            {/* Brand + Stock badge */}
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-[11px] px-2.5 py-1 rounded-full bg-red-50 text-red-600 font-bold uppercase tracking-wide">
+            <div className="flex items-center gap-2">
+              <span className="rounded-full bg-red-50 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-red-600">
                 {product.brand || 'Khác'}
               </span>
-              <span className={`text-[11px] font-bold uppercase ${
-                product.stock > 0 ? 'text-green-600' : 'text-red-500'
-              }`}>
+              <span className={`text-[11px] font-bold uppercase ${product.stock > 0 ? 'text-green-600' : 'text-red-500'}`}>
                 {product.stock > 0 ? `Còn ${product.stock} sản phẩm` : 'Hết hàng'}
               </span>
             </div>
 
-            {/* Name */}
-            <h1 className="text-3xl font-black text-gray-900 leading-tight">{product.name}</h1>
+            <h1 className="text-3xl font-black text-gray-900">{product.name}</h1>
 
-            {/* Price */}
-            <p className="text-3xl font-black text-red-600">
-              {Number(currentPrice || 0).toLocaleString('vi-VN')}₫
-            </p>
+            <p className="text-3xl font-black text-red-600">{Number(currentPrice || 0).toLocaleString('vi-VN')}₫</p>
 
-            {/* Storage selector */}
-            {variants?.storages?.length > 0 && (
+            {product.variants?.storages?.length > 0 && (
               <div>
-                <p className="text-xs font-bold text-gray-500 uppercase mb-2 flex items-center gap-2">
-                  Dung lượng
-                  {selectedStorage && (
-                    <span className="font-medium text-gray-700 normal-case">{selectedStorage}</span>
-                  )}
-                </p>
-                <div className="flex gap-2 flex-wrap">
-                  {variants.storages.map((storage) => (
+                <p className="mb-2 text-xs font-bold uppercase text-gray-500">Dung lượng</p>
+                <div className="flex flex-wrap gap-2">
+                  {product.variants.storages.map((storage) => (
                     <button
                       key={storage}
                       onClick={() => setSelectedStorage(storage)}
-                      className={`px-4 py-2.5 rounded-xl border text-sm font-bold transition-all ${
-                        selectedStorage === storage
-                          ? 'border-red-500 bg-red-50 text-red-600 shadow-sm'
-                          : 'border-gray-200 text-gray-700 hover:border-gray-400'
-                      }`}
+                      className={`rounded-lg border px-3 py-2 text-sm font-bold ${selectedStorage === storage ? 'border-red-500 bg-red-50 text-red-600' : 'border-gray-200 text-gray-700'}`}
                     >
                       {storage}
                     </button>
@@ -295,63 +314,35 @@ export const ProductDetail = () => {
               </div>
             )}
 
-            {/* Color selector */}
-            {variants?.colors?.length > 0 && (
+            {product.variants?.colors?.length > 0 && (
               <div>
-                <p className="text-xs font-bold text-gray-500 uppercase mb-2 flex items-center gap-2">
-                  Màu sắc
-                  {selectedColor && (
-                    <span className="font-semibold text-gray-700 normal-case">{selectedColor.name}</span>
-                  )}
-                </p>
-                <div className="flex gap-3 flex-wrap items-center">
-                  {variants.colors.map((color) => (
-                    <div key={color.name} className="flex flex-col items-center gap-1">
-                      <button
-                        onClick={() => setSelectedColor(color)}
-                        className={`rounded-xl overflow-hidden border-2 transition-all ${
-                          selectedColor?.name === color.name
-                            ? 'border-red-500 ring-2 ring-red-200 shadow-md'
-                            : 'border-gray-200 hover:border-gray-400'
-                        }`}
-                        title={color.name}
-                      >
-                        <div
-                          className="w-12 h-12 flex items-center justify-center overflow-hidden"
-                          style={{ backgroundColor: color.hex || '#6b7280' }}
-                        >
-                          {color.imageUrl ? (
-                            <img
-                              src={color.imageUrl}
-                              alt={color.name}
-                              className="w-full h-full object-cover"
-                              onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                            />
-                          ) : (
-                            <span className="text-[9px] text-white font-bold drop-shadow text-center leading-tight px-1"> </span>
-                          )}
-                        </div>
-                      </button>
-                      <span className="text-[10px] text-gray-500 font-medium">{color.name}</span>
-                    </div>
+                <p className="mb-2 text-xs font-bold uppercase text-gray-500">Màu sắc</p>
+                <div className="flex flex-wrap gap-3">
+                  {product.variants.colors.map((color) => (
+                    <button
+                      key={color.name}
+                      onClick={() => setSelectedColor(color)}
+                      className={`h-9 w-9 rounded-full border-2 ${selectedColor?.name === color.name ? 'border-gray-900' : 'border-gray-300'}`}
+                      style={{ backgroundColor: color.hex || '#6b7280' }}
+                      title={color.name}
+                    />
                   ))}
                 </div>
               </div>
             )}
 
-            {/* Quantity + Add to cart */}
-            <div className="flex items-center gap-3 pt-2">
-              <div className="flex items-center border-2 border-gray-200 rounded-xl overflow-hidden">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center overflow-hidden rounded-xl border border-gray-200">
                 <button
                   onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                  className="w-10 h-10 text-lg font-black text-gray-500 hover:text-red-600 hover:bg-red-50 transition-colors"
+                  className="h-10 w-10 text-lg font-black text-gray-500 hover:text-red-600"
                 >
-                  −
+                  -
                 </button>
-                <span className="w-14 text-center font-bold text-lg">{quantity}</span>
+                <span className="w-12 text-center font-bold">{quantity}</span>
                 <button
                   onClick={() => setQuantity((q) => Math.min(maxQuantity, q + 1))}
-                  className="w-10 h-10 text-lg font-black text-gray-500 hover:text-red-600 hover:bg-red-50 transition-colors"
+                  className="h-10 w-10 text-lg font-black text-gray-500 hover:text-red-600"
                 >
                   +
                 </button>
@@ -360,63 +351,10 @@ export const ProductDetail = () => {
               <button
                 onClick={addToCart}
                 disabled={product.stock <= 0}
-                className="flex-1 py-3 px-6 rounded-xl bg-red-600 text-white text-sm font-bold hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-all active:scale-95 shadow-sm hover:shadow-md"
+                className="rounded-xl bg-red-600 px-6 py-3 text-sm font-bold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-gray-300"
               >
-                {product.stock > 0 ? '🛒  Thêm vào giỏ hàng' : 'Hết hàng'}
+                Thêm vào giỏ hàng
               </button>
-            </div>
-
-            {/* Description */}
-            {(product.description || specifications) && (
-              <div className="bg-white border border-gray-100 rounded-2xl p-5 space-y-4">
-                {product.description && (
-                  <div>
-                    <h2 className="text-sm font-black text-gray-900 uppercase tracking-wide mb-2 flex items-center gap-2">
-                      <span className="w-1 h-4 bg-red-500 rounded-full inline-block" />
-                      Mô tả sản phẩm
-                    </h2>
-                    {product.description.includes('<') ? (
-                      <div
-                        className="text-sm text-gray-600 leading-relaxed [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded-lg [&_p]:mb-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_a]:text-red-600 [&_a]:underline"
-                        dangerouslySetInnerHTML={{ __html: product.description }}
-                      />
-                    ) : (
-                      <p className="text-sm text-gray-600 leading-relaxed">{product.description}</p>
-                    )}
-                  </div>
-                )}
-
-                {Object.keys(specifications || {}).some((k) => specifications[k]) && (
-                  <div>
-                    <h2 className="text-sm font-black text-gray-900 uppercase tracking-wide mb-3 flex items-center gap-2">
-                      <span className="w-1 h-4 bg-red-500 rounded-full inline-block" />
-                      Thông số kỹ thuật
-                    </h2>
-                    <div className="space-y-2">
-                      {Object.entries(specifications).filter(([, v]) => v).map(([key, value]) => (
-                        <div key={key} className="flex justify-between gap-4 text-sm border-b border-gray-50 pb-2 last:border-0">
-                          <span className="text-gray-500 font-medium capitalize">{key}</span>
-                          <span className="text-gray-800 font-semibold text-right">{String(value)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Policies */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {[
-                { icon: '🛡️', label: 'Bảo hành 12 tháng' },
-                { icon: '🚀', label: 'Giao hàng 2h' },
-                { icon: '💎', label: 'Đổi mới 30 ngày' },
-              ].map(({ icon, label }) => (
-                <div key={label} className="flex items-center gap-2.5 bg-white border border-gray-100 rounded-xl px-3 py-2.5">
-                  <span className="text-lg">{icon}</span>
-                  <span className="text-[11px] font-bold text-gray-600">{label}</span>
-                </div>
-              ))}
             </div>
           </section>
         </div>

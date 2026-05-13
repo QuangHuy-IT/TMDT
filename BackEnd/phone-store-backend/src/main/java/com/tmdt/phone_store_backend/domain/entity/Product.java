@@ -79,4 +79,7 @@ public class Product {
 
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
+
+    @Column(name = "sale", nullable = false)
+    private Integer sale = 0;
 }
