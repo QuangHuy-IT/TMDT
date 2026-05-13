@@ -99,6 +99,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/payment/payos/cancel").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/payment/payos/confirm-webhook").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/payment/payos/success").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/products/*/reviews/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/reviews/*/helpful").permitAll()
                         
                         // User endpoints
                         .requestMatchers(HttpMethod.GET, "/api/auth/me").authenticated()

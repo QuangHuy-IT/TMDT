@@ -7,6 +7,17 @@ import { usePublicBrands } from '../../hooks/usePublicBrands';
 const SEARCH_HISTORY_KEY = 'hhshop_search_history';
 const MAX_HISTORY = 5;
 
+const BRAND_LINKS = [
+  { label: 'iPhone', href: '/brands/iphone' },
+  { label: 'Samsung', href: '/brands/samsung' },
+  { label: 'Xiaomi', href: '/brands/xiaomi' },
+  { label: 'OPPO', href: '/brands/oppo' },
+  { label: 'vivo', href: '/brands/vivo' },
+  { label: 'realme', href: '/brands/realme' },
+  { label: 'Nokia', href: '/brands/nokia' },
+  { label: 'TECNO', href: '/brands/tecno' },
+];
+
 const PRICE_LINKS = [
   { label: 'Dưới 5 triệu', value: 'under-5m' },
   { label: '5 - 10 triệu', value: '5-10m' },
@@ -15,6 +26,13 @@ const PRICE_LINKS = [
 ];
 
 const STORAGE_LINKS = ['64GB', '128GB', '256GB', '512GB', '1TB', '2TB'];
+
+const POLICY_LINKS = [
+  { label: 'Bảo hành', href: '/chinh-sach-bao-hanh' },
+  { label: 'Đổi trả', href: '/chinh-sach-doi-tra' },
+  { label: 'Bảo mật', href: '/chinh-sach-bao-mat' },
+  { label: 'Giao hàng', href: '/chinh-sach-giao-hang' },
+];
 
 const DropdownPanel = ({ visible, widthClass = 'w-[520px]', children }) => (
   <AnimatePresence>
@@ -166,18 +184,15 @@ export const Navbar = () => {
                 <button className="rounded-2xl px-4 py-2.5 text-sm font-black text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-950">
                   Danh mục
                 </button>
-                <DropdownPanel visible={activeMenu === 'catalog'} widthClass="w-[680px]">
+                <DropdownPanel visible={activeMenu === 'catalog'} widthClass="w-[740px]">
                   <div className="mb-5 flex items-center justify-between">
                     <div>
-                      <p className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-400">Catalog</p>
-                      <h3 className="text-xl font-black text-slate-950">Danh mục mua sắm</h3>
+                      <p className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-400">Explore</p>
+                      <h3 className="text-xl font-black text-slate-950">Danh mục</h3>
                     </div>
-                    <Link to="/products" className="text-xs font-black uppercase tracking-[0.2em] text-red-600">
-                      Xem tất cả
-                    </Link>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-8">
+                  <div className="grid grid-cols-4 gap-8">
                     <section>
                       <p className="mb-4 text-[11px] font-black uppercase tracking-[0.22em] text-slate-400">Hãng điện thoại</p>
                       <div className="space-y-2">
@@ -227,6 +242,55 @@ export const Navbar = () => {
                             {value}
                           </Link>
                         ))}
+                      </div>
+                    </section>
+
+                    <section>
+                      <p className="mb-4 text-[11px] font-black uppercase tracking-[0.22em] text-slate-400">Tiện ích</p>
+                      <div className="space-y-2">
+                        <Link
+                          to="/khuyen-mai"
+                          onClick={() => setActiveMenu(null)}
+                          className="flex items-center gap-2 text-sm font-semibold text-red-600 transition-colors hover:text-red-700"
+                        >
+                          <svg className="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                          </svg>
+                          Khuyến mãi
+                        </Link>
+                        <Link
+                          to="/gioi-thieu"
+                          onClick={() => setActiveMenu(null)}
+                          className="flex items-center gap-2 text-sm font-semibold text-slate-700 transition-colors hover:text-red-600"
+                        >
+                          <svg className="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                          </svg>
+                          Giới thiệu công ty
+                        </Link>
+                        <Link
+                          to="/tin-tuc"
+                          onClick={() => setActiveMenu(null)}
+                          className="flex items-center gap-2 text-sm font-semibold text-slate-700 transition-colors hover:text-red-600"
+                        >
+                          <svg className="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
+                          </svg>
+                          Tin tức
+                        </Link>
+                        <div className="pt-1">
+                          <p className="mb-2 text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">Chính sách</p>
+                          {POLICY_LINKS.map((item) => (
+                            <Link
+                              key={item.href}
+                              to={item.href}
+                              onClick={() => setActiveMenu(null)}
+                              className="block pl-5 text-sm font-semibold text-slate-600 transition-colors hover:text-red-600"
+                            >
+                              {item.label}
+                            </Link>
+                          ))}
+                        </div>
                       </div>
                     </section>
                   </div>
@@ -416,7 +480,7 @@ export const Navbar = () => {
                   <p className="mb-3 text-[11px] font-black uppercase tracking-[0.22em] text-slate-400">Danh mục</p>
                   <div className="space-y-6">
                     <div>
-                      <p className="mb-3 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Thương hiệu</p>
+                      <p className="mb-3 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Hãng điện thoại</p>
                       <div className="grid grid-cols-2 gap-3">
                         {featuredBrands.map((brand) => (
                           <BrandBadge key={brand.id || brand.slug} brand={brand} closeMenu={() => setIsMenuOpen(false)} />
@@ -451,6 +515,52 @@ export const Navbar = () => {
                             className="rounded-2xl border border-slate-100 bg-slate-50 px-3 py-3 text-center text-sm font-black text-slate-700"
                           >
                             {value}
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <p className="mb-3 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Tiện ích</p>
+                      <div className="space-y-2">
+                        <Link
+                          to="/khuyen-mai"
+                          onClick={() => setIsMenuOpen(false)}
+                          className="flex items-center gap-3 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-black text-red-600"
+                        >
+                          <svg className="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                          </svg>
+                          Khuyến mãi
+                        </Link>
+                        <Link
+                          to="/gioi-thieu"
+                          onClick={() => setIsMenuOpen(false)}
+                          className="block rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700"
+                        >
+                          Giới thiệu công ty
+                        </Link>
+                        <Link
+                          to="/tin-tuc"
+                          onClick={() => setIsMenuOpen(false)}
+                          className="block rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700"
+                        >
+                          Tin tức
+                        </Link>
+                      </div>
+                    </div>
+
+                    <div>
+                      <p className="mb-3 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Chính sách</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        {POLICY_LINKS.map((item) => (
+                          <Link
+                            key={item.href}
+                            to={item.href}
+                            onClick={() => setIsMenuOpen(false)}
+                            className="block rounded-2xl border border-slate-100 bg-slate-50 px-3 py-3 text-center text-sm font-semibold text-slate-700"
+                          >
+                            {item.label}
                           </Link>
                         ))}
                       </div>

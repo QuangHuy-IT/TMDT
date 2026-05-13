@@ -20,7 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * UserService - xu ly business logic lien quan den User
+ * UserService - xử lý business logic liên quan đến User
  */
 @Slf4j
 @Service
@@ -36,17 +36,17 @@ public class UserService {
         log.info("Registering new user with email: {}", requestDto.getEmail());
 
         if (!requestDto.getPassword().equals(requestDto.getConfirmPassword())) {
-            throw new InvalidCredentialsException("Mat khau xac nhan khong khop");
+            throw new InvalidCredentialsException("Mật khẩu xác nhận không khớp");
         }
 
         if (userRepository.existsByEmail(requestDto.getEmail())) {
             throw new ResourceAlreadyExistsException(
-                    "Email da duoc su dung: " + requestDto.getEmail());
+                    "Email đã được sử dụng: " + requestDto.getEmail());
         }
 
         if (userRepository.existsByPhone(requestDto.getPhone())) {
             throw new ResourceAlreadyExistsException(
-                    "So dien thoai da duoc su dung: " + requestDto.getPhone());
+                    "Số điện thoại đã được sử dụng: " + requestDto.getPhone());
         }
 
         LocalDateTime now = LocalDateTime.now();
@@ -73,18 +73,18 @@ public class UserService {
 
         User user = userRepository.findByEmail(requestDto.getEmail())
                 .orElseThrow(() -> new InvalidCredentialsException(
-                        "Email hoac mat khau khong dung"));
+                        "Email hoặc mật khẩu không đúng"));
 
         if (!passwordEncoder.matches(requestDto.getPassword(), user.getPasswordHash())) {
-            throw new InvalidCredentialsException("Email hoac mat khau khong dung");
+            throw new InvalidCredentialsException("Email hoặc mật khẩu không đúng");
         }
 
         if (user.getStatus() == UserStatus.BLOCKED) {
-            throw new InvalidCredentialsException("Tai khoan cua ban da bi khoa");
+            throw new InvalidCredentialsException("Tài khoản của bạn đã bị khóa");
         }
 
         if (!user.isEnabled()) {
-            throw new InvalidCredentialsException("Tai khoan chua duoc xac thuc. Vui long kich hoat tai khoan qua email.");
+            throw new InvalidCredentialsException("Tài khoản chưa được xác thực. Vui lòng kích hoạt tài khoản qua email.");
         }
 
         user.setLastLoginAt(LocalDateTime.now());
@@ -97,20 +97,20 @@ public class UserService {
     public UserResponseDto getUserById(Long id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "Khong tim thay nguoi dung voi ID: " + id));
+                        "Không tìm thấy người dùng với ID: " + id));
         return convertToDto(user);
     }
 
     public User getUserByEmail(String email) {
         return userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "Khong tim thay nguoi dung voi email: " + email));
+                        "Không tìm thấy người dùng với email: " + email));
     }
 
     public UserResponseDto updateUser(Long id, UserResponseDto updateDto) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "Khong tim thay nguoi dung voi ID: " + id));
+                        "Không tìm thấy người dùng với ID: " + id));
 
         if (updateDto.getFullName() != null) {
             user.setFullName(updateDto.getFullName());
@@ -118,7 +118,7 @@ public class UserService {
         if (updateDto.getPhone() != null && !updateDto.getPhone().equals(user.getPhone())) {
             if (userRepository.existsByPhone(updateDto.getPhone())) {
                 throw new ResourceAlreadyExistsException(
-                        "So dien thoai da duoc su dung");
+                        "Số điện thoại đã được sử dụng");
             }
             user.setPhone(updateDto.getPhone());
         }
@@ -165,7 +165,7 @@ public class UserService {
 
     public UserResponseDto updateAvatar(Long userId, String avatarUrl) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("Khong tim thay nguoi dung"));
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người dùng"));
         user.setAvatarUrl(avatarUrl);
         user.setUpdatedAt(LocalDateTime.now());
         User saved = userRepository.save(user);
@@ -175,10 +175,10 @@ public class UserService {
 
     public void changePasswordWithOtp(String email, String otpCode, String newPassword, String confirmPassword) {
         if (!newPassword.equals(confirmPassword)) {
-            throw new InvalidCredentialsException("Mat khau xac nhan khong khop");
+            throw new InvalidCredentialsException("Mật khẩu xác nhận không khớp");
         }
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new ResourceNotFoundException("Khong tim thay nguoi dung"));
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người dùng"));
         user.setPasswordHash(passwordEncoder.encode(newPassword));
         user.setUpdatedAt(LocalDateTime.now());
         userRepository.save(user);
@@ -187,7 +187,7 @@ public class UserService {
 
     public void changePassword(String email, String newPassword) {
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new ResourceNotFoundException("Khong tim thay nguoi dung"));
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người dùng"));
         user.setPasswordHash(passwordEncoder.encode(newPassword));
         user.setUpdatedAt(LocalDateTime.now());
         userRepository.save(user);
@@ -196,7 +196,7 @@ public class UserService {
 
     public String refreshAccessToken(String refreshToken) {
         if (!jwtTokenProvider.validateToken(refreshToken)) {
-            throw new InvalidCredentialsException("Refresh token khong hop le");
+            throw new InvalidCredentialsException("Refresh token không hợp lệ");
         }
 
         String email = jwtTokenProvider.getEmailFromToken(refreshToken);

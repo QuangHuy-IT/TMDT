@@ -34,7 +34,7 @@ public class UserAddressController {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String email = authentication.getName();
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("Khong tim thay nguoi dung"));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
         return user.getId();
     }
 

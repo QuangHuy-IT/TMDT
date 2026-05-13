@@ -93,7 +93,7 @@ public class UserController {
         emailService.sendOtpEmail(email, otp);
 
         Map<String, String> response = new HashMap<>();
-        response.put("message", "Ma xac thuc da duoc gui den email cua ban");
+        response.put("message", "Mã xác thực đã được gửi đến email của bạn");
         return ResponseEntity.ok(response);
     }
 
@@ -109,7 +109,7 @@ public class UserController {
 
         if (!otpService.verifyOtp(email, request.getOtpCode())) {
             Map<String, String> error = new HashMap<>();
-            error.put("message", "Ma xac thuc khong hop le hoac da het han");
+            error.put("message", "Mã xác thực không hợp lệ hoặc đã hết hạn");
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
         }
 
@@ -117,7 +117,7 @@ public class UserController {
         otpService.clearOtp(email);
 
         Map<String, String> response = new HashMap<>();
-        response.put("message", "Mat khau da duoc thay doi thanh cong");
+        response.put("message", "Mật khẩu đã được thay đổi thành công");
         return ResponseEntity.ok(response);
     }
 }

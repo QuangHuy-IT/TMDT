@@ -24,10 +24,10 @@ export const Home = () => {
   });
 
   // 2. Flash Sale
-  const { data: flashSales, isLoading: isFlashLoading } = useQuery({
-    queryKey: ['allActiveFlashSales'],
-    queryFn: flashSaleService.getAllActiveFlashSales,
-    staleTime: 1 * 60 * 1000,
+  const { data: flashSaleData, isLoading: isFlashLoading } = useQuery({
+    queryKey: ['flashSaleData'],
+    queryFn: flashSaleService.getFlashSaleData,
+    staleTime: 30 * 1000,
   });
 
   // 3. Featured / Latest Products
@@ -61,20 +61,20 @@ export const Home = () => {
       <HeroSection banners={heroBanners} isLoading={isHeroLoading} />
 
       {/* 2. Flash Sale Section */}
-      <FlashSaleSection flashSales={flashSales || []} isLoading={isFlashLoading} />
+      <FlashSaleSection flashSaleData={flashSaleData} isLoading={isFlashLoading} />
 
       {/* ===== 3. MAIN CONTENT: Sidebar + Brand/Featured Sections ===== */}
       <div className="container mx-auto px-4">
         <div className="flex gap-6 items-start">
 
-          {/* --- Left Sidebar (SIDEBAR position) --- */}
+          {/* --- Left Sidebar --- */}
           {sidebarBanners?.length > 0 && (
-            <aside className="hidden lg:block w-[calc(25%-18px)] shrink-0">
+            <div className="hidden lg:block w-[calc(25%-18px)] shrink-0 sticky top-6 self-start">
               <SidebarBanner
                 banners={sidebarBanners}
                 isLoading={isSidebarLoading}
               />
-            </aside>
+            </div>
           )}
 
           {/* --- Main Column --- */}
@@ -141,7 +141,6 @@ export const Home = () => {
           </div>
         </div>
       </section>
-
     </main>
   );
 };

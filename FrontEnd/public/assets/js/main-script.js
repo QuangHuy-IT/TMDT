@@ -154,7 +154,7 @@ function initAuthForms() {
                 password
             });
 
-            alert("Dang ky thanh cong. Vui long dang nhap.");
+            alert("Đăng ký thành công. Vui lòng đăng nhập.");
             registerForm.reset();
             showLoginForm();
         } catch (error) {

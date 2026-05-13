@@ -1,16 +1,17 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ChevronRight } from 'lucide-react';
 
 const SidebarBanner = ({ banners, isLoading }) => {
+  const wrapRef = useRef(null);
   const bannerList = Array.isArray(banners) ? banners : [];
 
   if (isLoading) {
     return (
       <div className="flex flex-col gap-3">
         {[...Array(2)].map((_, i) => (
-          <div key={i} className="h-44 bg-slate-100 rounded-2xl animate-pulse" />
+          <div key={i} className="aspect-[1/2] bg-slate-100 rounded-2xl animate-pulse" />
         ))}
       </div>
     );
@@ -19,7 +20,7 @@ const SidebarBanner = ({ banners, isLoading }) => {
   if (bannerList.length === 0) return null;
 
   return (
-    <div className="flex flex-col gap-3">
+    <div ref={wrapRef} className="flex flex-col gap-3">
       {bannerList.map((banner, index) => (
         <motion.div
           key={banner.id}
@@ -33,12 +34,12 @@ const SidebarBanner = ({ banners, isLoading }) => {
             className="group relative block overflow-hidden rounded-2xl bg-gradient-to-br from-slate-800 to-slate-900 shadow-lg hover:shadow-xl transition-shadow"
           >
             {/* Image */}
-            <div className="relative overflow-hidden">
+            <div className="relative overflow-hidden aspect-[1/2]">
               {banner.imageUrl ? (
                 <img
                   src={banner.imageUrl}
                   alt={banner.title || 'Banner'}
-                  className="w-full h-auto transition-transform duration-700 group-hover:scale-105"
+                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                   loading="lazy"
                   onError={(e) => { e.target.style.display = 'none'; }}
                 />

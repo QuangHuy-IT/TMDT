@@ -54,14 +54,14 @@ public class AuthController {
 
             User savedUser = userService.getUserByEmail(userDto.getEmail());
 
-            // Gui OTP xac thuc email
+            // Gửi OTP xác thực email
             String otp = otpService.generateOtp(savedUser.getEmail());
             emailService.sendOtpEmail(savedUser.getEmail(), otp);
 
-            // Tra ve response de frontend chuyen huong den trang xac thuc OTP
+            // Trả về response để frontend chuyển hướng đến trang xác thực OTP
             GoogleAuthResponseDto response = new GoogleAuthResponseDto();
             response.setStage("verify_otp");
-            response.setMessage("Ma xac thuc da duoc gui den email cua ban. Vui long nhap ma de kich hoat tai khoan.");
+            response.setMessage("Mã xác thực đã được gửi đến email của bạn. Vui lòng nhập mã để kích hoạt tài khoản.");
             response.setEmail(savedUser.getEmail());
             response.setFullName(savedUser.getFullName());
 
@@ -117,7 +117,7 @@ public class AuthController {
         User user = userRepository.findByEmail(email).orElse(null);
         if (user == null) {
             Map<String, String> error = new HashMap<>();
-            error.put("message", "Email khong ton tai");
+            error.put("message", "Email không tồn tại");
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
         }
 
@@ -125,7 +125,7 @@ public class AuthController {
         emailService.sendOtpEmail(email, otp);
 
         Map<String, String> response = new HashMap<>();
-        response.put("message", "Ma xac thuc da duoc gui den email cua ban");
+        response.put("message", "Mã xác thực đã được gửi đến email của bạn");
         return ResponseEntity.ok(response);
     }
 
@@ -137,12 +137,12 @@ public class AuthController {
         boolean valid = otpService.verifyOtp(email, request.getOtpCode());
         if (!valid) {
             Map<String, String> error = new HashMap<>();
-            error.put("message", "Ma xac thuc khong hop le hoac da het han");
+            error.put("message", "Mã xác thực không hợp lệ hoặc đã hết hạn");
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
         }
 
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("Khong tim thay nguoi dung"));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
 
         user.setStatus(UserStatus.ACTIVE);
         user.setEnabled(true);
@@ -203,7 +203,7 @@ public class AuthController {
         log.info("Logout request");
         SecurityContextHolder.clearContext();
         Map<String, String> response = new HashMap<>();
-        response.put("message", "Dang xuat thanh cong");
+        response.put("message", "Đăng xuất thành công");
         return ResponseEntity.ok(response);
     }
 }

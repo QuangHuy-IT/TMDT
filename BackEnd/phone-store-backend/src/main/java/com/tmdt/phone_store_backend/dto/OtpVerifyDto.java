@@ -13,10 +13,10 @@ import lombok.Setter;
 @AllArgsConstructor
 public class OtpVerifyDto {
 
-    @NotBlank(message = "Email khong duoc de trong")
+    @NotBlank(message = "Email không được để trống")
     private String email;
 
-    @NotBlank(message = "Ma OTP khong duoc de trong")
-    @Size(min = 6, max = 6, message = "Ma OTP phai gom 6 chu so")
+    @NotBlank(message = "Mã OTP không được để trống")
+    @Size(min = 6, max = 6, message = "Mã OTP phải gồm 6 chữ số")
     private String otpCode;
 }

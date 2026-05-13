@@ -38,10 +38,10 @@ public class GoogleAuthService {
         User user = userRepository.findByEmail(email).orElse(null);
 
         if (user != null) {
-            // Case A: Email da ton tai va co mat khau -> Dang nhap ngay
+            // Case A: Email đã tồn tại và có mật khẩu -> Đăng nhập ngay
             if (user.getPasswordHash() != null && !user.getPasswordHash().isBlank()) {
                 if (user.getStatus() == UserStatus.BLOCKED) {
-                    throw new InvalidCredentialsException("Tai khoan da bi khoa");
+                    throw new InvalidCredentialsException("Tài khoản đã bị khóa");
                 }
                 user.setLastLoginAt(LocalDateTime.now());
                 user.setAvatarUrl(request.getAvatarUrl());
@@ -52,24 +52,24 @@ public class GoogleAuthService {
 
                 GoogleAuthResponseDto response = new GoogleAuthResponseDto();
                 response.setStage("login");
-                response.setMessage("Dang nhap thanh cong bang Google");
+                response.setMessage("Đăng nhập thành công bằng Google");
                 response.setToken(token);
                 response.setRefreshToken(refreshToken);
                 response.setUser(convertToDto(user));
                 return response;
             }
 
-            // Case B: Email da ton tai nhung chua co mat khau -> Chuyen den trang complete profile
+            // Case B: Email đã tồn tại nhưng chưa có mật khẩu -> Chuyển đến trang complete profile
             GoogleAuthResponseDto response = new GoogleAuthResponseDto();
             response.setStage("complete_profile");
-            response.setMessage("Vui long hoan thien thong tin tai khoan");
+            response.setMessage("Vui lòng hoàn thiện thông tin tài khoản");
             response.setEmail(user.getEmail());
             response.setFullName(user.getFullName());
             response.setAvatarUrl(user.getAvatarUrl());
             return response;
         }
 
-        // Case C: Email chua ton tai -> Tao user PENDING, chuyen den trang complete profile de nhap them thong tin
+        // Case C: Email chưa tồn tại -> Tạo user PENDING, chuyển đến trang complete profile để nhập thêm thông tin
         User newUser = new User();
         newUser.setEmail(email);
         newUser.setFullName(request.getFullName());
@@ -87,7 +87,7 @@ public class GoogleAuthService {
 
         GoogleAuthResponseDto response = new GoogleAuthResponseDto();
         response.setStage("complete_profile");
-        response.setMessage("Vui long hoan thien thong tin tai khoan");
+        response.setMessage("Vui lòng hoàn thiện thông tin tài khoản");
         response.setEmail(email);
         response.setFullName(request.getFullName());
         response.setAvatarUrl(request.getAvatarUrl());
@@ -100,18 +100,18 @@ public class GoogleAuthService {
         log.info("Completing Google profile for email: {}", email);
 
         if (!request.getPassword().equals(request.getConfirmPassword())) {
-            throw new InvalidCredentialsException("Mat khau xac nhan khong khop");
+            throw new InvalidCredentialsException("Mật khẩu xác nhận không khớp");
         }
 
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new ResourceAlreadyExistsException("Khong tim thay nguoi dung: " + email));
+                .orElseThrow(() -> new ResourceAlreadyExistsException("Không tìm thấy người dùng: " + email));
 
         if (user.getPasswordHash() != null && !user.getPasswordHash().isBlank()) {
-            throw new InvalidCredentialsException("Tai khoan nay da co mat khau, vui long dang nhap binh thuong");
+            throw new InvalidCredentialsException("Tài khoản này đã có mật khẩu, vui lòng đăng nhập bình thường");
         }
 
         if (userRepository.existsByPhone(request.getPhone())) {
-            throw new ResourceAlreadyExistsException("So dien thoai da duoc su dung: " + request.getPhone());
+            throw new ResourceAlreadyExistsException("Số điện thoại đã được sử dụng: " + request.getPhone());
         }
 
         user.setPhone(request.getPhone());
@@ -126,7 +126,7 @@ public class GoogleAuthService {
 
         GoogleAuthResponseDto response = new GoogleAuthResponseDto();
         response.setStage("verify_otp");
-        response.setMessage("Ma xac thuc da duoc gui den email cua ban");
+        response.setMessage("Mã xác thực đã được gửi đến email của bạn");
         response.setEmail(email);
         response.setFullName(user.getFullName());
         response.setAvatarUrl(user.getAvatarUrl());

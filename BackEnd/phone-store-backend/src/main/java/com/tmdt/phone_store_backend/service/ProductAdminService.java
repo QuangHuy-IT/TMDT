@@ -6,8 +6,7 @@
     import com.tmdt.phone_store_backend.domain.entity.Inventory;
     import com.tmdt.phone_store_backend.domain.entity.Product;
     import com.tmdt.phone_store_backend.domain.entity.ProductImage;
-    import com.tmdt.phone_store_backend.domain.entity.FlashSale;
-    import com.tmdt.phone_store_backend.domain.entity.FlashSaleItem;
+    import com.tmdt.phone_store_backend.domain.entity.FlashSaleCampaign;
     import com.tmdt.phone_store_backend.domain.entity.ProductSpecification;
     import com.tmdt.phone_store_backend.domain.entity.ProductVariant;
     import com.tmdt.phone_store_backend.domain.enums.ProductStatus;
@@ -30,8 +29,8 @@
     import com.tmdt.phone_store_backend.repository.ProductRepository;
     import com.tmdt.phone_store_backend.repository.ProductSpecificationRepository;
     import com.tmdt.phone_store_backend.repository.ProductVariantRepository;
-    import com.tmdt.phone_store_backend.repository.FlashSaleItemRepository;
-    import com.tmdt.phone_store_backend.repository.FlashSaleRepository;
+    import com.tmdt.phone_store_backend.repository.FlashSaleCampaignRepository;
+    import com.tmdt.phone_store_backend.repository.FlashSaleProductRepository;
     import java.math.BigDecimal;
     import java.math.RoundingMode;
     import java.time.LocalDateTime;
@@ -62,8 +61,8 @@
         private final InventoryRepository inventoryRepository;
         private final ProductImageRepository productImageRepository;
         private final ProductSpecificationRepository productSpecificationRepository;
-        private final FlashSaleRepository flashSaleRepository;
-        private final FlashSaleItemRepository flashSaleItemRepository;
+        private final FlashSaleCampaignRepository flashSaleCampaignRepository;
+        private final FlashSaleProductRepository flashSaleProductRepository;
 
         public List<AdminProductDto> getAllProducts() {
             return productRepository.findByDeletedAtIsNullOrderByCreatedAtDesc().stream()
@@ -99,35 +98,38 @@
 
         public List<AdminProductDto> getFlashSaleProducts(Integer limit) {
             LocalDateTime now = LocalDateTime.now();
-            List<FlashSale> activeSales = flashSaleRepository.findActiveFlashSales(now);
-            if (activeSales.isEmpty()) {
+            List<FlashSaleCampaign> activeCampaigns = flashSaleCampaignRepository.findAllActiveCampaigns(now);
+            if (activeCampaigns.isEmpty()) {
                 return List.of();
             }
 
-            FlashSale flashSale = activeSales.get(0);
-            return flashSaleItemRepository.findByFlashSaleOrderByPromotionDesc(flashSale).stream()
-                    .filter(item -> item.getProduct() != null)
-                    .filter(item -> item.getQuantity() == null || item.getQuantity() > 0)
-                    .filter(item -> item.getProduct().getDeletedAt() == null)
-                    .filter(item -> item.getProduct().getStatus() == ProductStatus.ACTIVE)
-                    .map(this::toDto)
+            FlashSaleCampaign campaign = activeCampaigns.get(0);
+            return campaign.getSessions().stream()
+                    .filter(s -> "RUNNING".equals(s.getStatus().name()))
+                    .flatMap(session -> flashSaleProductRepository.findBySessionIdOrderBySortOrderAsc(session.getId()).stream())
+                    .filter(fp -> fp.getVariant() != null && fp.getVariant().getProduct() != null)
+                    .filter(fp -> fp.getVariant().getProduct().getDeletedAt() == null)
+                    .filter(fp -> fp.getVariant().getProduct().getStatus() == ProductStatus.ACTIVE)
+                    .filter(fp -> fp.getQuantity() == null || fp.getQuantity() > 0)
+                    .map(fp -> toDtoFromFlashSaleProduct(fp))
                     .limit(limit != null && limit > 0 ? limit : 12L)
                     .toList();
         }
 
-        private AdminProductDto toDto(FlashSaleItem item) {
-            AdminProductDto dto = toDto(item.getProduct());
-            int salePercent = item.getPromotion() != null
-                    ? item.getPromotion().setScale(0, RoundingMode.HALF_UP).intValue()
-                    : 0;
-
-            BigDecimal basePrice = dto.getPrice() == null ? BigDecimal.ZERO : dto.getPrice();
-            if (salePercent > 0) {
-                dto.setPrice(basePrice.multiply(BigDecimal.valueOf(100 - salePercent))
-                        .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP));
+        private AdminProductDto toDtoFromFlashSaleProduct(com.tmdt.phone_store_backend.domain.entity.FlashSaleProduct fp) {
+            AdminProductDto dto = toDto(fp.getVariant().getProduct());
+            ProductVariant variant = fp.getVariant();
+            BigDecimal originalPrice = variant.getPrice() != null ? variant.getPrice() : BigDecimal.ZERO;
+            BigDecimal flashPrice = fp.getFlashPrice() != null ? fp.getFlashPrice() : originalPrice;
+            int salePercent = 0;
+            if (originalPrice.compareTo(BigDecimal.ZERO) > 0) {
+                salePercent = originalPrice.subtract(flashPrice)
+                        .multiply(BigDecimal.valueOf(100))
+                        .divide(originalPrice, 0, RoundingMode.HALF_UP).intValue();
             }
+            dto.setPrice(flashPrice);
             dto.setSale(salePercent);
-            dto.setStock(item.getQuantity() != null ? item.getQuantity() : dto.getStock());
+            dto.setStock(fp.getQuantity() != null ? fp.getQuantity() : dto.getStock());
             return dto;
         }
 
