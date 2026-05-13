@@ -28,7 +28,7 @@ public class EmailService {
             SimpleMailMessage message = new SimpleMailMessage();
             message.setFrom(fromEmail);
             message.setTo(toEmail);
-            message.setSubject("Ma xac thuc HHShop - " + otpCode);
+            message.setSubject("Mã xác thực HHShop - " + otpCode);
             message.setText(buildOtpEmailBody(otpCode));
             mailSender.send(message);
             log.info("OTP email sent successfully to: {}", toEmail);
@@ -39,13 +39,13 @@ public class EmailService {
 
     private String buildOtpEmailBody(String otpCode) {
         return """
-                Xin chao quy khach,
+                Xin chào quý khách,
 
-                Ma xac thuc cua ban la: %s
+                Mã xác thực của bạn là: %s
 
-                Ma nay co hieu luc trong 5 phut. Vui long khong chia se ma nay voi bat ky ai.
+                Mã này có hiệu lực trong 5 phút. Vui lòng không chia sẻ mã này với bất kỳ ai.
 
-                Neu ban khong yeu cau ma xac thuc nay, vui long bo qua email.
+                Nếu bạn không yêu cầu mã xác thực này, vui lòng bỏ qua email.
 
                 Trân trọng,
                 HHShop

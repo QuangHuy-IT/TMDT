@@ -79,4 +79,5 @@ public class Product {
 
     @Column(name = "sale", nullable = false)
     private Integer sale = 0;
+
 }

@@ -41,7 +41,7 @@ api.interceptors.response.use(
       requestUrl.includes('/auth/register') ||
       requestUrl.includes('/auth/refresh-token');
 
-    // Khong refresh token cho cac API auth de tranh reload trang dang nhap/dang ky khi sai thong tin
+    // Không refresh token cho các API auth để tránh reload trang đăng nhập/đăng ký khi sai thông tin
     if (isAuthEndpoint) {
       return Promise.reject(error);
     }

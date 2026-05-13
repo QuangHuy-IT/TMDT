@@ -1,24 +1,29 @@
 package com.tmdt.phone_store_backend.dto;
 
+import lombok.*;
 import java.time.LocalDateTime;
 import java.util.List;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
 
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class FlashSaleDto {
+@Builder
+public class FlashSaleCampaignDto {
 
     private Long id;
     private String title;
+    private boolean isActive;
     private LocalDateTime startAt;
     private LocalDateTime endAt;
-    private Boolean isActive;
+    private LocalDateTime createdAt;
+
+    // Computed
+    private boolean isRunning;
+    private boolean isEnded;
+    private boolean isUpcoming;
     private Long remainingSeconds;
-    private List<FlashSaleItemDto> items;
-    private Integer maxDiscount;
+
+    // Nested
+    private List<FlashSaleSessionDto> sessions;
 }

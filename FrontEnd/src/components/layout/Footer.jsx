@@ -28,30 +28,35 @@ export const Footer = () => {
 
   const links = [
     {
-      title: 'Về HHShop',
+      title: 'Điện thoại',
       items: [
-        { label: 'Giới thiệu', href: '#' },
-        { label: 'Hệ thống cửa hàng', href: '#' },
-        { label: 'Tuyển dụng', href: '#' },
-        { label: 'Tin tức', href: '#' },
+        { label: 'iPhone', href: '/brands/iphone' },
+        { label: 'Samsung', href: '/brands/samsung' },
+        { label: 'Xiaomi', href: '/brands/xiaomi' },
+        { label: 'OPPO', href: '/brands/oppo' },
+        { label: 'vivo', href: '/brands/vivo' },
+        { label: 'realme', href: '/brands/realme' },
+      ],
+    },
+    {
+      title: 'Thông tin',
+      items: [
+        { label: 'Giới thiệu công ty', href: '/gioi-thieu' },
+        { label: 'Tin tức', href: '/tin-tuc' },
+        { label: 'Khuyến mãi', href: '/khuyen-mai' },
+        { label: 'Hotline: 1800 6789', href: 'tel:18006789' },
+        { label: '7:30 - 22:00 mỗi ngày', href: '#' },
+        { label: 'Tra cứu đơn hàng', href: '/orders' },
+        { label: 'Góp ý / Khiếu nại', href: '#' },
       ],
     },
     {
       title: 'Chính sách',
       items: [
-        { label: 'Bảo hành', href: '#' },
-        { label: 'Đổi trả', href: '#' },
-        { label: 'Giao hàng', href: '#' },
-        { label: 'Bảo mật', href: '#' },
-      ],
-    },
-    {
-      title: 'Hỗ trợ',
-      items: [
-        { label: 'Hotline: 1800 6789', href: 'tel:18006789' },
-        { label: '7:30 - 22:00 mỗi ngày', href: '#' },
-        { label: 'Tra cứu đơn hàng', href: '/orders' },
-        { label: 'Góp ý / Khiếu nại', href: '#' },
+        { label: 'Bảo hành', href: '/chinh-sach-bao-hanh' },
+        { label: 'Đổi trả', href: '/chinh-sach-doi-tra' },
+        { label: 'Bảo mật', href: '/chinh-sach-bao-mat' },
+        { label: 'Giao hàng', href: '/chinh-sach-giao-hang' },
       ],
     },
   ];

@@ -1,0 +1,25 @@
+{
+  "name": "cellphones-crawler",
+  "version": "1.0.0",
+  "description": "Web crawler for CellphoneS.com.vn - Phone products data scraper",
+  "main": "src/index.js",
+  "scripts": {
+    "crawl": "node src/index.js",
+    "crawl:debug": "cross-env DEBUG=true node src/index.js"
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "cheerio": "^1.0.0-rc.12",
+    "dotenv": "^16.3.1",
+    "mysql2": "^3.6.5",
+    "playwright": "^1.40.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "author": "Senior Backend Engineer",
+  "license": "MIT",
+  "devDependencies": {
+    "cross-env": "^10.1.0"
+  }
+}

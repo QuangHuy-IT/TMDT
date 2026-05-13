@@ -9,7 +9,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 /**
- * DTO cho response thong tin nguoi dung
+ * DTO cho response thông tin người dùng
  */
 @Getter
 @Setter

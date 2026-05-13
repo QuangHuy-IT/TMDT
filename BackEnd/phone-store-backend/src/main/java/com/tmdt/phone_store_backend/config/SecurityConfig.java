@@ -93,6 +93,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/banners/**").permitAll()
                         .requestMatchers("/api/flash-sales/**").permitAll()
                         .requestMatchers("/api/orders/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/products/*/reviews/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/reviews/*/helpful").permitAll()
                         
                         // User endpoints
                         .requestMatchers(HttpMethod.GET, "/api/auth/me").authenticated()
