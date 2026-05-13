@@ -3,7 +3,6 @@ package com.tmdt.phone_store_backend.service;
 import com.tmdt.phone_store_backend.domain.entity.Order;
 import com.tmdt.phone_store_backend.domain.entity.OrderItem;
 import com.tmdt.phone_store_backend.domain.entity.ProductImage;
-import com.tmdt.phone_store_backend.domain.entity.User;
 import com.tmdt.phone_store_backend.domain.enums.OrderStatus;
 import com.tmdt.phone_store_backend.domain.enums.StockStatus;
 import com.tmdt.phone_store_backend.dto.OrderDto;
@@ -13,18 +12,19 @@ import com.tmdt.phone_store_backend.exception.ResourceNotFoundException;
 import com.tmdt.phone_store_backend.repository.InventoryRepository;
 import com.tmdt.phone_store_backend.repository.OrderRepository;
 import com.tmdt.phone_store_backend.repository.ProductImageRepository;
-import com.tmdt.phone_store_backend.repository.UserRepository;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @AllArgsConstructor
+@Slf4j
 @Transactional(readOnly = true)
 public class OrderService {
 
@@ -32,7 +32,6 @@ public class OrderService {
 
     private final OrderRepository orderRepository;
     private final ProductImageRepository productImageRepository;
-    private final UserRepository userRepository;
     private final InventoryRepository inventoryRepository;
 
     public List<OrderDto> getOrdersByUserId(Long userId) {
@@ -49,6 +48,21 @@ public class OrderService {
         Order order = orderRepository.findByOrderCodeWithItems(orderCode)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn hàng: " + orderCode));
         return toDto(order);
+    }
+
+    @Transactional
+    public void deletePendingOrder(String orderCode, Long userId) {
+        Order order = orderRepository.findByOrderCodeWithItems(orderCode)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn hàng: " + orderCode));
+
+        validateOrderOwnership(order, userId);
+
+        if (order.getOrderStatus() != OrderStatus.PENDING) {
+            throw new BadRequestException("Chỉ có thể xóa đơn hàng đang chờ thanh toán.");
+        }
+
+        orderRepository.delete(order);
+        log.info("Deleted pending order {} for user {}", orderCode, userId);
     }
 
     @Transactional
@@ -123,6 +137,7 @@ public class OrderService {
         return OrderDto.builder()
                 .id(order.getId())
                 .orderCode(order.getOrderCode())
+                .paymentLinkId(order.getPaymentLinkId())
                 .orderStatus(order.getOrderStatus().name())
                 .paymentMethod(order.getPaymentMethod().name())
                 .paymentStatus(order.getPaymentStatus().name())
@@ -135,6 +150,7 @@ public class OrderService {
                 .shippingFee(order.getShippingFee())
                 .totalAmount(order.getTotalAmount())
                 .placedAt(order.getPlacedAt())
+                .paidAt(order.getPaidAt())
                 .createdAt(order.getCreatedAt())
                 .updatedAt(order.getUpdatedAt())
                 .items(itemDtos)

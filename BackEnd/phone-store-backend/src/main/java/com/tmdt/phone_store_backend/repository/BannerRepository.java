@@ -1,4 +1,4 @@
-﻿package com.tmdt.phone_store_backend.repository;
+package com.tmdt.phone_store_backend.repository;
 
 import com.tmdt.phone_store_backend.domain.entity.Banner;
 import java.time.LocalDateTime;

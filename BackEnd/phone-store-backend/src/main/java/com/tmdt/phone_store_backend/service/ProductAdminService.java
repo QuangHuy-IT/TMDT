@@ -256,7 +256,7 @@
                 }
                 colorOptions.putIfAbsent(
                         color,
-                        new ProductVariantColorDto(color, mapColorHex(color)));
+                        new ProductVariantColorDto(color, mapColorHex(color), null));
 
                 AdminProductVariantDto variantDto = new AdminProductVariantDto();
                 variantDto.setId(variant.getId());

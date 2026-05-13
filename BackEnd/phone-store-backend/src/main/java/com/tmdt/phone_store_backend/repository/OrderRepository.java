@@ -34,4 +34,8 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     @Query("SELECT o FROM Order o LEFT JOIN FETCH o.orderItems WHERE o.orderCode = :orderCode")
     Optional<Order> findByOrderCodeWithItems(@Param("orderCode") String orderCode);
+
+    Optional<Order> findByPaymentLinkId(String paymentLinkId);
+
+    boolean existsByOrderCode(String orderCode);
 }

@@ -1,12 +1,14 @@
 package com.tmdt.phone_store_backend.controller;
 
 import com.tmdt.phone_store_backend.domain.enums.OrderStatus;
+import com.tmdt.phone_store_backend.dto.CreateOrderRequestDto;
 import com.tmdt.phone_store_backend.dto.OrderDto;
+import com.tmdt.phone_store_backend.service.OrderPlacementService;
 import com.tmdt.phone_store_backend.service.OrderService;
-import java.util.List;
-import java.util.Map;
+import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -16,12 +18,22 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/orders")
 @AllArgsConstructor
 public class OrderController {
 
     private final OrderService orderService;
+    private final OrderPlacementService orderPlacementService;
+
+    @PostMapping("/place")
+    public ResponseEntity<OrderDto> placeOrder(@Valid @RequestBody CreateOrderRequestDto request) {
+        OrderDto order = orderPlacementService.createOrder(request);
+        return ResponseEntity.ok(order);
+    }
 
     @GetMapping("/user/{userId}")
     public ResponseEntity<List<OrderDto>> getOrdersByUser(@PathVariable Long userId) {
@@ -45,6 +57,14 @@ public class OrderController {
             @PathVariable String orderCode,
             @RequestParam Long userId) {
         return ResponseEntity.ok(orderService.cancelOrder(orderCode, userId));
+    }
+
+    @DeleteMapping("/{orderCode}")
+    public ResponseEntity<Void> deletePendingOrder(
+            @PathVariable String orderCode,
+            @RequestParam Long userId) {
+        orderService.deletePendingOrder(orderCode, userId);
+        return ResponseEntity.noContent().build();
     }
 
     @PatchMapping("/{orderCode}/return")
