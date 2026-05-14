@@ -92,6 +92,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/brands/**").permitAll()
                         .requestMatchers("/api/banners/**").permitAll()
                         .requestMatchers("/api/flash-sales/**").permitAll()
+                        .requestMatchers("/api/chat/**").permitAll()
                         .requestMatchers("/api/orders/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/products/*/reviews/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/reviews/*/helpful").permitAll()

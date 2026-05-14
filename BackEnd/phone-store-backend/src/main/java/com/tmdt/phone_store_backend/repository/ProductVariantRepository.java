@@ -10,4 +10,6 @@ public interface ProductVariantRepository extends JpaRepository<ProductVariant, 
     Optional<ProductVariant> findFirstByProductIdOrderByIdAsc(Long productId);
 
     List<ProductVariant> findByProductId(Long productId);
+
+    List<ProductVariant> findByProductIdAndDeletedAtIsNullOrderByPriceAsc(Long productId);
 }
