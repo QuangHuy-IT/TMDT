@@ -34,6 +34,8 @@ import { AdminUsers } from './pages/admin/AdminUsers';
 import AdminBrands from './pages/admin/AdminBrands';
 import AdminBanners from './pages/admin/AdminBanners';
 import AdminPromotions from './pages/admin/AdminPromotions';
+import AdminFlashSale from './pages/admin/AdminFlashSale';
+import AdminVouchers from './pages/admin/AdminVouchers';
 
 // Context
 import { ShopProvider } from './context/ShopContext';
@@ -119,6 +121,8 @@ function App() {
               <Route path="brands" element={<AdminBrands />} />
               <Route path="banners" element={<AdminBanners />} />
               <Route path="promotions" element={<AdminPromotions />} />
+              <Route path="flash-sales" element={<AdminFlashSale />} />
+              <Route path="vouchers" element={<AdminVouchers />} />
               <Route path="inventory" element={<AdminInventory />} />
               <Route path="orders" element={<AdminOrders />} />
               <Route path="users" element={<AdminUsers />} />

@@ -1,5 +1,5 @@
 import React, { useContext, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ShopContext } from '../context/ShopContext';
 import PaymentService from '../services/paymentService';
 import { QRCodeSVG } from 'qrcode.react';
@@ -10,6 +10,7 @@ export const Checkout = () => {
   const { state, dispatch } = useContext(ShopContext);
   const { cart, user } = state;
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const [paymentMethod, setPaymentMethod] = useState('cod');
   const [shippingInfo, setShippingInfo] = useState({
@@ -23,9 +24,32 @@ export const Checkout = () => {
   const [showQR, setShowQR] = useState(false);
   const [error, setError] = useState('');
 
+  // ── Voucher from URL ───────────────────────────────────────────────────────
+  const voucherCode        = searchParams.get('voucherCode') || null;
+  const voucherDiscountType = searchParams.get('discountType') || null;
+  const voucherDiscountValue = Number(searchParams.get('discountValue')) || 0;
+  const voucherMaxDiscount  = Number(searchParams.get('maxDiscountAmount')) || null;
+
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const shippingFee = 30000;
-  const total = subtotal + shippingFee;
+  const shippingFee = subtotal >= 500000 ? 0 : 30000;
+
+  const calcDiscount = () => {
+    if (!voucherCode) return 0;
+    if (voucherDiscountType === 'PERCENT') {
+      let discount = subtotal * (voucherDiscountValue / 100);
+      if (voucherMaxDiscount != null) {
+        discount = Math.min(discount, voucherMaxDiscount);
+      }
+      return Math.round(discount);
+    }
+    if (voucherDiscountType === 'FIXED') {
+      return Math.min(voucherDiscountValue, subtotal);
+    }
+    return 0;
+  };
+
+  const discountAmount = calcDiscount();
+  const total = subtotal + shippingFee - discountAmount;
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -61,7 +85,8 @@ export const Checkout = () => {
       shippingAddressText: shippingInfo.shippingAddressText,
       note: shippingInfo.note,
       subtotalAmount: subtotal,
-      discountAmount: 0,
+      discountAmount: discountAmount,
+      voucherCode: voucherCode,
       shippingFee: shippingFee,
       totalAmount: total,
       paymentMethod: 'PAYOS',
@@ -104,7 +129,8 @@ export const Checkout = () => {
       shippingAddressText: shippingInfo.shippingAddressText,
       note: shippingInfo.note,
       subtotalAmount: subtotal,
-      discountAmount: 0,
+      discountAmount: discountAmount,
+      voucherCode: voucherCode,
       shippingFee: shippingFee,
       totalAmount: total,
       paymentMethod: 'COD',
@@ -268,9 +294,15 @@ export const Checkout = () => {
                   <span>Tạm tính</span>
                   <span>{subtotal.toLocaleString()}đ</span>
                 </div>
+                {voucherCode && (
+                  <div className="flex justify-between text-green-400">
+                    <span>Giảm giá ({voucherCode})</span>
+                    <span>−{discountAmount.toLocaleString()}đ</span>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span>Phí vận chuyển</span>
-                  <span>{shippingFee.toLocaleString()}đ</span>
+                  <span>{shippingFee === 0 ? 'Miễn phí' : shippingFee.toLocaleString() + 'đ'}</span>
                 </div>
               </div>
 

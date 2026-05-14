@@ -15,7 +15,7 @@ public interface BannerRepository extends JpaRepository<Banner, Long> {
     @Query("""
             select b
             from Banner b
-            where b.position = :position
+            where lower(b.position) = lower(:position)
               and b.isActive = true
               and (b.startAt is null or b.startAt <= :now)
               and (b.endAt is null or b.endAt >= :now)

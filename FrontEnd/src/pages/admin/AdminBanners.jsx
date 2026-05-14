@@ -3,11 +3,7 @@ import AdminService from '../../services/adminService';
 import ProductService from '../../services/productService';
 
 const BANNER_POSITIONS = [
-  { value: 'home', label: 'Trang chủ (Home Slider)' },
-  { value: 'promo-top', label: 'Khuyến mãi (Trên)' },
-  { value: 'promo-mid', label: 'Khuyến mãi (Giữa)' },
-  { value: 'promo-bottom', label: 'Khuyến mãi (Dưới)' },
-  { value: 'brand', label: 'Trang thương hiệu' },
+  { value: 'home_hero', label: 'Trang chủ (Hero Slider)' },
   { value: 'sidebar', label: 'Thanh bên (Sidebar)' },
 ];
 
@@ -20,7 +16,7 @@ const AdminBanners = () => {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [form, setForm] = useState({
-    title: '', imageUrl: '', linkUrl: '', position: 'home',
+    title: '', imageUrl: '', linkUrl: '', position: 'home_hero',
     isActive: true, sortOrder: 0, startAt: '', endAt: '',
     linkType: 'none',  // 'none' | 'brand' | 'promotion' | 'product'
     brandSlug: '', promotionSlug: '', productSlug: '',
@@ -43,7 +39,7 @@ const AdminBanners = () => {
 
   const openAdd = () => {
     setEditingBanner(null);
-    setForm({ title: '', imageUrl: '', linkUrl: '', position: 'home', isActive: true, sortOrder: 0, startAt: '', endAt: '', linkType: 'none', brandSlug: '', promotionSlug: '', productSlug: '' });
+    setForm({ title: '', imageUrl: '', linkUrl: '', position: 'home_hero', isActive: true, sortOrder: 0, startAt: '', endAt: '', linkType: 'none', brandSlug: '', promotionSlug: '', productSlug: '' });
     setShowForm(true);
   };
 

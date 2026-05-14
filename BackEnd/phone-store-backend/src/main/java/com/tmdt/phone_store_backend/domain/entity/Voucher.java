@@ -1,38 +1,24 @@
 package com.tmdt.phone_store_backend.domain.entity;
 
 import com.tmdt.phone_store_backend.domain.enums.VoucherDiscountType;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
-import jakarta.persistence.UniqueConstraint;
+import jakarta.persistence.*;
+import lombok.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
 
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(
-        name = "vouchers",
-        uniqueConstraints = @UniqueConstraint(name = "uk_vouchers_code", columnNames = "code")
-)
+@Table(name = "vouchers")
 public class Voucher {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, length = 60)
+    @Column(nullable = false, unique = true, length = 60)
     private String code;
 
     @Enumerated(EnumType.STRING)
@@ -61,7 +47,7 @@ public class Voucher {
     private Integer usedCount = 0;
 
     @Column(name = "is_active", nullable = false)
-    private Boolean isActive = Boolean.TRUE;
+    private Boolean isActive = true;
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
