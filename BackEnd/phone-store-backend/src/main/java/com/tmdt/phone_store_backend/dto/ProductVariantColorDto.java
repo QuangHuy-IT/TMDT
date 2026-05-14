@@ -13,4 +13,5 @@ public class ProductVariantColorDto {
 
     private String name;
     private String hex;
+    private String imageUrl;
 }

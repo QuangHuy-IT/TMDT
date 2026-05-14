@@ -538,9 +538,6 @@ public class FlashSaleServiceImpl implements FlashSaleService {
         if (endAt.isBefore(startAt) || endAt.isEqual(startAt)) {
             throw new IllegalArgumentException("Thời gian kết thúc phải sau thời gian bắt đầu");
         }
-        if (startAt.isBefore(LocalDateTime.now().minusMinutes(1))) {
-            throw new IllegalArgumentException("Thời gian bắt đầu không thể là quá khứ");
-        }
     }
 
     private void validateSessionDates(LocalDateTime startAt, LocalDateTime endAt, FlashSaleCampaign campaign) {

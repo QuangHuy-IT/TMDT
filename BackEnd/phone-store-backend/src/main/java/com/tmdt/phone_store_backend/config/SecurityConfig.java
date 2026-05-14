@@ -93,6 +93,12 @@ public class SecurityConfig {
                         .requestMatchers("/api/banners/**").permitAll()
                         .requestMatchers("/api/flash-sales/**").permitAll()
                         .requestMatchers("/api/orders/**").permitAll()
+                        .requestMatchers("/api/payment/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/payment/payos/create").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/payment/payos/webhook").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/payment/payos/cancel").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/payment/payos/confirm-webhook").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/payment/payos/success").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/products/*/reviews/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/reviews/*/helpful").permitAll()
                         

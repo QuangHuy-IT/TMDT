@@ -8,6 +8,7 @@ import 'swiper/css/pagination';
 import 'swiper/css/effect-fade';
 
 const HeroSection = ({ banners, isLoading }) => {
+  // Use props from Home.jsx; avoid duplicate fetch by not using useHomeBanners here
   if (isLoading) {
     return (
       <div className="container mx-auto px-4 py-6">

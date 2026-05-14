@@ -21,10 +21,14 @@ public class AdminProductDto {
     private Integer sale;
     private String description;
     private List<String> images;
+    private String thumbnailUrl;
     private Map<String, String> specifications;
     private ProductVariantOptionDto variants;
     private List<AdminProductVariantDto> variantItems;
     private Boolean isFeatured;
     private LocalDateTime createdAt;
     private LocalDateTime releaseDate;
+    private BigDecimal flashSalePrice;
+    private Long flashSaleId;
+    private Boolean isFlashSale;
 }

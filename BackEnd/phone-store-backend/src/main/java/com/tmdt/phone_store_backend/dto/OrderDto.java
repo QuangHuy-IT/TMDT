@@ -16,6 +16,7 @@ public class OrderDto {
 
     private Long id;
     private String orderCode;
+    private String paymentLinkId;
     private String orderStatus;
     private String paymentMethod;
     private String paymentStatus;
@@ -28,6 +29,7 @@ public class OrderDto {
     private BigDecimal shippingFee;
     private BigDecimal totalAmount;
     private LocalDateTime placedAt;
+    private LocalDateTime paidAt;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private List<OrderItemDto> items;

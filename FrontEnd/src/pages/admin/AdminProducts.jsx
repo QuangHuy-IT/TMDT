@@ -12,9 +12,10 @@ const SPEC_LABELS = {
   os: 'Hệ điều hành',
   connectivity: 'Kết nối',
 };
-const STORAGE_PRESETS = ['128GB', '256GB', '512GB', '1TB'];
-const RAM_PRESETS = ['6', '8', '12', '16'];
-const COLOR_PRESETS = ['Đen', 'Trắng', 'Xanh', 'Tím', 'Vàng'];
+
+const STORAGE_PRESETS = ['64GB', '128GB', '256GB', '512GB', '1TB', '2TB'];
+const RAM_PRESETS = ['2', '4', '6', '8', '12', '16'];
+const COLOR_PRESETS = ['Đen', 'Trắng', 'Xanh', 'Tím', 'Vàng', 'Hồng', 'Đỏ', 'Bạc', 'Nâu'];
 
 const createEmptyVariant = (overrides = {}) => ({
   color: '',
@@ -22,6 +23,7 @@ const createEmptyVariant = (overrides = {}) => ({
   price: '',
   stock: '',
   ramGb: '',
+  colorImageUrl: '',
   ...overrides,
 });
 
@@ -44,6 +46,7 @@ const emptyForm = {
   name: '',
   brand: '',
   description: '',
+  thumbnailUrl: '',
   images: [],
   specifications: {
     screen: '',
@@ -53,23 +56,746 @@ const emptyForm = {
     os: '',
     connectivity: '',
   },
-  variants: [createEmptyVariant({ color: 'Đen', storageLabel: '128GB' })],
+  variants: [],
 };
 
+// ─── Rich Text Editor (react-quill-new) ───────────────────────────────────────
+import ReactQuill from 'react-quill-new';
+import 'react-quill-new/dist/quill.snow.css';
+
+const quillModules = {
+  toolbar: [
+    [{ header: [1, 2, 3, false] }],
+    ['bold', 'italic', 'strike'],
+    [{ list: 'ordered' }, { list: 'bullet' }],
+    [{ align: [] }],
+    ['link'],
+    [{ color: [] }, { background: [] }],
+    ['clean'],
+  ],
+};
+
+const quillFormats = [
+  'header', 'bold', 'italic', 'strike', 'list', 'bullet',
+  'align', 'link', 'color', 'background',
+];
+
+// ─── Full-screen Form Page ─────────────────────────────────────────────────────
+const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
+  const [form, setForm] = useState(editingProduct ? null : emptyForm);
+  const [loading, setLoading] = useState(!!editingProduct);
+  const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadingVariantIndex, setUploadingVariantIndex] = useState(null);
+
+  // Variant picker state
+  const [pickerStorage, setPickerStorage] = useState([]);
+  const [pickerRam, setPickerRam] = useState([]);
+  const [pickerColor, setPickerColor] = useState('Đen');
+
+  const fileInputRef = useRef(null);
+  const thumbnailInputRef = useRef(null);
+
+  // Load editing product data
+  useEffect(() => {
+    if (!editingProduct) {
+      setForm(emptyForm);
+      setLoading(false);
+      return;
+    }
+
+    const mappedVariants = (editingProduct.variantItems || []).map((variant) => ({
+      id: variant.id,
+      color: variant.color || 'Đen',
+      storageLabel: variant.storageLabel || '',
+      price: variant.price ?? '',
+      stock: variant.stock ?? '',
+      ramGb: variant.ramGb ?? '',
+      colorImageUrl: variant.colorImageUrl || '',
+    }));
+
+    setForm({
+      name: editingProduct.name || '',
+      brand: editingProduct.brand || '',
+      description: editingProduct.description || '',
+      thumbnailUrl: editingProduct.thumbnailUrl || '',
+      images: editingProduct.images || [],
+      specifications: {
+        ...emptyForm.specifications,
+        ...(editingProduct.specifications || {}),
+      },
+      variants: mappedVariants,
+    });
+    setPickerColor('Đen');
+    setPickerStorage([]);
+    setPickerRam([]);
+    setLoading(false);
+  }, [editingProduct]);
+
+  const updateForm = (updater) => {
+    setForm((prev) => (typeof updater === 'function' ? updater(prev) : { ...prev, ...updater }));
+  };
+
+  const updateSpecField = (key, value) => {
+    updateForm((prev) => ({
+      ...prev,
+      specifications: { ...(prev.specifications || {}), [key]: value },
+    }));
+  };
+
+  const appendVariant = (overrides = {}) => {
+    updateForm((prev) => ({
+      ...prev,
+      variants: [...(prev.variants || []), createEmptyVariant(overrides)],
+    }));
+  };
+
+  const removeVariantRow = (index) => {
+    updateForm((prev) => {
+      const next = (prev.variants || []).filter((_, i) => i !== index);
+      return { ...prev, variants: next };
+    });
+  };
+
+  const updateVariantField = (index, key, value) => {
+    updateForm((prev) => ({
+      ...prev,
+      variants: (prev.variants || []).map((v, i) => (i === index ? { ...v, [key]: value } : v)),
+    }));
+  };
+
+  // ── Thumbnail upload ─────────────────────────────────────────────────────────
+  const handleThumbnailUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const response = await ProductService.uploadImage(file);
+      updateForm({ thumbnailUrl: response.data.imageUrl });
+    } catch (error) {
+      alert('Upload thumbnail thất bại');
+    } finally {
+      setUploading(false);
+      e.target.value = '';
+    }
+  };
+
+  // ── Gallery upload ───────────────────────────────────────────────────────────
+  const handleGalleryUpload = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    setUploading(true);
+    try {
+      const urls = [];
+      for (const file of files) {
+        const response = await ProductService.uploadImage(file);
+        urls.push(response.data.imageUrl);
+      }
+      updateForm((prev) => ({ ...prev, images: [...prev.images, ...urls] }));
+    } catch (error) {
+      alert('Upload ảnh thất bại');
+    } finally {
+      setUploading(false);
+      e.target.value = '';
+    }
+  };
+
+  // ── Variant color image upload ───────────────────────────────────────────────
+  const handleVariantColorImageUpload = async (e, variantIndex) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingVariantIndex(variantIndex);
+    try {
+      const response = await ProductService.uploadImage(file);
+      updateVariantField(variantIndex, 'colorImageUrl', response.data.imageUrl);
+    } catch (error) {
+      alert('Upload ảnh màu thất bại');
+    } finally {
+      setUploadingVariantIndex(null);
+      e.target.value = '';
+    }
+  };
+
+  const removeImage = (index) => {
+    updateForm((prev) => ({ ...prev, images: prev.images.filter((_, i) => i !== index) }));
+  };
+
+  const removeThumbnail = () => updateForm({ thumbnailUrl: '' });
+
+  // ── Quick add variant ────────────────────────────────────────────────────────
+  const handleAddVariant = () => {
+    if (pickerStorage.length === 0) {
+      alert('Vui lòng chọn ít nhất một dung lượng.');
+      return;
+    }
+    // Tạo biến thể cho mỗi tổ hợp storage + ram
+    for (const storage of pickerStorage) {
+      for (const ram of pickerRam) {
+        appendVariant({ color: pickerColor, storageLabel: storage, ramGb: ram });
+      }
+      // Nếu không chọn RAM, vẫn thêm variant cho storage đó
+      if (pickerRam.length === 0) {
+        appendVariant({ color: pickerColor, storageLabel: storage, ramGb: '' });
+      }
+    }
+    // Reset picker
+    setPickerStorage([]);
+    setPickerRam([]);
+  };
+
+  const togglePickerStorage = (value) => {
+    setPickerStorage((prev) =>
+      prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]
+    );
+  };
+
+  const togglePickerRam = (value) => {
+    setPickerRam((prev) =>
+      prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]
+    );
+  };
+
+  // ── Save ────────────────────────────────────────────────────────────────────
+  const handleSave = async () => {
+    if (!form.name.trim() || !form.brand.trim()) {
+      alert('Vui lòng nhập tên sản phẩm và thương hiệu.');
+      return;
+    }
+
+    const preparedVariants = (form.variants || [])
+      .filter((v) => (v.color || v.storageLabel || v.price || v.stock || v.ramGb))
+      .map((v) => ({
+        color: (v.color || '').trim() || 'Default',
+        storageLabel: normalizeStorageLabel(v.storageLabel) || '',
+        price: Number(v.price || 0),
+        stock: Number(v.stock || 0),
+        ramGb: v.ramGb ? Number(v.ramGb) : null,
+        colorImageUrl: v.colorImageUrl || null,
+      }));
+
+    if (preparedVariants.length === 0) {
+      alert('Vui lòng thêm ít nhất 1 biến thể.');
+      return;
+    }
+
+    const totalVariantStock = preparedVariants.reduce((s, v) => s + Number(v.stock || 0), 0);
+    const firstVariantPrice = preparedVariants.find((v) => Number(v.price || 0) > 0)?.price || 0;
+    const payloadSpecifications = SPEC_KEYS.reduce((acc, key) => {
+      acc[key] = String(form.specifications?.[key] || '').trim();
+      return acc;
+    }, {});
+
+    const payload = {
+      name: form.name,
+      brand: form.brand,
+      description: form.description,
+      thumbnailUrl: form.thumbnailUrl || null,
+      images: form.images,
+      specifications: payloadSpecifications,
+      variants: preparedVariants,
+      price: Number(firstVariantPrice || 0),
+      stock: Number(totalVariantStock || 0),
+    };
+
+    setSaving(true);
+    try {
+      if (editingProduct) {
+        const id = editingProduct._id || editingProduct.id;
+        await ProductService.updateProduct(id, payload);
+      } else {
+        await ProductService.createProduct(payload);
+      }
+      onSaveSuccess();
+    } catch (error) {
+      alert(error.response?.data?.message || 'Lưu sản phẩm thất bại');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0a0a0f]">
+        <p className="text-gray-400 font-bold">Đang tải...</p>
+      </div>
+    );
+  }
+
+  if (!form) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col bg-[#0a0a0f] overflow-hidden">
+      {/* ── Header ──────────────────────────────────────────────────────────── */}
+      <header className="flex items-center justify-between px-6 py-4 border-b border-white/5 bg-[#0f1117] flex-shrink-0">
+        <div className="flex items-center gap-4">
+          <button
+            onClick={onClose}
+            className="w-9 h-9 rounded-lg border border-white/10 flex items-center justify-center text-gray-400 hover:text-white hover:border-white/20 transition-all"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+          <div>
+            <h2 className="text-lg font-black text-white">
+              {editingProduct ? 'Chỉnh sửa sản phẩm' : 'Thêm sản phẩm mới'}
+            </h2>
+            <p className="text-xs text-gray-500 mt-0.5">
+              {editingProduct ? `ID: ${editingProduct._id || editingProduct.id}` : 'Tạo sản phẩm mới'}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 rounded-xl border border-white/10 text-sm text-gray-400 hover:text-white hover:border-white/20 transition-all"
+          >
+            Hủy
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving || uploading}
+            className="px-6 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-sm font-bold text-white transition-all active:scale-95 disabled:opacity-50"
+          >
+            {saving ? 'Đang lưu...' : (editingProduct ? 'Lưu thay đổi' : 'Thêm sản phẩm')}
+          </button>
+        </div>
+      </header>
+
+      {/* ── Body: scrollable 2-column layout ─────────────────────────────────── */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="max-w-[1400px] mx-auto px-6 py-8 grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-8">
+
+          {/* ── Left Column: Form ─────────────────────────────────────────────── */}
+          <div className="space-y-8">
+
+            {/* Basic Info */}
+            <section className="bg-[#13151e] border border-white/5 rounded-2xl p-6 space-y-5">
+              <h3 className="text-sm font-black text-white uppercase tracking-wider">Thông tin cơ bản</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">Tên sản phẩm *</label>
+                  <input
+                    type="text"
+                    value={form.name}
+                    placeholder="iPhone 15 Pro Max"
+                    onChange={(e) => updateForm({ name: e.target.value })}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-red-500/50 transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">Thương hiệu *</label>
+                  <input
+                    type="text"
+                    value={form.brand}
+                    placeholder="Apple"
+                    onChange={(e) => updateForm({ brand: e.target.value })}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-red-500/50 transition-all"
+                  />
+                </div>
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">Mô tả (hỗ trợ chèn ảnh từ máy & URL)</label>
+                <div className="rounded-xl overflow-hidden border border-white/10">
+                  <ReactQuill
+                    theme="snow"
+                    value={form.description}
+                    onChange={(content) => updateForm({ description: content })}
+                    modules={quillModules}
+                    formats={quillFormats}
+                    className="bg-white text-gray-800 [&_.ql-container]:min-h-[160px] [&_.ql-editor]:min-h-[160px]"
+                    placeholder="Mô tả sản phẩm..."
+                  />
+                </div>
+              </div>
+            </section>
+
+            {/* Images */}
+            <section className="bg-[#13151e] border border-white/5 rounded-2xl p-6 space-y-5">
+              <h3 className="text-sm font-black text-white uppercase tracking-wider">Hình ảnh</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                {/* Thumbnail */}
+                <div>
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">Ảnh Thumbnail</label>
+                  <p className="text-[10px] text-gray-600 mb-2">Ảnh đại diện hiển thị trong danh sách. Nên dùng ảnh vuông.</p>
+                  {form.thumbnailUrl ? (
+                    <div className="relative group w-28 h-28">
+                      <img
+                        src={form.thumbnailUrl}
+                        alt="Thumbnail"
+                        className="w-full h-full object-contain bg-white/5 rounded-xl border border-white/10 p-1"
+                        onError={(e) => { e.target.src = 'https://picsum.photos/seed/fallback/80/80'; }}
+                      />
+                      <button
+                        onClick={removeThumbnail}
+                        className="absolute -top-2 -right-2 w-6 h-6 bg-red-600 rounded-full text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity font-bold"
+                      >
+                        ×
+                      </button>
+                      <span className="absolute bottom-1 left-1 text-[8px] bg-blue-600 text-white px-1 rounded font-bold">THUMB</span>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => thumbnailInputRef.current?.click()}
+                      disabled={uploading}
+                      className="w-28 h-28 border-2 border-dashed border-white/10 rounded-xl flex flex-col items-center justify-center gap-2 text-gray-500 hover:border-red-500/40 hover:text-gray-300 transition-all"
+                    >
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
+                      </svg>
+                      <span className="text-[11px]">{uploading ? '...' : 'Chọn ảnh'}</span>
+                    </button>
+                  )}
+                  <input ref={thumbnailInputRef} type="file" accept="image/*" className="hidden" onChange={handleThumbnailUpload} />
+                </div>
+
+                {/* Gallery */}
+                <div>
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">Ảnh Gallery</label>
+                  <p className="text-[10px] text-gray-600 mb-2">Nhiều ảnh hiển thị trong trang chi tiết sản phẩm.</p>
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading}
+                    className="w-28 h-28 border-2 border-dashed border-white/10 rounded-xl flex flex-col items-center justify-center gap-2 text-gray-500 hover:border-red-500/40 hover:text-gray-300 transition-all"
+                  >
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                    </svg>
+                    <span className="text-[11px]">{uploading ? '...' : 'Upload'}</span>
+                  </button>
+                  <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleGalleryUpload} />
+                </div>
+              </div>
+
+              {form.images.length > 0 && (
+                <div className="flex flex-wrap gap-3">
+                  {form.images.map((img, index) => (
+                    <div key={index} className="relative group">
+                      <img
+                        src={img}
+                        alt=""
+                        className="w-20 h-20 object-contain bg-white/5 rounded-xl border border-white/10 p-1"
+                        onError={(e) => { e.target.src = 'https://picsum.photos/seed/fallback/80/80'; }}
+                      />
+                      <button
+                        onClick={() => removeImage(index)}
+                        className="absolute -top-2 -right-2 w-5 h-5 bg-red-600 rounded-full text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity font-bold"
+                      >
+                        ×
+                      </button>
+                      {index === 0 && (
+                        <span className="absolute bottom-1 left-1 text-[8px] bg-red-600 text-white px-1 rounded font-bold">CHÍNH</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+
+            {/* Variants */}
+            <section className="bg-[#13151e] border border-white/5 rounded-2xl p-6 space-y-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-black text-white uppercase tracking-wider">Biến thể</h3>
+                  <p className="text-xs text-gray-500 mt-1">Chọn dung lượng & RAM, sau đó nhấn "Thêm biến thể".</p>
+                </div>
+                <span className="text-xs bg-white/5 text-gray-400 px-3 py-1 rounded-lg">
+                  {form.variants.length} biến thể
+                </span>
+              </div>
+
+              {/* Quick picker */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 rounded-xl border border-white/10 bg-white/[0.02]">
+                {/* Storage */}
+                <div>
+                  <p className="text-[10px] text-gray-500 uppercase font-bold tracking-widest mb-2">Dung lượng</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {STORAGE_PRESETS.map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => togglePickerStorage(s)}
+                        className={`px-2.5 py-1.5 text-[11px] font-bold rounded-lg border transition-all ${
+                          pickerStorage.includes(s)
+                            ? 'bg-red-600 border-red-600 text-white'
+                            : 'border-white/10 text-gray-400 hover:border-white/20 hover:text-white'
+                        }`}
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* RAM */}
+                <div>
+                  <p className="text-[10px] text-gray-500 uppercase font-bold tracking-widest mb-2">RAM <span className="text-gray-600 font-normal">(không bắt buộc)</span></p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {RAM_PRESETS.map((r) => (
+                      <button
+                        key={r}
+                        type="button"
+                        onClick={() => togglePickerRam(r)}
+                        className={`px-2.5 py-1.5 text-[11px] font-bold rounded-lg border transition-all ${
+                          pickerRam.includes(r)
+                            ? 'bg-red-600 border-red-600 text-white'
+                            : 'border-white/10 text-gray-400 hover:border-white/20 hover:text-white'
+                        }`}
+                      >
+                        {r}GB
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Color + Action */}
+                <div className="flex flex-col justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] text-gray-500 uppercase font-bold tracking-widest mb-2">Màu</p>
+                    <input
+                      list="color-presets"
+                      type="text"
+                      value={pickerColor}
+                      onChange={(e) => setPickerColor(e.target.value)}
+                      placeholder="Chọn hoặc gõ màu (VD: Đen, Tím...)"
+                      className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-gray-300 placeholder-gray-600 focus:outline-none focus:border-red-500/50"
+                    />
+                    <datalist id="color-presets">
+                      {COLOR_PRESETS.map((c) => <option key={c} value={c} />)}
+                    </datalist>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleAddVariant}
+                    disabled={pickerStorage.length === 0}
+                    className="w-full py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-xs font-bold text-white transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    + Thêm biến thể
+                  </button>
+                </div>
+              </div>
+
+              {/* Variant list */}
+              <div className="space-y-3">
+                {(form.variants || []).map((variant, index) => (
+                  <div key={variant.id || index} className="p-4 rounded-xl border border-white/10 bg-white/[0.02] space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-[11px] text-emerald-300/90">
+                        {buildVariantPreviewName(form.name, variant) || 'Nhập tên sản phẩm để xem trước'}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => removeVariantRow(index)}
+                        className="w-7 h-7 rounded-lg border border-red-500/30 text-red-400 text-xs hover:bg-red-500/10 flex items-center justify-center transition-all font-bold"
+                      >
+                        ×
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-12 gap-2">
+                      <div className="col-span-3">
+                        <label className="text-[10px] text-gray-500 block mb-1">Màu sắc</label>
+                        <input
+                          type="text"
+                          list="variant-color-presets"
+                          value={variant.color || ''}
+                          onChange={(e) => updateVariantField(index, 'color', e.target.value)}
+                          placeholder="Đen, Trắng, Xanh..."
+                          className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-2 text-xs text-gray-300 placeholder-gray-600 focus:outline-none focus:border-red-500/50"
+                        />
+                      </div>
+                      <div className="col-span-3">
+                        <label className="text-[10px] text-gray-500 block mb-1">Dung lượng</label>
+                        <input
+                          type="text"
+                          list="variant-storage-presets"
+                          value={variant.storageLabel || ''}
+                          onChange={(e) => updateVariantField(index, 'storageLabel', e.target.value)}
+                          placeholder="256GB"
+                          className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-2 text-xs text-gray-300"
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="text-[10px] text-gray-500 block mb-1">RAM (GB)</label>
+                        <input
+                          type="number"
+                          value={variant.ramGb || ''}
+                          onChange={(e) => updateVariantField(index, 'ramGb', e.target.value)}
+                          placeholder="8"
+                          className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-2 text-xs text-gray-300"
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="text-[10px] text-gray-500 block mb-1">Giá (VNĐ)</label>
+                        <input
+                          type="number"
+                          value={variant.price || ''}
+                          onChange={(e) => updateVariantField(index, 'price', e.target.value)}
+                          placeholder="29990000"
+                          className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-2 text-xs text-gray-300"
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="text-[10px] text-gray-500 block mb-1">Tồn kho</label>
+                        <input
+                          type="number"
+                          value={variant.stock || ''}
+                          onChange={(e) => updateVariantField(index, 'stock', e.target.value)}
+                          placeholder="10"
+                          className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-2 text-xs text-gray-300"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Color image */}
+                    <div>
+                      <label className="text-[10px] text-gray-500 block mb-1">Ảnh màu sắc</label>
+                      <div className="flex items-center gap-3">
+                        {variant.colorImageUrl ? (
+                          <div className="relative group w-14 h-14">
+                            <img
+                              src={variant.colorImageUrl}
+                              alt="Color"
+                              className="w-full h-full object-contain bg-white/5 rounded-lg border border-white/10 p-0.5"
+                              onError={(e) => { e.target.src = 'https://picsum.photos/seed/fallback/80/80'; }}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => updateVariantField(index, 'colorImageUrl', '')}
+                              className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-red-600 rounded-full text-white text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity font-bold"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ) : (
+                          <label className="w-14 h-14 border-2 border-dashed border-white/10 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-red-500/40 transition-all">
+                            {uploadingVariantIndex === index ? (
+                              <span className="text-[10px] text-gray-500">...</span>
+                            ) : (
+                              <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
+                              </svg>
+                            )}
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(e) => handleVariantColorImageUpload(e, index)}
+                            />
+                          </label>
+                        )}
+                        <p className="text-[9px] text-gray-600">Ảnh hiển thị khi chọn màu {variant.color || 'này'} ở trang chi tiết</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+
+                {(form.variants || []).length === 0 && (
+                  <div className="text-center py-10 border border-dashed border-white/5 rounded-xl">
+                    <p className="text-gray-600 text-sm font-bold">Chưa có biến thể nào.</p>
+                    <p className="text-gray-700 text-xs mt-1">Chọn dung lượng & RAM bên trên rồi nhấn "Thêm biến thể".</p>
+                  </div>
+                )}
+              </div>
+
+              <datalist id="variant-storage-presets">
+                {STORAGE_PRESETS.map((s) => <option key={s} value={s} />)}
+              </datalist>
+              <datalist id="variant-color-presets">
+                {COLOR_PRESETS.map((c) => <option key={c} value={c} />)}
+              </datalist>
+            </section>
+
+            {/* Specifications */}
+            <section className="bg-[#13151e] border border-white/5 rounded-2xl p-6 space-y-5">
+              <h3 className="text-sm font-black text-white uppercase tracking-wider">Thông số kỹ thuật</h3>
+              <div className="space-y-4">
+                {SPEC_KEYS.map((key) => (
+                  <div key={key}>
+                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">{SPEC_LABELS[key]}</label>
+                    <input
+                      type="text"
+                      value={form.specifications[key] || ''}
+                      placeholder={key === 'screen' ? '6.7-inch OLED, 120Hz' : key === 'cpu' ? 'Apple A17 Pro' : ''}
+                      onChange={(e) => updateSpecField(key, e.target.value)}
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-red-500/50 transition-all"
+                    />
+                  </div>
+                ))}
+              </div>
+            </section>
+          </div>
+
+          {/* ── Right Column: Live Preview ─────────────────────────────────────── */}
+          <div className="lg:block">
+            <div className="sticky top-8">
+              <h3 className="text-xs font-black text-gray-500 uppercase tracking-widest mb-4">Xem trước</h3>
+              <div className="bg-white rounded-2xl overflow-hidden shadow-2xl">
+                {/* Preview thumbnail */}
+                <div className="aspect-square bg-gray-50 flex items-center justify-center overflow-hidden">
+                  {form.thumbnailUrl || form.images.length > 0 ? (
+                    <img
+                      src={form.thumbnailUrl || form.images[0]}
+                      alt="preview"
+                      className="w-full h-full object-contain"
+                      onError={(e) => { e.target.src = 'https://picsum.photos/seed/preview/400/400'; }}
+                    />
+                  ) : (
+                    <div className="text-center text-gray-300">
+                      <svg className="w-12 h-12 mx-auto mb-2 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <rect x="3" y="3" width="18" height="18" rx="2" />
+                        <circle cx="8.5" cy="8.5" r="1.5" />
+                        <polyline points="21 15 16 10 5 21" />
+                      </svg>
+                      <p className="text-xs">Chưa có ảnh</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Preview info */}
+                <div className="p-4 space-y-2">
+                  {form.brand && (
+                    <p className="text-[10px] text-gray-400 uppercase font-bold tracking-widest">{form.brand}</p>
+                  )}
+                  <p className="font-bold text-gray-900 text-sm leading-tight">
+                    {form.name || 'Tên sản phẩm'}
+                  </p>
+                  {form.variants.length > 0 && (
+                    <p className="text-lg font-black text-red-600">
+                      {Number(form.variants.find((v) => v.price)?.price || 0).toLocaleString()}₫
+                    </p>
+                  )}
+                  {form.variants.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {[...new Set(form.variants.map((v) => v.storageLabel).filter(Boolean))].map((s) => (
+                        <span key={s} className="text-[10px] px-2 py-0.5 bg-gray-100 text-gray-600 rounded font-bold">{s}</span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─── Admin Products List Page ──────────────────────────────────────────────────
 export const AdminProducts = () => {
   const [productList, setProductList] = useState([]);
   const [isReadOnlyMode, setIsReadOnlyMode] = useState(false);
   const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [showModal, setShowModal] = useState(false);
+  const [showForm, setShowForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
-  const [form, setForm] = useState(emptyForm);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [quickVariant, setQuickVariant] = useState({ color: 'Đen', storageLabel: '256GB', ramGb: '8' });
-  const fileInputRef = useRef(null);
 
   useEffect(() => {
     fetchProducts();
@@ -90,11 +816,9 @@ export const AdminProducts = () => {
           setIsReadOnlyMode(true);
         } catch (fallbackError) {
           console.error('Cannot load fallback product list', fallbackError);
-          alert('Không thể tải danh sách sản phẩm. Vui lòng kiểm tra backend hoặc đăng nhập lại.');
         }
       } else {
         console.error('Cannot load products', error);
-        alert('Không thể tải danh sách sản phẩm. Vui lòng kiểm tra backend hoặc đăng nhập lại.');
       }
     } finally {
       setLoading(false);
@@ -115,176 +839,12 @@ export const AdminProducts = () => {
 
   const openAdd = () => {
     setEditingProduct(null);
-    setForm(emptyForm);
-    setQuickVariant({ color: 'Đen', storageLabel: '256GB', ramGb: '8' });
-    setShowModal(true);
+    setShowForm(true);
   };
 
   const openEdit = (product) => {
-    const mappedVariants = (product.variantItems || []).map((variant) => ({
-      id: variant.id,
-      color: variant.color || 'Đen',
-      storageLabel: variant.storageLabel || 'Mặc định',
-      price: variant.price ?? '',
-      stock: variant.stock ?? '',
-      ramGb: variant.ramGb ?? '',
-    }));
-
     setEditingProduct(product);
-    setForm({
-      name: product.name || '',
-      brand: product.brand || '',
-      description: product.description || '',
-      images: product.images || (product.image ? [product.image] : []),
-      specifications: {
-        ...emptyForm.specifications,
-        ...(product.specifications || {}),
-      },
-      variants: mappedVariants.length > 0 ? mappedVariants : [createEmptyVariant({ color: 'Đen', storageLabel: '128GB' })],
-    });
-    setQuickVariant({ color: 'Đen', storageLabel: '256GB', ramGb: '8' });
-    setShowModal(true);
-  };
-
-  const appendVariant = (overrides = {}) => {
-    setForm((prev) => ({
-      ...prev,
-      variants: [...(prev.variants || []), createEmptyVariant(overrides)],
-    }));
-  };
-
-  const removeVariantRow = (index) => {
-    setForm((prev) => {
-      const nextVariants = (prev.variants || []).filter((_, i) => i !== index);
-      return {
-        ...prev,
-        variants: nextVariants.length > 0 ? nextVariants : [createEmptyVariant({ color: 'Đen', storageLabel: '128GB' })],
-      };
-    });
-  };
-
-  const updateVariantField = (index, key, value) => {
-    setForm((prev) => ({
-      ...prev,
-      variants: (prev.variants || []).map((variant, i) => (i === index ? { ...variant, [key]: value } : variant)),
-    }));
-  };
-
-  const updateSpecField = (key, value) => {
-    setForm((prev) => ({
-      ...prev,
-      specifications: {
-        ...(prev.specifications || {}),
-        [key]: value,
-      },
-    }));
-  };
-
-  const handleImageUpload = async (e) => {
-    const files = Array.from(e.target.files || []);
-    if (files.length === 0) return;
-
-    setUploading(true);
-    try {
-      const uploadedUrls = [];
-      for (const file of files) {
-        const response = await ProductService.uploadImage(file);
-        uploadedUrls.push(response.data.imageUrl);
-      }
-
-      setForm((prev) => ({
-        ...prev,
-        images: [...prev.images, ...uploadedUrls],
-      }));
-    } catch (error) {
-      console.error('Upload image failed', error);
-      const serverMessage = error.response?.data?.message || error.response?.data?.error;
-      alert(serverMessage || 'Upload ảnh thất bại');
-    } finally {
-      setUploading(false);
-      e.target.value = '';
-    }
-  };
-
-  const removeImage = (index) => {
-    setForm((prev) => ({
-      ...prev,
-      images: prev.images.filter((_, i) => i !== index),
-    }));
-  };
-
-  const handleSave = async () => {
-    if (isReadOnlyMode) {
-      alert('Bạn không có quyền chỉnh sửa sản phẩm.');
-      return;
-    }
-
-    if (!form.name.trim() || !form.brand.trim()) {
-      alert('Vui lòng nhập tên sản phẩm và thương hiệu.');
-      return;
-    }
-
-    const preparedVariants = (form.variants || [])
-      .filter((variant) => (
-        (variant.color || '').trim()
-        || (variant.storageLabel || '').trim()
-        || variant.price
-        || variant.stock
-        || variant.ramGb
-      ))
-      .map((variant) => ({
-        color: (variant.color || '').trim() || 'Default',
-        storageLabel: normalizeStorageLabel(variant.storageLabel) || 'Mặc định',
-        price: Number(variant.price || 0),
-        stock: Number(variant.stock || 0),
-        ramGb: variant.ramGb ? Number(variant.ramGb) : null,
-      }));
-
-    if (preparedVariants.length === 0) {
-      alert('Vui lòng thêm ít nhất 1 biến thể.');
-      return;
-    }
-
-    if (preparedVariants.every((variant) => Number(variant.price || 0) <= 0)) {
-      alert('Vui lòng nhập giá cho ít nhất 1 biến thể.');
-      return;
-    }
-
-    const totalVariantStock = preparedVariants.reduce((sum, variant) => sum + Number(variant.stock || 0), 0);
-    const firstVariantPrice = preparedVariants.find((variant) => Number(variant.price || 0) > 0)?.price || 0;
-    const payloadSpecifications = SPEC_KEYS.reduce((acc, key) => {
-      acc[key] = String(form.specifications?.[key] || '').trim();
-      return acc;
-    }, {});
-
-    const payload = {
-      name: form.name,
-      brand: form.brand,
-      description: form.description,
-      images: form.images,
-      specifications: payloadSpecifications,
-      variants: preparedVariants,
-      price: Number(firstVariantPrice || 0),
-      stock: Number(totalVariantStock || 0),
-    };
-
-    setSaving(true);
-    try {
-      if (editingProduct) {
-        const id = editingProduct._id || editingProduct.id;
-        const response = await ProductService.updateProduct(id, payload);
-        setProductList((prev) => prev.map((product) => ((product._id === id || product.id === id) ? response.data : product)));
-      } else {
-        const response = await ProductService.createProduct(payload);
-        setProductList((prev) => [response.data, ...prev]);
-      }
-      setShowModal(false);
-    } catch (error) {
-      console.error('Save product failed', error);
-      alert(error.response?.data?.message || 'Lưu sản phẩm thất bại');
-    } finally {
-      setSaving(false);
-    }
+    setShowForm(true);
   };
 
   const handleDelete = async (id) => {
@@ -292,21 +852,27 @@ export const AdminProducts = () => {
       alert('Bạn không có quyền xóa sản phẩm.');
       return;
     }
-
     try {
       await ProductService.deleteProduct(id);
-      setProductList((prev) => prev.filter((product) => product._id !== id && product.id !== id));
+      setProductList((prev) => prev.filter((p) => p._id !== id && p.id !== id));
       setDeleteConfirm(null);
     } catch (error) {
-      console.error('Delete product failed', error);
       alert(error.response?.data?.message || 'Xóa sản phẩm thất bại');
     }
   };
 
-  const getThumbnail = (product) => (product.images && product.images[0]) || product.image || '';
+  const getThumbnail = (product) =>
+    product.thumbnailUrl || (product.images && product.images[0]) || product.image || '';
+
+  const handleSaveSuccess = () => {
+    setShowForm(false);
+    setEditingProduct(null);
+    fetchProducts();
+  };
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-black text-white tracking-tight">Sản phẩm</h1>
@@ -328,20 +894,19 @@ export const AdminProducts = () => {
         </div>
       )}
 
+      {/* Search */}
       <div className="relative">
         <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
         <input
           type="text"
           placeholder="Tìm theo tên, thương hiệu..."
           value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setCurrentPage(1);
-          }}
+          onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
           className="w-full bg-[#13151e] border border-white/5 rounded-xl py-2.5 pl-10 pr-4 text-sm text-gray-300 placeholder-gray-600 focus:outline-none focus:border-red-500/50 transition-all"
         />
       </div>
 
+      {/* Table */}
       <div className="bg-[#13151e] border border-white/5 rounded-2xl overflow-hidden">
         {loading && <div className="px-6 py-4 text-sm text-gray-400 border-b border-white/5">Đang tải dữ liệu...</div>}
         <table className="w-full">
@@ -368,7 +933,7 @@ export const AdminProducts = () => {
                       />
                       <div>
                         <p className="text-sm font-medium text-white">{product.name}</p>
-                        <p className="text-[11px] text-gray-500 line-clamp-1">{product.description || '—'}</p>
+                        <p className="text-[11px] text-gray-500 line-clamp-1">{product.description ? 'Đã có mô tả' : '—'}</p>
                       </div>
                     </div>
                   </td>
@@ -404,6 +969,7 @@ export const AdminProducts = () => {
         {displayed.length === 0 && <div className="py-16 text-center text-gray-600 font-bold">Không tìm thấy sản phẩm nào</div>}
       </div>
 
+      {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center justify-between">
           <p className="text-xs text-gray-500">Hiển thị {displayed.length} / {filtered.length} sản phẩm</p>
@@ -435,310 +1001,41 @@ export const AdminProducts = () => {
         </div>
       )}
 
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-          <div className="bg-[#13151e] border border-white/10 rounded-2xl w-full max-w-3xl max-h-[90vh] flex flex-col">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-white/5">
-              <h3 className="text-lg font-black text-white">{editingProduct ? 'Chỉnh sửa sản phẩm' : 'Thêm sản phẩm mới'}</h3>
-              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-white transition-colors">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-              </button>
-            </div>
-
-            <div className="overflow-y-auto flex-1 px-6 py-5 space-y-6">
-              <section className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">Tên sản phẩm</label>
-                    <input
-                      type="text"
-                      value={form.name}
-                      placeholder="iPhone 15 Pro Max"
-                      onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
-                      className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-gray-300 placeholder-gray-600 focus:outline-none focus:border-red-500/50 transition-all"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">Thương hiệu</label>
-                    <input
-                      type="text"
-                      value={form.brand}
-                      placeholder="Apple"
-                      onChange={(e) => setForm((prev) => ({ ...prev, brand: e.target.value }))}
-                      className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-gray-300 placeholder-gray-600 focus:outline-none focus:border-red-500/50 transition-all"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">Mô tả</label>
-                  <textarea
-                    value={form.description}
-                    rows={3}
-                    placeholder="Mô tả sản phẩm..."
-                    onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-gray-300 placeholder-gray-600 focus:outline-none focus:border-red-500/50 transition-all resize-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">Hình ảnh sản phẩm</label>
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={uploading}
-                    className="w-full border-2 border-dashed border-white/10 rounded-xl py-6 flex flex-col items-center gap-2 text-gray-500 hover:border-red-500/40 hover:text-gray-300 transition-all"
-                  >
-                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                    </svg>
-                    <span className="text-xs font-bold">{uploading ? 'Đang upload ảnh...' : 'Nhấn để chọn ảnh'}</span>
-                    <span className="text-[10px] text-gray-600">JPG, PNG, WEBP — nhiều file cùng lúc</span>
-                  </button>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    className="hidden"
-                    onChange={handleImageUpload}
-                  />
-
-                  {form.images.length > 0 && (
-                    <div className="mt-3 flex flex-wrap gap-3">
-                      {form.images.map((img, index) => (
-                        <div key={index} className="relative group">
-                          <img
-                            src={img}
-                            alt=""
-                            className="w-20 h-20 object-contain bg-white/5 rounded-xl border border-white/10 p-1"
-                            onError={(e) => { e.target.src = 'https://picsum.photos/seed/fallback/80/80'; }}
-                          />
-                          <button
-                            onClick={() => removeImage(index)}
-                            className="absolute -top-2 -right-2 w-5 h-5 bg-red-600 rounded-full text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                            ×
-                          </button>
-                          {index === 0 && (
-                            <span className="absolute bottom-1 left-1 text-[8px] bg-red-600 text-white px-1 rounded font-bold">CHÍNH</span>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </section>
-
-              <section className="space-y-4 border-t border-white/5 pt-5">
-                <div className="flex items-center justify-between gap-4 flex-wrap">
-                  <div>
-                    <h4 className="text-sm font-bold text-white">Biến thể</h4>
-                    <p className="text-xs text-gray-500 mt-1">RAM và dung lượng chỉ nhập tại đây. Tồn kho được quản lý riêng ở mục Kho.</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => appendVariant()}
-                    className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-xs text-gray-300 hover:border-red-500/50 hover:text-white transition-all"
-                  >
-                    + Thêm biến thể
-                  </button>
-                </div>
-
-                <div className="flex flex-wrap gap-2">
-                  {STORAGE_PRESETS.map((storage) => (
-                    <button
-                      key={storage}
-                      type="button"
-                      onClick={() => appendVariant({ color: quickVariant.color, storageLabel: storage, ramGb: quickVariant.ramGb })}
-                      className="text-[11px] px-2.5 py-1 rounded-full border border-white/10 text-gray-400 hover:text-white hover:border-white/20"
-                    >
-                      + {storage}
-                    </button>
-                  ))}
-                  {COLOR_PRESETS.map((color) => (
-                    <button
-                      key={color}
-                      type="button"
-                      onClick={() => appendVariant({ color, storageLabel: quickVariant.storageLabel, ramGb: quickVariant.ramGb })}
-                      className="text-[11px] px-2.5 py-1 rounded-full border border-white/10 text-gray-400 hover:text-white hover:border-white/20"
-                    >
-                      + {color}
-                    </button>
-                  ))}
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 rounded-xl border border-white/10 bg-white/[0.02] p-3">
-                  <div>
-                    <label className="text-[10px] text-gray-500 block mb-1">RAM mặc định</label>
-                    <select
-                      value={quickVariant.ramGb}
-                      onChange={(e) => setQuickVariant((prev) => ({ ...prev, ramGb: e.target.value }))}
-                      className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-2 text-xs text-gray-300"
-                    >
-                      {RAM_PRESETS.map((ram) => <option key={ram} value={ram}>{ram}GB</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="text-[10px] text-gray-500 block mb-1">Dung lượng mặc định</label>
-                    <select
-                      value={quickVariant.storageLabel}
-                      onChange={(e) => setQuickVariant((prev) => ({ ...prev, storageLabel: e.target.value }))}
-                      className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-2 text-xs text-gray-300"
-                    >
-                      {STORAGE_PRESETS.map((storage) => <option key={storage} value={storage}>{storage}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="text-[10px] text-gray-500 block mb-1">Màu mặc định</label>
-                    <select
-                      value={quickVariant.color}
-                      onChange={(e) => setQuickVariant((prev) => ({ ...prev, color: e.target.value }))}
-                      className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-2 text-xs text-gray-300"
-                    >
-                      {COLOR_PRESETS.map((color) => <option key={color} value={color}>{color}</option>)}
-                    </select>
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  {(form.variants || []).map((variant, index) => (
-                    <div key={variant.id || index} className="space-y-2 p-3 rounded-xl border border-white/10 bg-white/[0.02]">
-                      <p className="text-[11px] text-emerald-300/90">
-                        Tên hiển thị: {buildVariantPreviewName(form.name, variant) || 'Nhập tên sản phẩm ở trên'}
-                      </p>
-                      <div className="grid grid-cols-12 gap-2">
-                        <div className="col-span-4 md:col-span-3">
-                          <label className="text-[10px] text-gray-500 block mb-1">Màu sắc</label>
-                          <input
-                            type="text"
-                            list="variant-color-presets"
-                            value={variant.color || ''}
-                            onChange={(e) => updateVariantField(index, 'color', e.target.value)}
-                            placeholder="Đen"
-                            className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-2 text-xs text-gray-300"
-                          />
-                        </div>
-                        <div className="col-span-4 md:col-span-3">
-                          <label className="text-[10px] text-gray-500 block mb-1">Dung lượng</label>
-                          <input
-                            type="text"
-                            list="variant-storage-presets"
-                            value={variant.storageLabel || ''}
-                            onChange={(e) => updateVariantField(index, 'storageLabel', e.target.value)}
-                            placeholder="256GB"
-                            className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-2 text-xs text-gray-300"
-                          />
-                        </div>
-                        <div className="col-span-4 md:col-span-2">
-                          <label className="text-[10px] text-gray-500 block mb-1">RAM (GB)</label>
-                          <input
-                            type="number"
-                            value={variant.ramGb || ''}
-                            onChange={(e) => updateVariantField(index, 'ramGb', e.target.value)}
-                            placeholder="8"
-                            className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-2 text-xs text-gray-300"
-                          />
-                        </div>
-                        <div className="col-span-8 md:col-span-3">
-                          <label className="text-[10px] text-gray-500 block mb-1">Giá</label>
-                          <input
-                            type="number"
-                            value={variant.price || ''}
-                            onChange={(e) => updateVariantField(index, 'price', e.target.value)}
-                            placeholder="29990000"
-                            className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-2 text-xs text-gray-300"
-                          />
-                        </div>
-                        <div className="col-span-4 md:col-span-1 flex items-end">
-                          <button
-                            type="button"
-                            onClick={() => removeVariantRow(index)}
-                            className="w-full py-2 rounded-lg border border-red-500/30 text-red-400 text-xs hover:bg-red-500/10"
-                          >
-                            X
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <datalist id="variant-storage-presets">
-                  {STORAGE_PRESETS.map((storage) => <option key={storage} value={storage} />)}
-                </datalist>
-                <datalist id="variant-color-presets">
-                  {COLOR_PRESETS.map((color) => <option key={color} value={color} />)}
-                </datalist>
-              </section>
-
-              <section className="space-y-4 border-t border-white/5 pt-5">
-                <div>
-                  <h4 className="text-sm font-bold text-white">Thông số kỹ thuật</h4>
-                  <p className="text-xs text-gray-500 mt-1">Đã bỏ RAM và bộ nhớ vì 2 trường đó đang nằm ở biến thể.</p>
-                </div>
-
-                <div className="space-y-4">
-                  {SPEC_KEYS.map((key) => (
-                    <div key={key}>
-                      <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">{SPEC_LABELS[key]}</label>
-                      <input
-                        type="text"
-                        value={form.specifications[key] || ''}
-                        placeholder={key === 'screen' ? '6.7-inch OLED, 120Hz' : key === 'cpu' ? 'Apple A17 Pro' : ''}
-                        onChange={(e) => updateSpecField(key, e.target.value)}
-                        className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-gray-300 placeholder-gray-600 focus:outline-none focus:border-red-500/50 transition-all"
-                      />
-                    </div>
-                  ))}
-                </div>
-              </section>
-            </div>
-
-            <div className="flex gap-3 px-6 py-4 border-t border-white/5">
-              <button
-                onClick={() => setShowModal(false)}
-                className="flex-1 py-2.5 rounded-xl border border-white/10 text-sm text-gray-400 hover:text-white hover:border-white/20 transition-all"
-              >
-                Hủy
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={saving || uploading}
-                className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-sm font-bold text-white transition-all active:scale-95"
-              >
-                {saving ? 'Đang lưu...' : (editingProduct ? 'Lưu thay đổi' : 'Thêm sản phẩm')}
-              </button>
-            </div>
-          </div>
-        </div>
+      {/* Full-screen form overlay */}
+      {showForm && (
+        <ProductFormPage
+          editingProduct={editingProduct}
+          onClose={() => { setShowForm(false); setEditingProduct(null); }}
+          onSaveSuccess={handleSaveSuccess}
+        />
       )}
 
+      {/* Delete confirm modal */}
       {deleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
           <div className="bg-[#13151e] border border-white/10 rounded-2xl w-full max-w-sm p-6 text-center">
             <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-4">
               <svg className="w-6 h-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-              </div>
-              <h3 className="text-lg font-black text-white mb-2">Xóa sản phẩm?</h3>
-              <p className="text-sm text-gray-400 mb-6">Hành động này không thể hoàn tác.</p>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setDeleteConfirm(null)}
-                  className="flex-1 py-2.5 rounded-xl border border-white/10 text-sm text-gray-400 hover:text-white transition-all"
-                >
-                  Hủy
-                </button>
-                <button
-                  onClick={() => handleDelete(deleteConfirm)}
-                  className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-sm font-bold text-white transition-all"
-                >
-                  Xóa
-                </button>
-              </div>
+            </div>
+            <h3 className="text-lg font-black text-white mb-2">Xóa sản phẩm?</h3>
+            <p className="text-sm text-gray-400 mb-6">Hành động này không thể hoàn tác.</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDeleteConfirm(null)}
+                className="flex-1 py-2.5 rounded-xl border border-white/10 text-sm text-gray-400 hover:text-white transition-all"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={() => handleDelete(deleteConfirm)}
+                className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-sm font-bold text-white transition-all"
+              >
+                Xóa
+              </button>
             </div>
           </div>
-        )}
-      </div>
-    );
-  };
+        </div>
+      )}
+    </div>
+  );
+};

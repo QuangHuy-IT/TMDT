@@ -11,6 +11,8 @@ import { Cart } from './pages/Cart/Cart';
 import { Checkout } from './pages/Checkout';
 import { Orders } from './pages/Orders';
 import { OrderDetail } from './pages/OrderDetail';
+import { PaymentSuccess } from './pages/PaymentSuccess';
+import { PaymentCancel } from './pages/PaymentCancel';
 import { Login } from './pages/auth/Login';
 import { Register } from './pages/Register';
 import { CompleteGoogleRegister } from './pages/auth/CompleteGoogleRegister';
@@ -29,6 +31,13 @@ import { AdminProducts } from './pages/admin/AdminProducts';
 import { AdminInventory } from './pages/admin/AdminInventory';
 import { AdminOrders } from './pages/admin/AdminOrders';
 import { AdminUsers } from './pages/admin/AdminUsers';
+import AdminBrands from './pages/admin/AdminBrands';
+import AdminBanners from './pages/admin/AdminBanners';
+import AdminPromotions from './pages/admin/AdminPromotions';
+import AdminFlashSale from './pages/admin/AdminFlashSale';
+import AdminVouchers from './pages/admin/AdminVouchers';
+
+// Context
 import { ShopProvider } from './context/ShopContext';
 import { ThemeProvider } from './context/ThemeContext';
 import './App.css';
@@ -105,14 +114,21 @@ function App() {
         <Router>
           <ScrollToRouteTop />
           <Routes>
+            {/* ===== ADMIN ROUTES (layout riêng, không có Navbar/Footer) ===== */}
             <Route path="/admin" element={<ProtectedRoute isAdmin><AdminLayout /></ProtectedRoute>}>
               <Route index element={<AdminDashboard />} />
               <Route path="products" element={<AdminProducts />} />
+              <Route path="brands" element={<AdminBrands />} />
+              <Route path="banners" element={<AdminBanners />} />
+              <Route path="promotions" element={<AdminPromotions />} />
+              <Route path="flash-sales" element={<AdminFlashSale />} />
+              <Route path="vouchers" element={<AdminVouchers />} />
               <Route path="inventory" element={<AdminInventory />} />
               <Route path="orders" element={<AdminOrders />} />
               <Route path="users" element={<AdminUsers />} />
             </Route>
 
+            {/* ===== AUTH ROUTES (không có Navbar + Footer) ===== */}
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Register />} />
             <Route path="/complete-google-register" element={<CompleteGoogleRegister />} />
@@ -143,6 +159,8 @@ function App() {
                         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
                         <Route path="/orders" element={<ProtectedRoute><Orders /></ProtectedRoute>} />
                         <Route path="/order/:id" element={<ProtectedRoute><OrderDetail /></ProtectedRoute>} />
+                        <Route path="/payment/success" element={<PaymentSuccess />} />
+                        <Route path="/payment/cancel" element={<PaymentCancel />} />
                         <Route path="/:brandName" element={<BrandProducts />} />
                         <Route
                           path="*"

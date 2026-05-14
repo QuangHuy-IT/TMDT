@@ -1,56 +1,86 @@
-import React, { useState, useMemo } from 'react';
-
-const mockUsers = [
-  { id: 1,  name: 'Nguyễn Văn Hoàng', email: 'hoang@gmail.com',  role: 'admin', status: 'active',  joined: '01/01/2026', orders: 5,  spent: 89990000 },
-  { id: 2,  name: 'Trần Thị Mai',      email: 'mai@gmail.com',    role: 'user',  status: 'active',  joined: '15/01/2026', orders: 3,  spent: 42000000 },
-  { id: 3,  name: 'Lê Minh Tuấn',      email: 'tuan@gmail.com',   role: 'user',  status: 'active',  joined: '20/01/2026', orders: 1,  spent: 8500000  },
-  { id: 4,  name: 'Phạm Thu Hà',       email: 'ha@gmail.com',     role: 'user',  status: 'blocked', joined: '05/02/2026', orders: 2,  spent: 27000000 },
-  { id: 5,  name: 'Hoàng Đức Anh',     email: 'anh@gmail.com',    role: 'user',  status: 'active',  joined: '10/02/2026', orders: 4,  spent: 61500000 },
-  { id: 6,  name: 'Ngô Thanh Tùng',    email: 'tung@gmail.com',   role: 'user',  status: 'active',  joined: '14/02/2026', orders: 1,  spent: 9900000  },
-  { id: 7,  name: 'Đỗ Minh Châu',      email: 'chau@gmail.com',   role: 'user',  status: 'active',  joined: '20/02/2026', orders: 2,  spent: 31000000 },
-  { id: 8,  name: 'Vũ Thùy Linh',      email: 'linh@gmail.com',   role: 'user',  status: 'blocked', joined: '01/03/2026', orders: 0,  spent: 0        },
-  { id: 9,  name: 'Bùi Quốc Hùng',     email: 'hung@gmail.com',   role: 'user',  status: 'active',  joined: '05/03/2026', orders: 1,  spent: 16500000 },
-  { id: 10, name: 'Đinh Thanh Hương',   email: 'huong@gmail.com',  role: 'user',  status: 'active',  joined: '10/03/2026', orders: 0,  spent: 0        },
-];
+import React, { useEffect, useState, useMemo } from 'react';
+import AdminService from '../../services/adminService';
 
 export const AdminUsers = () => {
-  const [users, setUsers] = useState(mockUsers);
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(null);
   const [search, setSearch] = useState('');
   const [filterRole, setFilterRole] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
   const [selectedUser, setSelectedUser] = useState(null);
 
+  useEffect(() => { fetchUsers(); }, []);
+
+  const fetchUsers = async () => {
+    setLoading(true);
+    setFetchError(null);
+    try {
+      const res = await AdminService.getUsers();
+      const data = res.data?.data ?? res.data ?? [];
+      setUsers(Array.isArray(data) ? data : []);
+    } catch (e) {
+      console.error('[AdminUsers] Fetch error:', e);
+      setFetchError(e.response?.data?.message || e.message || 'Không thể tải danh sách người dùng. Đảm bảo backend đang chạy.');
+      setUsers([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Chuyển đổi role/status enum từ backend → string hiển thị
+  const normalize = (u) => ({
+    ...u,
+    name: u.fullName || u.name || '',
+    role: u.role === 'ADMIN' || u.role === 'admin' ? 'admin' : 'user',
+    status: u.status === 'ACTIVE' || u.status === 'active' ? 'active' : 'blocked',
+    joined: u.createdAt || '',
+    orders: u.orderCount ?? 0,
+    spent: u.totalSpent ?? 0,
+  });
+
+  const normalized = useMemo(() => users.map(normalize), [users]);
+
   const filtered = useMemo(() => {
-    return users.filter(u => {
+    return normalized.filter(u => {
       const matchSearch = u.name.toLowerCase().includes(search.toLowerCase()) ||
-                          u.email.toLowerCase().includes(search.toLowerCase());
+                          u.email?.toLowerCase().includes(search.toLowerCase());
       const matchRole   = filterRole === 'all' || u.role === filterRole;
       const matchStatus = filterStatus === 'all' || u.status === filterStatus;
       return matchSearch && matchRole && matchStatus;
     });
-  }, [users, search, filterRole, filterStatus]);
+  }, [normalized, search, filterRole, filterStatus]);
 
-  const toggleStatus = (userId) => {
-    setUsers(prev => prev.map(u =>
-      u.id === userId ? { ...u, status: u.status === 'active' ? 'blocked' : 'active' } : u
-    ));
-    if (selectedUser?.id === userId) {
-      setSelectedUser(prev => ({ ...prev, status: prev.status === 'active' ? 'blocked' : 'active' }));
+  const stats = useMemo(() => ({
+    total:   normalized.length,
+    active:  normalized.filter(u => u.status === 'active').length,
+    blocked: normalized.filter(u => u.status === 'blocked').length,
+    admins:  normalized.filter(u => u.role === 'admin').length,
+  }), [normalized]);
+
+  const handleToggleStatus = async (user) => {
+    const newStatus = user.status === 'active' ? 'BLOCKED' : 'ACTIVE';
+    try {
+      const res = await AdminService.updateUser(user.id, { status: newStatus });
+      const updated = normalize(res.data);
+      setUsers(prev => prev.map(u => u.id === user.id ? { ...u, ...updated } : u));
+      if (selectedUser?.id === user.id) setSelectedUser(prev => ({ ...prev, ...updated }));
+    } catch (e) {
+      alert('Cập nhật trạng thái thất bại: ' + (e.response?.data?.message || e.message));
     }
   };
 
-  const toggleRole = (userId) => {
-    setUsers(prev => prev.map(u =>
-      u.id === userId ? { ...u, role: u.role === 'admin' ? 'user' : 'admin' } : u
-    ));
+  const handleToggleRole = async (user) => {
+    const newRole = user.role === 'admin' ? 'USER' : 'ADMIN';
+    try {
+      const res = await AdminService.updateUser(user.id, { role: newRole });
+      const updated = normalize(res.data);
+      setUsers(prev => prev.map(u => u.id === user.id ? { ...u, ...updated } : u));
+      if (selectedUser?.id === user.id) setSelectedUser(prev => ({ ...prev, ...updated }));
+    } catch (e) {
+      alert('Cập nhật quyền thất bại: ' + (e.response?.data?.message || e.message));
+    }
   };
-
-  const stats = useMemo(() => ({
-    total:   users.length,
-    active:  users.filter(u => u.status === 'active').length,
-    blocked: users.filter(u => u.status === 'blocked').length,
-    admins:  users.filter(u => u.role === 'admin').length,
-  }), [users]);
 
   return (
     <div className="space-y-6">
@@ -78,7 +108,6 @@ export const AdminUsers = () => {
 
       {/* Filters */}
       <div className="flex flex-col md:flex-row gap-3">
-        {/* Search */}
         <div className="relative flex-1">
           <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -89,7 +118,6 @@ export const AdminUsers = () => {
         </div>
 
         <div className="flex gap-2">
-          {/* Role filter */}
           <select value={filterRole} onChange={e => setFilterRole(e.target.value)}
             className="bg-[#13151e] border border-white/5 rounded-xl px-3 py-2 text-xs text-gray-400 focus:outline-none focus:border-red-500/50 transition-all cursor-pointer">
             <option value="all">Tất cả quyền</option>
@@ -97,7 +125,6 @@ export const AdminUsers = () => {
             <option value="user">User</option>
           </select>
 
-          {/* Status filter */}
           <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
             className="bg-[#13151e] border border-white/5 rounded-xl px-3 py-2 text-xs text-gray-400 focus:outline-none focus:border-red-500/50 transition-all cursor-pointer">
             <option value="all">Tất cả trạng thái</option>
@@ -109,6 +136,15 @@ export const AdminUsers = () => {
 
       {/* Table */}
       <div className="bg-[#13151e] border border-white/5 rounded-2xl overflow-hidden">
+        {loading && (
+          <div className="px-6 py-4 text-sm text-gray-400 border-b border-white/5">Đang tải...</div>
+        )}
+        {fetchError && (
+          <div className="px-6 py-4 border-b border-red-500/20 bg-red-500/5">
+            <p className="text-sm text-red-400 font-medium">Lỗi: {fetchError}</p>
+            <button onClick={fetchUsers} className="mt-2 text-xs text-red-400 underline hover:text-red-300">Thử lại</button>
+          </div>
+        )}
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
@@ -130,16 +166,17 @@ export const AdminUsers = () => {
                       <div className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-xs uppercase flex-shrink-0 ${
                         user.role === 'admin' ? 'bg-purple-600' : 'bg-red-600/70'
                       }`}>
-                        {user.name.charAt(0)}
+                        {(user.name || 'U').charAt(0)}
                       </div>
                       <div>
                         <p className="text-sm font-medium text-white">{user.name}</p>
                         <p className="text-xs text-gray-500">{user.email}</p>
+                        {user.phone && <p className="text-[10px] text-gray-600">{user.phone}</p>}
                       </div>
                     </div>
                   </td>
                   <td className="px-6 py-3 hidden md:table-cell">
-                    <span className="text-sm text-gray-500">{user.joined}</span>
+                    <span className="text-sm text-gray-500">{user.joined || '—'}</span>
                   </td>
                   <td className="px-6 py-3 text-center hidden lg:table-cell">
                     <span className="text-sm text-gray-300">{user.orders}</span>
@@ -151,7 +188,7 @@ export const AdminUsers = () => {
                   </td>
                   <td className="px-6 py-3 text-center">
                     <button
-                      onClick={() => toggleRole(user.id)}
+                      onClick={() => handleToggleRole(user)}
                       className={`text-[10px] font-bold px-2 py-1 rounded-lg border transition-all ${
                         user.role === 'admin'
                           ? 'bg-purple-500/10 text-purple-400 border-purple-500/20 hover:bg-purple-500/20'
@@ -163,7 +200,7 @@ export const AdminUsers = () => {
                   </td>
                   <td className="px-6 py-3 text-center">
                     <button
-                      onClick={() => toggleStatus(user.id)}
+                      onClick={() => handleToggleStatus(user)}
                       className={`text-[10px] font-bold px-2 py-1 rounded-lg border transition-all ${
                         user.status === 'active'
                           ? 'bg-green-500/10 text-green-400 border-green-500/20 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/20'
@@ -188,7 +225,7 @@ export const AdminUsers = () => {
               ))}
             </tbody>
           </table>
-          {filtered.length === 0 && (
+          {!loading && filtered.length === 0 && (
             <div className="py-16 text-center text-gray-600 font-bold">Không tìm thấy người dùng nào</div>
           )}
         </div>
@@ -207,22 +244,22 @@ export const AdminUsers = () => {
               </button>
             </div>
 
-            {/* Avatar */}
             <div className="flex flex-col items-center mb-6">
               <div className={`w-16 h-16 rounded-full flex items-center justify-center font-black text-2xl uppercase mb-3 ${
                 selectedUser.role === 'admin' ? 'bg-purple-600' : 'bg-red-600'
               }`}>
-                {selectedUser.name.charAt(0)}
+                {(selectedUser.name || 'U').charAt(0)}
               </div>
-              <p className="font-bold text-white">{selectedUser.name}</p>
+              <p className="font-bold text-white">{selectedUser.name || '—'}</p>
               <p className="text-xs text-gray-500">{selectedUser.email}</p>
             </div>
 
             <div className="space-y-3 mb-6">
               {[
-                { label: 'Ngày tham gia', value: selectedUser.joined },
+                { label: 'Ngày tham gia', value: selectedUser.joined || '—' },
                 { label: 'Đơn hàng',      value: `${selectedUser.orders} đơn` },
-                { label: 'Tổng chi tiêu', value: selectedUser.spent > 0 ? `${selectedUser.spent.toLocaleString()}₫` : '—' },
+                { label: 'Tổng chi tiêu', value: selectedUser.spent > 0 ? `${Number(selectedUser.spent).toLocaleString()}₫` : '—' },
+                { label: 'Điện thoại',    value: selectedUser.phone || '—' },
               ].map(row => (
                 <div key={row.label} className="flex justify-between items-center py-2 border-b border-white/5">
                   <span className="text-xs text-gray-500">{row.label}</span>
@@ -233,7 +270,7 @@ export const AdminUsers = () => {
 
             <div className="flex gap-3">
               <button
-                onClick={() => toggleStatus(selectedUser.id)}
+                onClick={() => handleToggleStatus(selectedUser)}
                 className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all border ${
                   selectedUser.status === 'active'
                     ? 'border-red-500/30 text-red-400 hover:bg-red-500/10'

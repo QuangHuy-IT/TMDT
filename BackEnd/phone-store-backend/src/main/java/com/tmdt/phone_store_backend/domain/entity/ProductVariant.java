@@ -63,6 +63,9 @@ public class ProductVariant {
     @Column(length = 120)
     private String barcode;
 
+    @Column(name = "color_image_url", length = 500)
+    private String colorImageUrl;
+
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = Boolean.TRUE;
 
