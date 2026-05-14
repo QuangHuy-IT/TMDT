@@ -36,6 +36,8 @@ public class AdminProductRequestDto {
 
     private List<String> images;
 
+    private String thumbnailUrl;
+
     private Map<String, String> specifications;
 
     @Valid

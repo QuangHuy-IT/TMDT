@@ -44,6 +44,9 @@ public class Order {
     @Column(name = "order_code", nullable = false, length = 40)
     private String orderCode;
 
+    @Column(name = "payment_link_id", length = 100)
+    private String paymentLinkId;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
     private User user;
@@ -93,6 +96,9 @@ public class Order {
 
     @Column(name = "placed_at", nullable = false)
     private LocalDateTime placedAt;
+
+    @Column(name = "paid_at")
+    private LocalDateTime paidAt;
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;

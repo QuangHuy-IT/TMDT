@@ -108,6 +108,9 @@ export const Cart = () => {
   // Group by brand for shop-style sections
   const brands = [...new Set(enriched.map((i) => i.brand))];
 
+  // ── Voucher state ─────────────────────────────────────────────────────────
+  const [appliedVoucher, setAppliedVoucher] = useState(null);
+
   // ── Handlers ─────────────────────────────────────────────────────────────────
   const handleToggleAll = (checked) =>
     setSelectedIds(checked ? new Set(enriched.map((i) => i.cartId)) : new Set());
@@ -150,8 +153,32 @@ export const Cart = () => {
       alert('Vui lòng chọn ít nhất 1 sản phẩm.');
       return;
     }
-    navigate('/checkout');
+    const params = new URLSearchParams();
+    if (appliedVoucher) {
+      params.set('voucherCode', appliedVoucher.code);
+      params.set('discountType', appliedVoucher.discountType || '');
+      params.set('discountValue', appliedVoucher.discountValue || '');
+      params.set('maxDiscountAmount', appliedVoucher.maxDiscountAmount || '');
+    }
+    const query = params.toString();
+    navigate(`/checkout${query ? '?' + query : ''}`);
   };
+
+  // ── Voucher discount calculation ─────────────────────────────────────────────
+  const calcDiscount = () => {
+    if (!appliedVoucher) return 0;
+    const isPercent = appliedVoucher.discountType === 'PERCENT';
+    if (isPercent) {
+      let discount = grandTotal * (Number(appliedVoucher.discountValue) / 100);
+      if (appliedVoucher.maxDiscountAmount != null) {
+        discount = Math.min(discount, Number(appliedVoucher.maxDiscountAmount));
+      }
+      return Math.round(discount);
+    }
+    return Math.min(Number(appliedVoucher.discountValue), grandTotal);
+  };
+  const voucherDiscount = calcDiscount();
+  const finalTotal = grandTotal - voucherDiscount;
 
   // ── Render ───────────────────────────────────────────────────────────────────
   return (
@@ -229,8 +256,12 @@ export const Cart = () => {
 
             {/* ── Voucher section ── */}
             <VoucherSection
-              onApply={(code) => {
-                if (code) console.log('[Voucher applied]', code);
+              onApply={(voucher) => {
+                if (voucher) {
+                  setAppliedVoucher(voucher);
+                } else {
+                  setAppliedVoucher(null);
+                }
               }}
             />
 
@@ -246,11 +277,11 @@ export const Cart = () => {
               </div>
               <div className="flex items-center justify-between text-[13.5px] text-gray-500 mb-3">
                 <span>Giảm giá voucher</span>
-                <span className="text-red-600 font-medium">−0₫</span>
+                <span className="text-red-600 font-medium">−{fmt(voucherDiscount)}</span>
               </div>
               <div className="border-t border-dashed border-gray-200 pt-3 flex items-center justify-between">
                 <span className="text-[14px] font-semibold text-gray-800">Tổng cộng</span>
-                <span className="text-[20px] font-bold text-red-600">{fmt(grandTotal)}</span>
+                <span className="text-[20px] font-bold text-red-600">{fmt(finalTotal)}</span>
               </div>
             </div>
           </>
@@ -264,6 +295,8 @@ export const Cart = () => {
           totalItems={enriched.length}
           selectedQty={selectedQty}
           grandTotal={grandTotal}
+          voucherDiscount={voucherDiscount}
+          finalTotal={finalTotal}
           onToggleAll={handleToggleAll}
           onDeleteSelected={handleDeleteSelected}
           onCheckout={handleCheckout}

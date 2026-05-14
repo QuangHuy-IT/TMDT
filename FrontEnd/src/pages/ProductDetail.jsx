@@ -118,6 +118,10 @@ export const ProductDetail = () => {
   const images = product?.images || [];
   const currentPrice = useMemo(() => {
     if (!product) return 0;
+    // Ưu tiên giá flash sale
+    if (product.isFlashSale && product.flashSalePrice != null) {
+      return Number(product.flashSalePrice);
+    }
     if (selectedStorage && product.variants?.basePrices?.[selectedStorage] != null) {
       return Number(product.variants.basePrices[selectedStorage]);
     }
@@ -126,7 +130,7 @@ export const ProductDetail = () => {
 
   const maxQuantity = Math.max(1, Number(product?.stock || 0));
 
-  const addToCart = () => {
+    const addToCart = () => {
     if (!product) return;
 
     if (!isAuthenticated) {
@@ -136,15 +140,27 @@ export const ProductDetail = () => {
 
     if ((product.stock || 0) <= 0) return;
 
+    // Tìm variantItem phù hợp với storage + color đã chọn
+    const variantItems = product.variantItems || [];
+    const selectedVariant = variantItems.find(
+      (v) =>
+        String(v.storageGb || '') === String(selectedStorage) &&
+        (v.color || '').toLowerCase() === (selectedColor?.name || '').toLowerCase()
+    );
+
     dispatch({
       type: 'ADD_TO_CART',
       payload: {
         ...product,
-        id: selectedStorage ? `${product.id}-${selectedStorage}` : String(product.id),
+        variantId: selectedVariant?.id || null,
+        id: String(product.id),
         quantity,
         price: currentPrice,
-        selectedStorage,
-        selectedColor,
+        ram: selectedVariant?.ramGb ? `${selectedVariant.ramGb}GB` : '',
+        storage: selectedVariant?.storageGb ? `${selectedVariant.storageGb}GB` : String(selectedStorage || ''),
+        color: selectedColor?.name || '',
+        sku: selectedVariant?.sku || '',
+        images: product.images,
       },
     });
   };

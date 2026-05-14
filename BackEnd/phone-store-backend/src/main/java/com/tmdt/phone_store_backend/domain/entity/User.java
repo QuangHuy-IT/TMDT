@@ -42,6 +42,9 @@ public class User {
     @Column(name = "phone", length = 20)
     private String phone;
 
+    @Column(name = "year_of_birth")
+    private Integer yearOfBirth;
+
     @Column(name = "password_hash", nullable = false, length = 255)
     private String passwordHash;
 

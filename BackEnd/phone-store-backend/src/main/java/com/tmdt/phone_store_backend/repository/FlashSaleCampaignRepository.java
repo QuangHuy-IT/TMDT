@@ -19,6 +19,9 @@ public interface FlashSaleCampaignRepository extends JpaRepository<FlashSaleCamp
     @Query("SELECT c FROM FlashSaleCampaign c WHERE c.active = true AND c.endAt >= :now")
     List<FlashSaleCampaign> findAllActiveCampaigns(LocalDateTime now);
 
+    @Query("SELECT c FROM FlashSaleCampaign c WHERE c.active = true AND c.endAt >= :now ORDER BY c.startAt ASC")
+    List<FlashSaleCampaign> findUpcomingAndActiveCampaigns(LocalDateTime now);
+
     Optional<FlashSaleCampaign> findByTitle(String title);
 
     boolean existsByTitle(String title);

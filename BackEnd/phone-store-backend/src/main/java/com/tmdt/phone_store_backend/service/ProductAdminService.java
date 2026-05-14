@@ -7,6 +7,7 @@
     import com.tmdt.phone_store_backend.domain.entity.Product;
     import com.tmdt.phone_store_backend.domain.entity.ProductImage;
     import com.tmdt.phone_store_backend.domain.entity.FlashSaleCampaign;
+    import com.tmdt.phone_store_backend.domain.entity.FlashSaleProduct;
     import com.tmdt.phone_store_backend.domain.entity.ProductSpecification;
     import com.tmdt.phone_store_backend.domain.entity.ProductVariant;
     import com.tmdt.phone_store_backend.domain.enums.ProductStatus;
@@ -159,7 +160,48 @@
                 product = productRepository.findBySlugAndDeletedAtIsNull(idOrSlug)
                         .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm: " + idOrSlug));
             }
-            return toDto(product);
+
+            AdminProductDto dto = toDto(product);
+
+            // Check for active flash sale on any variant
+            List<ProductVariant> variants = productVariantRepository.findByProductId(product.getId());
+            BigDecimal minFlashPrice = null;
+            Long flashSaleId = null;
+            Map<String, BigDecimal> updatedBasePrices = new LinkedHashMap<>(dto.getVariants().getBasePrices());
+
+            for (ProductVariant variant : variants) {
+                List<FlashSaleProduct> activeFlashSales = flashSaleProductRepository.findActiveByVariantId(variant.getId());
+
+                if (activeFlashSales != null && !activeFlashSales.isEmpty()) {
+                    FlashSaleProduct fp = activeFlashSales.get(0);
+                    BigDecimal flashPrice = fp.getFlashPrice();
+                    if (minFlashPrice == null || flashPrice.compareTo(minFlashPrice) < 0) {
+                        minFlashPrice = flashPrice;
+                        flashSaleId = fp.getSession().getId();
+                    }
+                    // Update variant price in-place
+                    for (AdminProductVariantDto vdto : dto.getVariantItems()) {
+                        if (vdto.getId().equals(variant.getId())) {
+                            vdto.setPrice(flashPrice);
+                            break;
+                        }
+                    }
+                    String storageLabel = getStorageLabel(variant);
+                    if (!storageLabel.isBlank()) {
+                        updatedBasePrices.put(storageLabel, flashPrice);
+                    }
+                }
+            }
+
+            if (minFlashPrice != null) {
+                dto.setPrice(minFlashPrice);
+                dto.setFlashSalePrice(minFlashPrice);
+                dto.setFlashSaleId(flashSaleId);
+                dto.setIsFlashSale(true);
+                dto.getVariants().setBasePrices(updatedBasePrices);
+            }
+
+            return dto;
         }
 
         public AdminProductDto createProduct(AdminProductRequestDto requestDto) {
@@ -180,6 +222,7 @@
             product.setWarrantyMonths(12);
             product.setCreatedAt(now);
             product.setUpdatedAt(now);
+            product.setThumbnailUrl(requestDto.getThumbnailUrl());
             Product savedProduct = productRepository.save(product);
 
             saveVariants(savedProduct, requestDto, now);
@@ -203,6 +246,7 @@
             product.setShortDescription(getDescription(requestDto));
             product.setDetailDescription(getDescription(requestDto));
             product.setSale(requestDto.getSale() != null ? requestDto.getSale() : 0);
+            product.setThumbnailUrl(requestDto.getThumbnailUrl());
             product.setUpdatedAt(now);
             productRepository.save(product);
 
@@ -256,7 +300,7 @@
                 }
                 colorOptions.putIfAbsent(
                         color,
-                        new ProductVariantColorDto(color, mapColorHex(color)));
+                        new ProductVariantColorDto(color, mapColorHex(color), null));
 
                 AdminProductVariantDto variantDto = new AdminProductVariantDto();
                 variantDto.setId(variant.getId());
@@ -293,6 +337,7 @@
             dto.setStock(stock);
             dto.setSale(product.getSale() != null ? product.getSale() : 0);
             dto.setDescription(product.getDetailDescription());
+            dto.setThumbnailUrl(product.getThumbnailUrl());
             dto.setImages(images.stream().map(ProductImage::getImageUrl).toList());
             dto.setSpecifications(specs);
             dto.setVariants(variantOptions);

@@ -1,34 +1,64 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import voucherService from '../../services/voucherService';
 
-// ─── VoucherSection ────────────────────────────────────────────────────────────
-// Khu vực nhập / chọn mã voucher giảm giá.
-// Props:
-//   onApply – (code: string) => void   (tuỳ chọn, kết nối lên parent nếu cần)
-// ─────────────────────────────────────────────────────────────────────────────
+const fmt = (n) => n != null ? Number(n).toLocaleString('vi-VN') + 'đ' : '—';
 
-const MOCK_CODES = ['SHOPEE10', 'GIAM50K', 'FREESHIP'];
+const fmtCode = (v) => v.discountType === 'PERCENT'
+  ? `Giảm ${v.discountValue}%`
+  : `Giảm ${fmt(v.discountValue)}`;
 
 const VoucherSection = ({ onApply }) => {
   const [code, setCode]         = useState('');
-  const [applied, setApplied]   = useState('');
+  const [applied, setApplied]   = useState(null);
   const [error, setError]       = useState('');
   const [showList, setShowList] = useState(false);
+  const [vouchers, setVouchers] = useState([]);
+  const [loading, setLoading]   = useState(false);
+  const [applying, setApplying] = useState(false);
 
-  const handleApply = () => {
+  const fetchVouchers = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await voucherService.getAvailableVouchers();
+      setVouchers(Array.isArray(data) ? data : []);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchVouchers(); }, [fetchVouchers]);
+
+  const handleApply = async () => {
     setError('');
     const trimmed = code.trim().toUpperCase();
     if (!trimmed) { setError('Vui lòng nhập mã voucher.'); return; }
-    if (!MOCK_CODES.includes(trimmed)) { setError('Mã không hợp lệ hoặc đã hết hạn.'); return; }
-    setApplied(trimmed);
-    setCode('');
-    setShowList(false);
-    onApply?.(trimmed);
+
+    setApplying(true);
+    try {
+      const voucher = await voucherService.validateVoucher(trimmed);
+      setApplied(voucher);
+      setCode('');
+      setShowList(false);
+      onApply?.(voucher);
+    } catch (e) {
+      const msg = e.response?.data?.message
+        || e.response?.data?.error
+        || e.response?.data?.details
+        || 'Mã voucher không hợp lệ hoặc đã hết hạn.';
+      setError(msg);
+    } finally {
+      setApplying(false);
+    }
   };
 
-  const handlePickCode = (c) => {
-    setCode(c);
+  const handlePickVoucher = (v) => {
+    setApplied(v);
+    setCode(v.code);
     setShowList(false);
     setError('');
+    onApply?.(v);
   };
 
   return (
@@ -36,7 +66,6 @@ const VoucherSection = ({ onApply }) => {
       {/* ── Header ── */}
       <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100">
         <div className="flex items-center gap-2 text-[13.5px] font-medium text-gray-700">
-          {/* ticket icon */}
           <svg className="w-4 h-4 text-[#ee4d2d]" viewBox="0 0 24 24" fill="none"
                stroke="currentColor" strokeWidth="2">
             <path d="M20 12V22H4V12" />
@@ -45,11 +74,11 @@ const VoucherSection = ({ onApply }) => {
             <path d="M12 7H7.5a2.5 2.5 0 010-5C11 2 12 7 12 7z" />
             <path d="M12 7h4.5a2.5 2.5 0 000-5C13 2 12 7 12 7z" />
           </svg>
-          Shopee Voucher
+          Mã giảm giá
         </div>
         <button
           type="button"
-          onClick={() => setShowList((v) => !v)}
+          onClick={() => { setShowList((v) => !v); fetchVouchers(); }}
           className="text-[12.5px] text-blue-600 hover:text-[#ee4d2d] transition-colors
                      bg-transparent border-none cursor-pointer p-0"
         >
@@ -57,21 +86,29 @@ const VoucherSection = ({ onApply }) => {
         </button>
       </div>
 
-      {/* ── Mock voucher list ── */}
+      {/* ── Voucher list from API ── */}
       {showList && (
-        <div className="px-5 pt-3 pb-1 flex flex-wrap gap-2">
-          {MOCK_CODES.map((c) => (
-            <button
-              key={c}
-              type="button"
-              onClick={() => handlePickCode(c)}
-              className="text-[12px] font-mono font-semibold text-[#ee4d2d]
-                         border border-dashed border-[#ee4d2d] rounded px-3 py-1
-                         hover:bg-orange-50 transition-colors cursor-pointer bg-transparent"
-            >
-              {c}
-            </button>
-          ))}
+        <div className="px-5 pt-3 pb-1">
+          {loading ? (
+            <p className="text-[12px] text-gray-400 py-2">Đang tải...</p>
+          ) : vouchers.length === 0 ? (
+            <p className="text-[12px] text-gray-400 py-2">Không có voucher khả dụng.</p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {vouchers.map((v) => (
+                <button
+                  key={v.id}
+                  type="button"
+                  onClick={() => handlePickVoucher(v)}
+                  className="text-[12px] font-mono font-semibold text-[#ee4d2d]
+                             border border-dashed border-[#ee4d2d] rounded px-3 py-1
+                             hover:bg-orange-50 transition-colors cursor-pointer bg-transparent"
+                >
+                  {v.code} — {fmtCode(v)}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -84,10 +121,11 @@ const VoucherSection = ({ onApply }) => {
               1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0
               001.414 0l4-4z" clipRule="evenodd"/>
           </svg>
-          Đã áp dụng mã: <span className="font-bold font-mono">{applied}</span>
+          Đã áp dụng: <span className="font-bold font-mono">{applied.code}</span>
+          <span className="text-green-600 ml-1">({fmtCode(applied)})</span>
           <button
             type="button"
-            onClick={() => { setApplied(''); onApply?.(''); }}
+            onClick={() => { setApplied(null); onApply?.(null); }}
             className="ml-auto text-gray-400 hover:text-red-500 transition-colors
                        bg-transparent border-none cursor-pointer text-xs"
           >
@@ -111,11 +149,13 @@ const VoucherSection = ({ onApply }) => {
         <button
           type="button"
           onClick={handleApply}
+          disabled={applying}
           className="h-9 px-5 bg-[#ee4d2d] text-white text-[13px] font-medium rounded
                      hover:bg-[#d73211] active:bg-[#c02b0e] active:scale-[0.98]
-                     transition-all whitespace-nowrap cursor-pointer border-none"
+                     transition-all whitespace-nowrap cursor-pointer border-none
+                     disabled:opacity-50"
         >
-          Áp dụng
+          {applying ? '...' : 'Áp dụng'}
         </button>
       </div>
 

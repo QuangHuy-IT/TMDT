@@ -19,6 +19,8 @@ const CartSummary = ({
   totalItems,
   selectedQty,
   grandTotal,
+  voucherDiscount,
+  finalTotal,
   onToggleAll,
   onDeleteSelected,
   onCheckout,
@@ -71,7 +73,7 @@ const CartSummary = ({
             :
           </p>
           <p className="text-[22px] font-semibold text-[#ee4d2d] leading-none">
-            {fmt(grandTotal)}
+            {fmt(finalTotal)}
           </p>
         </div>
 
