@@ -28,4 +28,7 @@ public class AdminProductDto {
     private Boolean isFeatured;
     private LocalDateTime createdAt;
     private LocalDateTime releaseDate;
+    private BigDecimal flashSalePrice;
+    private Long flashSaleId;
+    private Boolean isFlashSale;
 }

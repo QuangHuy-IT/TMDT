@@ -118,6 +118,10 @@ export const ProductDetail = () => {
   const images = product?.images || [];
   const currentPrice = useMemo(() => {
     if (!product) return 0;
+    // Ưu tiên giá flash sale
+    if (product.isFlashSale && product.flashSalePrice != null) {
+      return Number(product.flashSalePrice);
+    }
     if (selectedStorage && product.variants?.basePrices?.[selectedStorage] != null) {
       return Number(product.variants.basePrices[selectedStorage]);
     }
