@@ -12,7 +12,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 
 /**
  * Service gọi Google Gemini API.
@@ -33,17 +35,18 @@ import java.util.Collections;
 @Slf4j
 public class GeminiService {
 
-    private static final String GEMINI_BASE_URL =
-            "https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent";
+    private static final String GROQ_BASE_URL =
+        "https://api.groq.com/openai/v1/chat/completions";
+
+    @Value("${app.groq.model}")
+    private String model;
+
+    @Value("${app.groq.api-key}")
+    private String apiKey;
 
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
 
-    @Value("${app.gemini.model}")
-    private String model;
-
-    @Value("${app.gemini.api-key}")
-    private String apiKey;
 
     public GeminiService(RestTemplate restTemplate, ObjectMapper objectMapper) {
         this.restTemplate = restTemplate;
@@ -81,6 +84,7 @@ public class GeminiService {
         try {
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.setBearerAuth(apiKey);  // ← Khác Gemini (không dùng query param)
 
             HttpEntity<GeminiRequestDto> entity = new HttpEntity<>(request, headers);
 
@@ -113,50 +117,40 @@ public class GeminiService {
     // ---- Private helpers ----
 
     private String buildUrl() {
-        return String.format(GEMINI_BASE_URL, model) + "?key=" + apiKey;
+        return GROQ_BASE_URL;  // API key nằm trong header, không phải URL
     }
-
     private GeminiRequestDto buildRequest(
-            String systemInstruction,
-            java.util.List<ChatHistoryItem> history,
-            String currentMessage) {
+        String systemInstruction,
+        List<ChatHistoryItem> history,
+        String currentMessage) {
 
-        // System instruction
-        GeminiRequestDto.SystemInstruction sysInst = GeminiRequestDto.SystemInstruction.builder()
-                .parts(Collections.singletonList(
-                        GeminiRequestDto.Part.builder().text(systemInstruction).build()))
-                .build();
+        var messages = new ArrayList<GeminiRequestDto.Message>();
 
-        // Generation config
-        GeminiRequestDto.GenerationConfig genConfig = GeminiRequestDto.GenerationConfig.builder()
-                .temperature(0.8)
-                .maxOutputTokens(1024)
-                .topP(0.9)
-                .topK(40)
-                .build();
+        // System instruction → chuyển thành system message
+        messages.add(GeminiRequestDto.Message.builder()
+                .role("system")
+                .content(systemInstruction)
+                .build());
 
-        // Contents: history + current message
-        var contents = new java.util.ArrayList<GeminiRequestDto.Content>();
-
+        // History
         for (ChatHistoryItem item : history) {
-            contents.add(GeminiRequestDto.Content.builder()
+            messages.add(GeminiRequestDto.Message.builder()
                     .role(item.role())
-                    .parts(Collections.singletonList(
-                            GeminiRequestDto.Part.builder().text(item.text()).build()))
+                    .content(item.text())
                     .build());
         }
 
-        // Current user message
-        contents.add(GeminiRequestDto.Content.builder()
+        // Current message
+        messages.add(GeminiRequestDto.Message.builder()
                 .role("user")
-                .parts(Collections.singletonList(
-                        GeminiRequestDto.Part.builder().text(currentMessage).build()))
+                .content(currentMessage)
                 .build());
 
         return GeminiRequestDto.builder()
-                .systemInstruction(sysInst)
-                .contents(contents)
-                .generationConfig(genConfig)
+                .model(model)
+                .messages(messages)
+                .temperature(0.8)
+                .maxTokens(1024)
                 .build();
     }
 

@@ -1,6 +1,7 @@
 package com.tmdt.phone_store_backend.dto;
 
 import com.tmdt.phone_store_backend.domain.entity.ChatMessage;
+import com.tmdt.phone_store_backend.dto.ai.ChatProductDto;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -19,30 +20,23 @@ import java.util.List;
 @Builder
 public class ChatResponseDto {
 
-    /**
-     * UUID định danh phiên chat (giống sessionId từ request).
-     */
     private String sessionId;
 
-    /**
-     * Tin nhắn phản hồi từ bot (string đơn giản, giai đoạn 1).
-     */
     private String botMessage;
 
+    private String intent;
+
     /**
-     * Danh sách tất cả tin nhắn trong phiên (tuổi thọ đầy đủ).
-     * Frontend dùng field này để hiển thị lịch sử chat.
+     * Danh sách sản phẩm đi kèm response (nếu intent liên quan đến sản phẩm).
+     * Dùng để frontend hiển thị product cards có hình ảnh.
      */
+    @Builder.Default
+    private List<ChatProductDto> products = null;
+
     private List<ChatMessageDto> messages;
 
-    /**
-     * Thời điểm tin nhắn bot được gửi.
-     */
     private LocalDateTime timestamp;
 
-    /**
-     * Số lượng tin nhắn trong phiên (sau khi thêm user + bot).
-     */
     private Integer totalMessages;
 
     /**

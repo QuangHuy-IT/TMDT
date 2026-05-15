@@ -1,81 +1,61 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { X, Send, Bot, User, Sparkles, AlertCircle } from 'lucide-react';
-import { sendChatMessage, getOrCreateSessionId, getChatHistory } from '../../api/chatService';
+import { sendChatMessage, getOrCreateSessionId } from '../../api/chatService';
 
+// Enhanced suggested questions với icons
 const SUGGESTED_QUESTIONS = [
-  'Tôi muốn biết về chính sách bảo hành',
-  'Sản phẩm có được đổi trả không?',
-  'Cửa hàng có giao hàng không?',
-  'Tôi muốn tìm điện thoại Samsung',
+  { text: 'Tìm điện thoại gaming dưới 15 triệu', icon: '🎮', category: 'search' },
+  { text: 'So sánh iPhone 15 và Samsung S24', icon: '⚖️', category: 'compare' },
+  { text: 'Điện thoại pin trâu, camera tốt', icon: '📷', category: 'search' },
+  { text: 'Bảo hành như thế nào?', icon: '🔧', category: 'faq' },
+  { text: 'Có trả góp 0% không?', icon: '💳', category: 'faq' },
 ];
+
+// Intent icons mapping
+const INTENT_ICONS = {
+  GREETING: '👋',
+  PRODUCT_SEARCH: '🔍',
+  PRODUCT_COMPARE: '⚖️',
+  PRODUCT_RECOMMENDATION: '💡',
+  FAQ_BAOHANH: '🔧',
+  FAQ_GIAOHANG: '🚚',
+  FAQ_DOITRA: '🔄',
+  FAQ_TRAGOP: '💳',
+  GENERAL_CHAT: '💬'
+};
 
 export const ChatbotPopup = ({ isOpen, onClose }) => {
   const [messages, setMessages] = useState([]);
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [error, setError] = useState(null);
-  const [historyLoaded, setHistoryLoaded] = useState(false);
+  const [currentIntent, setCurrentIntent] = useState(null);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
 
-  // Tạo/gán sessionId khi mount
   useEffect(() => {
     getOrCreateSessionId();
   }, []);
 
-  // Auto scroll khi có tin nhắn mới
   useEffect(() => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [messages, isTyping]);
 
-  // Focus input khi mở
   useEffect(() => {
     if (isOpen && inputRef.current) {
       setTimeout(() => inputRef.current?.focus(), 300);
     }
   }, [isOpen]);
 
-  // Load chat history từ server khi mở lần đầu
   useEffect(() => {
-    if (isOpen && !historyLoaded) {
-      const sessionId = localStorage.getItem('chatbot_session_id');
-      if (!sessionId) {
-        setHistoryLoaded(true);
-        return;
-      }
-
-      setHistoryLoaded(true);
-
-      getChatHistory(sessionId)
-        .then((data) => {
-          if (data.messages && data.messages.length > 0) {
-            const historyMessages = data.messages.map((msg) => ({
-              id: `hist-${msg.id}`,
-              sender: msg.senderType === 'USER' ? 'user' : 'bot',
-              text: msg.content,
-              time: msg.createdAt
-                ? new Date(msg.createdAt).toLocaleTimeString('vi-VN', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })
-                : '',
-            }));
-            setMessages(historyMessages);
-          } else {
-            setMessages([makeGreeting()]);
-          }
-        })
-        .catch(() => {
-          // Nếu load history lỗi, vẫn hiện greeting
-          setMessages([makeGreeting()]);
-        });
+    if (isOpen && !messages.length) {
+      setMessages([makeGreeting()]);
     }
-  }, [isOpen, historyLoaded]);
+  }, [isOpen]);
 
-  // Reset khi đóng
   useEffect(() => {
     if (!isOpen) {
       setError(null);
@@ -85,7 +65,15 @@ export const ChatbotPopup = ({ isOpen, onClose }) => {
   const makeGreeting = () => ({
     id: `bot-greeting-${Date.now()}`,
     sender: 'bot',
-    text: 'Xin chào! Mình là chatbot AI của cửa hàng. Bạn cần tư vấn điện thoại gì hôm nay? Mình có thể giúp bạn tìm sản phẩm phù hợp với nhu cầu và ngân sách! 😊',
+    text: `👋 Xin chào! Tôi là AI Assistant của TMDT Phone Store.
+
+Tôi có thể giúp bạn:
+🔍 Tìm kiếm điện thoại phù hợp
+⚖️ So sánh các sản phẩm
+💡 Đề xuất sản phẩm theo nhu cầu
+❓ Trả lời về bảo hành, giao hàng, đổi trả
+
+Bạn cần tôi hỗ trợ gì hôm nay?`,
     time: new Date().toLocaleTimeString('vi-VN', {
       hour: '2-digit',
       minute: '2-digit',
@@ -96,7 +84,6 @@ export const ChatbotPopup = ({ isOpen, onClose }) => {
     const trimmed = inputValue.trim();
     if (!trimmed || isTyping) return;
 
-    // Nếu chưa load history, set greeting
     if (messages.length === 0) {
       setMessages([makeGreeting()]);
     }
@@ -122,14 +109,18 @@ export const ChatbotPopup = ({ isOpen, onClose }) => {
       const botResponse = {
         id: `bot-${Date.now()}`,
         sender: 'bot',
-        text: response.botMessage || 'Mình chưa nhận được phản hồi. Thử lại nhé!',
+        text: response.response || response.botMessage || 'Mình chưa nhận được phản hồi. Thử lại nhé!',
+        intent: response.intent,
+        products: response.products || [],
         time: new Date().toLocaleTimeString('vi-VN', {
           hour: '2-digit',
           minute: '2-digit',
         }),
       };
 
+      setCurrentIntent(response.intent);
       setMessages((prev) => [...prev, botResponse]);
+
     } catch (err) {
       console.error('Chat API error:', err);
       let errorText = 'Đã xảy ra lỗi kết nối. Vui lòng thử lại.';
@@ -166,12 +157,17 @@ export const ChatbotPopup = ({ isOpen, onClose }) => {
   };
 
   const handleSuggestedQuestion = (question) => {
-    setInputValue(question);
+    setInputValue(question.text);
     setTimeout(() => inputRef.current?.focus(), 50);
   };
 
+  const formatPrice = (price) => {
+    if (!price) return 'Liên hệ';
+    return new Intl.NumberFormat('vi-VN').format(price) + ' đ';
+  };
+
   return (
-    <AnimatePresence>
+    <>
       {isOpen && (
         <>
           <motion.div
@@ -187,10 +183,10 @@ export const ChatbotPopup = ({ isOpen, onClose }) => {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 30, scale: 0.9 }}
             transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
-            className="fixed bottom-24 right-6 z-[99999] flex flex-col w-[95vw] max-w-[380px] h-[580px] max-h-[85vh] rounded-2xl bg-white shadow-2xl overflow-hidden border border-gray-100"
+            className="fixed bottom-24 right-6 z-[99999] flex flex-col w-[95vw] max-w-[420px] h-[620px] max-h-[85vh] rounded-2xl bg-white shadow-2xl overflow-hidden border border-gray-100"
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-5 py-4 bg-gradient-to-r from-blue-600 to-blue-700 shrink-0">
+            <div className="flex items-center justify-between px-5 py-4 bg-gradient-to-r from-blue-600 to-purple-600 shrink-0">
               <div className="flex items-center gap-3">
                 <div className="relative">
                   <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/20">
@@ -201,10 +197,10 @@ export const ChatbotPopup = ({ isOpen, onClose }) => {
                   </span>
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-white leading-tight">Chatbot AI</h3>
-                  <p className="text-xs text-blue-100 flex items-center gap-1">
+                  <h3 className="text-base font-bold text-white leading-tight">AI Assistant</h3>
+                  <p className="text-xs text-white/80 flex items-center gap-1">
                     <Sparkles size={10} />
-                    Powered by Gemini
+                    Powered by Gemini AI
                   </p>
                 </div>
               </div>
@@ -217,17 +213,27 @@ export const ChatbotPopup = ({ isOpen, onClose }) => {
               </button>
             </div>
 
+            {/* Intent Badge */}
+            {currentIntent && (
+              <div className="px-4 py-2 bg-purple-50 border-b border-purple-100 shrink-0">
+                <span className="text-xs font-medium text-purple-600">
+                  {INTENT_ICONS[currentIntent] || '💬'} {currentIntent.replace(/_/g, ' ')}
+                </span>
+              </div>
+            )}
+
             {/* Suggested Questions */}
-            <div className="px-4 py-3 bg-blue-50 border-b border-blue-100 shrink-0">
-              <p className="text-xs font-semibold text-blue-600 mb-2">Câu hỏi phổ biến:</p>
+            <div className="px-4 py-3 bg-gradient-to-r from-blue-50 to-purple-50 border-b border-blue-100 shrink-0">
+              <p className="text-xs font-semibold text-gray-600 mb-2">Câu hỏi nhanh:</p>
               <div className="flex flex-wrap gap-1.5">
                 {SUGGESTED_QUESTIONS.map((q) => (
                   <button
-                    key={q}
+                    key={q.text}
                     onClick={() => handleSuggestedQuestion(q)}
-                    className="text-xs px-2.5 py-1 rounded-full bg-white border border-blue-200 text-blue-700 font-medium transition-all hover:bg-blue-100 hover:border-blue-300 active:scale-95"
+                    className="text-xs px-2.5 py-1 rounded-full bg-white border border-gray-200 text-gray-700 font-medium transition-all hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 active:scale-95 flex items-center gap-1"
                   >
-                    {q}
+                    <span>{q.icon}</span>
+                    <span>{q.text.substring(0, 20)}...</span>
                   </button>
                 ))}
               </div>
@@ -238,7 +244,7 @@ export const ChatbotPopup = ({ isOpen, onClose }) => {
               {messages.length === 0 && !isTyping && (
                 <div className="flex flex-col items-center justify-center h-full text-gray-400 gap-2">
                   <Bot size={32} className="opacity-30" />
-                  <p className="text-sm text-center">Đang tải lịch sử chat...</p>
+                  <p className="text-sm text-center">Đang tải...</p>
                 </div>
               )}
 
@@ -264,7 +270,7 @@ export const ChatbotPopup = ({ isOpen, onClose }) => {
                   exit={{ opacity: 0 }}
                   className="flex items-end gap-2"
                 >
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-purple-500 text-white">
                     <Bot size={16} />
                   </div>
                   <div className="rounded-2xl rounded-bl-md bg-white px-3.5 py-2.5 shadow-sm ring-1 ring-gray-100">
@@ -276,6 +282,7 @@ export const ChatbotPopup = ({ isOpen, onClose }) => {
                   </div>
                 </motion.div>
               )}
+
               <div ref={messagesEndRef} />
             </div>
 
@@ -287,7 +294,7 @@ export const ChatbotPopup = ({ isOpen, onClose }) => {
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder="Nhập tin nhắn..."
+                  placeholder="Nhập câu hỏi..."
                   rows={1}
                   className="flex-1 resize-none rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2.5 text-sm text-gray-800 placeholder-gray-400 transition-all focus:border-blue-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 max-h-28"
                   style={{ minHeight: '42px' }}
@@ -306,18 +313,20 @@ export const ChatbotPopup = ({ isOpen, onClose }) => {
                 </button>
               </div>
               <p className="mt-1.5 text-center text-[10px] text-gray-400">
-                Nhấn Enter để gửi
+                AI có thể sai. Hãy kiểm tra thông tin quan trọng
               </p>
             </div>
           </motion.div>
         </>
       )}
-    </AnimatePresence>
+    </>
   );
 };
 
 const ChatBubble = ({ message }) => {
   const isUser = message.sender === 'user';
+  const hasProducts = message.products && message.products.length > 0;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 8, scale: 0.95 }}
@@ -327,19 +336,53 @@ const ChatBubble = ({ message }) => {
     >
       <div
         className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white shadow-sm ${
-          isUser ? 'bg-blue-600' : 'bg-emerald-500'
+          isUser ? 'bg-blue-600' : 'bg-purple-500'
         }`}
       >
         {isUser ? <User size={16} /> : <Bot size={16} />}
       </div>
       <div
-        className={`max-w-[75%] rounded-2xl px-3.5 py-2.5 shadow-sm ring-1 ring-gray-100 ${
+        className={`max-w-[80%] rounded-2xl px-3.5 py-2.5 shadow-sm ring-1 ring-gray-100 ${
           isUser
             ? 'rounded-br-md bg-blue-600 text-white'
             : 'rounded-bl-md bg-white text-gray-800'
         }`}
       >
         <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.text}</p>
+
+        {/* Product Cards — hiển thị trong cùng bubble */}
+        {hasProducts && (
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            {message.products.slice(0, 4).map((product) => (
+              <a
+                key={product.productId}
+                href={`/product/${product.slug}`}
+                className="block bg-gray-50 rounded-lg border border-gray-100 p-2 hover:shadow-md hover:border-blue-200 transition-all no-underline"
+              >
+                <img
+                  src={product.thumbnail || '/placeholder.png'}
+                  alt={product.productName}
+                  className="w-full aspect-square object-contain rounded bg-white"
+                  onError={(e) => { e.target.src = '/placeholder.png'; }}
+                />
+                <h5 className="text-xs font-medium text-gray-800 mt-1 line-clamp-2">
+                  {product.productName}
+                </h5>
+                <p className="text-xs font-bold text-blue-600 mt-0.5">
+                  {product.minPrice
+                    ? new Intl.NumberFormat('vi-VN').format(product.minPrice) + ' đ'
+                    : 'Liên hệ'}
+                </p>
+                {product.salePercent && (
+                  <span className="inline-block mt-0.5 text-[10px] px-1.5 py-0.5 rounded bg-red-50 text-red-500 font-medium">
+                    -{Math.round(product.salePercent)}%
+                  </span>
+                )}
+              </a>
+            ))}
+          </div>
+        )}
+
         <p className={`mt-0.5 text-[10px] ${isUser ? 'text-blue-100 text-right' : 'text-gray-400'}`}>
           {message.time}
         </p>
@@ -347,3 +390,5 @@ const ChatBubble = ({ message }) => {
     </motion.div>
   );
 };
+
+export default ChatbotPopup;

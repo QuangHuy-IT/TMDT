@@ -18,60 +18,27 @@ import java.util.List;
 @Builder
 public class GeminiRequestDto {
 
-    @JsonProperty("contents")
-    private List<Content> contents;
+    @JsonProperty("model")
+    private String model;
 
-    @JsonProperty("systemInstruction")
-    private SystemInstruction systemInstruction;
+    @JsonProperty("messages")
+    private List<Message> messages;
 
-    @JsonProperty("generationConfig")
-    private GenerationConfig generationConfig;
+    @JsonProperty("temperature")
+    private Double temperature;
+
+    @JsonProperty("max_tokens")
+    private Integer maxTokens;
 
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
     @Builder
-    public static class Content {
+    public static class Message {
         @JsonProperty("role")
         private String role;
 
-        @JsonProperty("parts")
-        private List<Part> parts;
-    }
-
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    @Builder
-    public static class Part {
-        @JsonProperty("text")
-        private String text;
-    }
-
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    @Builder
-    public static class SystemInstruction {
-        @JsonProperty("parts")
-        private List<Part> parts;
-    }
-
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    @Builder
-    public static class GenerationConfig {
-        @JsonProperty("temperature")
-        private Double temperature;
-
-        @JsonProperty("maxOutputTokens")
-        private Integer maxOutputTokens;
-
-        @JsonProperty("topP")
-        private Double topP;
-
-        @JsonProperty("topK")
-        private Integer topK;
+        @JsonProperty("content")
+        private String content;
     }
 }
