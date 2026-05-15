@@ -34,3 +34,4 @@ build/
 
 .env
 application-local.properties
+BackEnd/phone-store-backend/src/main/resources/application.properties
