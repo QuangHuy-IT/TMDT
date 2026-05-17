@@ -60,6 +60,15 @@ export const TimKiem = () => {
       result = result.filter((product) =>
         String(product.name || '').toLowerCase().includes(query)
         || String(product.brand || '').toLowerCase().includes(query)
+        || String(product.baseName || '').toLowerCase().includes(query)
+        || (product.variants || []).some(v =>
+          String(v.storageLabel || '').toLowerCase().includes(query)
+          || String(v.color || '').toLowerCase().includes(query)
+        )
+        || (product.variantItems || []).some(v =>
+          String(v.storageLabel || '').toLowerCase().includes(query)
+          || String(v.color || '').toLowerCase().includes(query)
+        )
       );
     }
 

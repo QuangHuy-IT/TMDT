@@ -15,36 +15,43 @@ const inferColorHex = (value) => {
   if (normalized.includes('xanh')) return '#2563eb';
   if (normalized.includes('do') || normalized.includes('red')) return '#dc2626';
   if (normalized.includes('vang') || normalized.includes('gold')) return '#ca8a04';
+  if (normalized.includes('bac') || normalized.includes('silver')) return '#9ca3af';
+  if (normalized.includes('tim') || normalized.includes('purple')) return '#7c3aed';
+  if (normalized.includes('hong') || normalized.includes('pink')) return '#ec4899';
   return '#6b7280';
 };
 
 const normalizeProduct = (raw, fallbackId) => {
   if (!raw || typeof raw !== 'object') return null;
 
-  const images = Array.isArray(raw.images)
-    ? raw.images.filter(Boolean)
-    : (raw.image ? [raw.image] : []);
+  let images = [];
+  if (Array.isArray(raw.images)) {
+    images = raw.images.filter(Boolean);
+  }
+  if (images.length === 0 && raw.thumbnailUrl && raw.thumbnailUrl.trim()) {
+    images = [raw.thumbnailUrl];
+  }
 
-  const variants = raw.variants && typeof raw.variants === 'object' ? raw.variants : {};
-  const storages = Array.isArray(variants.storages) ? variants.storages.filter(Boolean) : [];
-  const colors = Array.isArray(variants.colors)
-    ? variants.colors
-        .map((item) => {
-          if (typeof item === 'string') {
-            return { name: item, hex: inferColorHex(item) };
-          }
-          if (!item || typeof item !== 'object') return null;
-          const name = item.name || item.color || 'Mặc định';
-          return { name, hex: item.hex || inferColorHex(name) };
-        })
-        .filter(Boolean)
-    : [];
+  const variantItems = Array.isArray(raw.variants) ? raw.variants
+    : Array.isArray(raw.variantItems) ? raw.variantItems : [];
 
-  const basePrices = variants.basePrices && typeof variants.basePrices === 'object'
-    ? variants.basePrices
-    : {};
+  const variantOptions = raw.variantOptions && typeof raw.variantOptions === 'object'
+    ? raw.variantOptions : {};
 
-  const variantItems = Array.isArray(raw.variantItems) ? raw.variantItems : [];
+  const relatedProducts = Array.isArray(raw.relatedProducts) ? raw.relatedProducts : [];
+
+  const storages = Array.isArray(variantOptions.storages) ? variantOptions.storages : [];
+  const basePrices = variantOptions.basePrices || {};
+
+  const colors = [];
+  const colorSet = new Set();
+  variantItems.forEach(item => {
+    if (item.color && !colorSet.has(item.color)) {
+      colorSet.add(item.color);
+      colors.push({ name: item.color, hex: inferColorHex(item.color) });
+    }
+  });
+
   const fallbackStock = variantItems.reduce((sum, item) => sum + Number(item?.stock || 0), 0);
   const stock = Number(raw.stock ?? fallbackStock ?? 0);
 
@@ -54,12 +61,16 @@ const normalizeProduct = (raw, fallbackId) => {
     images,
     price: Number(raw.price || 0),
     stock,
+    baseName: raw.baseName || raw.name || '',
+    variantItems,
+    relatedProducts,
     variants: {
       storages,
       colors,
       basePrices,
     },
-    specifications: raw.specifications && typeof raw.specifications === 'object' ? raw.specifications : {},
+    specifications: raw.specifications && typeof raw.specifications === 'object'
+      ? raw.specifications : {},
   };
 };
 
@@ -73,6 +84,8 @@ export const ProductDetail = () => {
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  // UI state (NOT tied to product.id to avoid resets during renders)
   const [activeImage, setActiveImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [selectedStorage, setSelectedStorage] = useState(null);
@@ -84,6 +97,10 @@ export const ProductDetail = () => {
     const fetchDetail = async () => {
       setLoading(true);
       setError('');
+      setActiveImage(0);
+      setQuantity(1);
+      setSelectedStorage(null);
+      setSelectedColor(null);
 
       try {
         const response = await ProductService.getProductDetail(slug);
@@ -100,25 +117,23 @@ export const ProductDetail = () => {
     };
 
     fetchDetail();
-
-    return () => {
-      mounted = false;
-    };
+    return () => { mounted = false; };
   }, [slug]);
 
+  // Initialize selections when product data changes
   useEffect(() => {
-    const storages = product?.variants?.storages || [];
-    const colors = product?.variants?.colors || [];
+    if (!product) return;
+    const storages = product.variants?.storages || [];
+    const colors = product.variants?.colors || [];
     setSelectedStorage(storages.length > 0 ? storages[0] : null);
     setSelectedColor(colors.length > 0 ? colors[0] : null);
-    setActiveImage(0);
-    setQuantity(1);
-  }, [product?.id]);
+  }, [product?.baseName]); // Only re-init when baseName changes (i.e., navigating to a different product line)
 
   const images = product?.images || [];
+
+  // Current price based on selected storage
   const currentPrice = useMemo(() => {
     if (!product) return 0;
-    // Ưu tiên giá flash sale
     if (product.isFlashSale && product.flashSalePrice != null) {
       return Number(product.flashSalePrice);
     }
@@ -128,9 +143,57 @@ export const ProductDetail = () => {
     return Number(product.price || 0);
   }, [product, selectedStorage]);
 
-  const maxQuantity = Math.max(1, Number(product?.stock || 0));
+  // Find the "active" variant: matches selectedStorage AND selectedColor
+  // Search across ALL variants: current product's variantItems + relatedProducts
+  const allVariants = useMemo(() => [
+    ...(product?.variantItems || []),
+    ...(product?.relatedProducts || []).flatMap(p => p.variantItems || p.variants || []),
+  ], [product]);
 
-    const addToCart = () => {
+  const activeVariant = useMemo(() => {
+    if (!allVariants.length) return null;
+    return allVariants.find(v => {
+      const matchStorage = v.storageLabel === selectedStorage;
+      const matchColor = !selectedColor || !v.color
+        || v.color.toLowerCase() === selectedColor.name.toLowerCase();
+      return matchStorage && matchColor;
+    }) || allVariants.find(v => v.storageLabel === selectedStorage)
+      || allVariants[0] || null;
+  }, [allVariants, selectedStorage, selectedColor]);
+
+  // Available colors for the selected storage (across all variants)
+  const availableColors = useMemo(() => {
+    if (!allVariants.length || !selectedStorage) return product?.variants?.colors || [];
+    const colorsForStorage = [];
+    const seen = new Set();
+    allVariants.forEach(v => {
+      if (v.storageLabel === selectedStorage && v.color && !seen.has(v.color)) {
+        seen.add(v.color);
+        colorsForStorage.push({ name: v.color, hex: inferColorHex(v.color) });
+      }
+    });
+    return colorsForStorage.length > 0 ? colorsForStorage : (product?.variants?.colors || []);
+  }, [allVariants, selectedStorage, product]);
+
+  // If selected color not available for this storage, auto-select the first available
+  useEffect(() => {
+    if (!product || availableColors.length === 0) return;
+    const colorAvailable = availableColors.some(c =>
+      c.name.toLowerCase() === selectedColor?.name?.toLowerCase()
+    );
+    if (!colorAvailable) {
+      setSelectedColor(availableColors[0]);
+    }
+  }, [availableColors]);
+
+  // Max stock for current variant
+  const maxQuantity = useMemo(() => {
+    if (activeVariant?.stock != null) return Math.max(1, Number(activeVariant.stock));
+    if (product?.stock != null) return Math.max(1, Number(product.stock));
+    return 1;
+  }, [activeVariant, product]);
+
+  const addToCart = () => {
     if (!product) return;
 
     if (!isAuthenticated) {
@@ -138,31 +201,35 @@ export const ProductDetail = () => {
       return;
     }
 
-    if ((product.stock || 0) <= 0) return;
-
-    // Tìm variantItem phù hợp với storage + color đã chọn
-    const variantItems = product.variantItems || [];
-    const selectedVariant = variantItems.find(
-      (v) =>
-        String(v.storageGb || '') === String(selectedStorage) &&
-        (v.color || '').toLowerCase() === (selectedColor?.name || '').toLowerCase()
-    );
+    if (maxQuantity <= 0) return;
 
     dispatch({
       type: 'ADD_TO_CART',
       payload: {
         ...product,
-        variantId: selectedVariant?.id || null,
+        variantId: activeVariant?.id || null,
         id: String(product.id),
         quantity,
         price: currentPrice,
-        ram: selectedVariant?.ramGb ? `${selectedVariant.ramGb}GB` : '',
-        storage: selectedVariant?.storageGb ? `${selectedVariant.storageGb}GB` : String(selectedStorage || ''),
+        ram: activeVariant?.ramGb ? `${activeVariant.ramGb}GB` : '',
+        storage: activeVariant?.storageLabel || selectedStorage || '',
         color: selectedColor?.name || '',
-        sku: selectedVariant?.sku || '',
+        sku: activeVariant?.sku || '',
         images: product.images,
       },
     });
+  };
+
+  // Navigate to different storage variant
+  const switchStorage = (storage) => {
+    if (!product) return;
+    const target = [...(product.variantItems || []), ...(product.relatedProducts || [])]
+      .find(v => v.storageLabel === storage);
+    if (target?.slug) {
+      navigate(`/products/${target.slug}`);
+    } else {
+      setSelectedStorage(storage);
+    }
   };
 
   if (loading) {
@@ -188,53 +255,58 @@ export const ProductDetail = () => {
     );
   }
 
+  const displayName = product.name || product.baseName || 'Sản phẩm';
+  const hasMultipleStorages = (product.variants?.storages?.length || 0) > 1;
+
   return (
     <main className="min-h-screen bg-[#f8f8f6] pb-20">
       <div className="mx-auto max-w-6xl px-4 pt-8">
         <nav className="mb-6 flex items-center gap-2 text-xs text-gray-400">
           <button onClick={() => navigate('/')} className="hover:text-red-600">Trang chủ</button>
           <span>/</span>
-          <button onClick={() => navigate(`/brands/${product.brandSlug || product.brand}`)} className="hover:text-red-600">{product.brand || 'Khác'}</button>
+          <button onClick={() => navigate(`/brands/${product.brandSlug || product.brand}`)}
+            className="hover:text-red-600">{product.brand || 'Khác'}</button>
           <span>/</span>
-          <span className="text-gray-700">{product.name}</span>
+          <span className="text-gray-700">{displayName}</span>
         </nav>
 
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
           {/* ===== LEFT: Image Gallery ===== */}
           <section className="space-y-3">
-            {/* Main Image */}
             <div className="relative rounded-2xl border border-gray-100 bg-white overflow-hidden">
               <div className="relative aspect-square flex items-center justify-center overflow-hidden bg-gray-50">
                 <img
-                  src={images[activeImage] || 'https://picsum.photos/seed/fallback/700/700'}
+                  src={images[activeImage] && images[activeImage].trim()
+                    ? images[activeImage]
+                    : 'https://picsum.photos/seed/fallback/700/700'}
                   alt={product.name}
                   className="h-full w-full object-contain"
-                  onError={(e) => {
-                    e.currentTarget.src = 'https://picsum.photos/seed/fallback/700/700';
-                  }}
+                  onError={(e) => { e.currentTarget.src = 'https://picsum.photos/seed/fallback/700/700'; }}
                 />
 
-                {/* Prev / Next Buttons */}
                 {images.length > 1 && (
                   <>
                     <button
                       onClick={() => setActiveImage((i) => (i - 1 + images.length) % images.length)}
-                      className="absolute left-3 top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 shadow-lg hover:bg-white disabled:opacity-30"
+                      className="absolute left-3 top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 shadow-lg hover:bg-white"
                       aria-label="Ảnh trước"
                     >
-                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 12L6 8l4-4" stroke="#374151" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path d="M10 12L6 8l4-4" stroke="#374151" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
                     </button>
                     <button
                       onClick={() => setActiveImage((i) => (i + 1) % images.length)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 shadow-lg hover:bg-white"
                       aria-label="Ảnh sau"
                     >
-                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 12l4-4-4-4" stroke="#374151" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path d="M6 12l4-4-4-4" stroke="#374151" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
                     </button>
                   </>
                 )}
 
-                {/* Dots indicator */}
                 {images.length > 1 && (
                   <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
                     {images.map((_, idx) => (
@@ -250,7 +322,6 @@ export const ProductDetail = () => {
               </div>
             </div>
 
-            {/* Thumbnail Strip */}
             {images.length > 1 && (
               <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
                 {images.map((image, index) => (
@@ -265,14 +336,20 @@ export const ProductDetail = () => {
               </div>
             )}
 
-            {/* ===== Below images: Description + Specifications ===== */}
+            {/* Description */}
             <div className="rounded-2xl border border-gray-100 bg-white p-4">
               <h2 className="mb-2 text-sm font-black uppercase tracking-wide text-gray-900">Mô tả</h2>
-              <p className="text-sm leading-relaxed text-gray-600">
-                {product.description || 'Sản phẩm đang được cập nhật mô tả.'}
-              </p>
+              {product.description ? (
+                <div
+                  className="prose prose-sm max-w-none text-sm leading-relaxed text-gray-600 [&_img]:rounded-lg [&_img]:max-w-full [&_h1]:text-lg [&_h1]:font-bold [&_h2]:text-base [&_h2]:font-bold [&_h3]:text-sm [&_h3]:font-bold [&_p]:mb-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_a]:text-red-600 [&_a]:underline"
+                  dangerouslySetInnerHTML={{ __html: product.description }}
+                />
+              ) : (
+                <p className="text-sm leading-relaxed text-gray-500">Sản phẩm đang được cập nhật mô tả.</p>
+              )}
             </div>
 
+            {/* Specifications */}
             {Object.keys(product.specifications || {}).length > 0 && (
               <div className="rounded-2xl border border-gray-100 bg-white p-4">
                 <h2 className="mb-3 text-sm font-black uppercase tracking-wide text-gray-900">Thông số kỹ thuật</h2>
@@ -288,66 +365,137 @@ export const ProductDetail = () => {
             )}
           </section>
 
+          {/* ===== RIGHT: Product Info + Variants ===== */}
           <section className="space-y-5">
+            {/* Brand + Stock badge */}
             <div className="flex items-center gap-2">
               <span className="rounded-full bg-red-50 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-red-600">
                 {product.brand || 'Khác'}
               </span>
-              <span className={`text-[11px] font-bold uppercase ${product.stock > 0 ? 'text-green-600' : 'text-red-500'}`}>
-                {product.stock > 0 ? `Còn ${product.stock} sản phẩm` : 'Hết hàng'}
+              <span className={`text-[11px] font-bold uppercase ${
+                maxQuantity > 0 ? 'text-green-600' : 'text-red-500'
+              }`}>
+                {maxQuantity > 0 ? `Còn ${maxQuantity} sản phẩm` : 'Hết hàng'}
               </span>
             </div>
 
-            <h1 className="text-3xl font-black text-gray-900">{product.name}</h1>
+            <h1 className="text-3xl font-black text-gray-900">{displayName}</h1>
 
-            <p className="text-3xl font-black text-red-600">{Number(currentPrice || 0).toLocaleString('vi-VN')}₫</p>
+            {/* Price */}
+            <div>
+              {product.isFlashSale && product.flashSalePrice != null && (
+                <p className="text-sm text-gray-400 line-through mb-0.5">
+                  {Number(product.price || 0).toLocaleString('vi-VN')}₫
+                </p>
+              )}
+              <p className="text-3xl font-black text-red-600">
+                {Number(currentPrice || 0).toLocaleString('vi-VN')}₫
+              </p>
+              {product.isFlashSale && product.sale > 0 && (
+                <span className="mt-1 inline-block rounded bg-red-600 px-2 py-0.5 text-[11px] font-bold text-white">
+                  -{product.sale}%
+                </span>
+              )}
+            </div>
 
-            {product.variants?.storages?.length > 0 && (
+            {/* ===== Storage Variant Buttons ===== */}
+            {hasMultipleStorages && (
               <div>
-                <p className="mb-2 text-xs font-bold uppercase text-gray-500">Dung lượng</p>
+                <p className="mb-3 text-xs font-bold uppercase text-gray-500">Phiên bản</p>
                 <div className="flex flex-wrap gap-2">
-                  {product.variants.storages.map((storage) => (
-                    <button
-                      key={storage}
-                      onClick={() => setSelectedStorage(storage)}
-                      className={`rounded-lg border px-3 py-2 text-sm font-bold ${selectedStorage === storage ? 'border-red-500 bg-red-50 text-red-600' : 'border-gray-200 text-gray-700'}`}
-                    >
-                      {storage}
-                    </button>
-                  ))}
+                  {product.variants.storages.map((storage) => {
+                    const storagePrice = product.variants.basePrices?.[storage];
+                    const isActive = storage === selectedStorage;
+                    const existsInRelated = product.relatedProducts?.some(
+                      p => (p.variants?.[0] || p.variantItems?.[0])?.storageLabel === storage
+                        && p.id !== product.id
+                    );
+                    const productOfStorage = [...(product.variantItems || []), ...(product.relatedProducts || [])]
+                      .find(v => v.storageLabel === storage);
+                    const canNavigate = isActive || existsInRelated;
+
+                    return (
+                      <button
+                        key={storage}
+                        onClick={() => {
+                          if (!isActive && productOfStorage?.slug) {
+                            navigate(`/products/${productOfStorage.slug}`);
+                          } else {
+                            switchStorage(storage);
+                          }
+                        }}
+                        className={`relative rounded-xl border px-4 py-2.5 text-sm font-bold transition-all ${
+                          isActive
+                            ? 'border-red-500 bg-red-50 text-red-600 shadow-sm'
+                            : 'border-gray-200 text-gray-700 hover:border-gray-300 hover:bg-gray-50'
+                        }`}
+                      >
+                        <span className="block text-base">{storage}</span>
+                        {storagePrice != null && (
+                          <span className={`block text-xs font-normal ${isActive ? 'text-red-400' : 'text-gray-400'}`}>
+                            {Number(storagePrice).toLocaleString('vi-VN')}₫
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}
 
-            {product.variants?.colors?.length > 0 && (
+            {/* ===== Color Buttons ===== */}
+            {availableColors.length > 0 && (
               <div>
-                <p className="mb-2 text-xs font-bold uppercase text-gray-500">Màu sắc</p>
+                <p className="mb-3 text-xs font-bold uppercase text-gray-500">
+                  Màu sắc
+                  {selectedColor && (
+                    <span className="ml-2 font-normal normal-case text-gray-600">— {selectedColor.name}</span>
+                  )}
+                </p>
                 <div className="flex flex-wrap gap-3">
-                  {product.variants.colors.map((color) => (
-                    <button
-                      key={color.name}
-                      onClick={() => setSelectedColor(color)}
-                      className={`h-9 w-9 rounded-full border-2 ${selectedColor?.name === color.name ? 'border-gray-900' : 'border-gray-300'}`}
-                      style={{ backgroundColor: color.hex || '#6b7280' }}
-                      title={color.name}
-                    />
-                  ))}
+                  {availableColors.map((color) => {
+                    const isActive = selectedColor?.name?.toLowerCase() === color.name.toLowerCase();
+                    return (
+                      <button
+                        key={color.name}
+                        onClick={() => setSelectedColor(color)}
+                        title={color.name}
+                        className={`h-11 w-11 rounded-full border-2 transition-all ${
+                          isActive ? 'border-gray-900 ring-2 ring-offset-2 ring-gray-900' : 'border-gray-300 hover:border-gray-400'
+                        }`}
+                        style={{ backgroundColor: color.hex || '#6b7280' }}
+                      />
+                    );
+                  })}
                 </div>
               </div>
             )}
 
+            {/* ===== Storage note when only one storage ===== */}
+            {!hasMultipleStorages && selectedStorage && (
+              <div className="flex items-center gap-2 text-sm text-gray-500">
+                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>Phiên bản {selectedStorage}</span>
+                {activeVariant?.ramGb && <span className="text-gray-400">| {activeVariant.ramGb}GB RAM</span>}
+              </div>
+            )}
+
+            {/* ===== Add to Cart ===== */}
             <div className="flex items-center gap-3">
               <div className="flex items-center overflow-hidden rounded-xl border border-gray-200">
                 <button
                   onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                  className="h-10 w-10 text-lg font-black text-gray-500 hover:text-red-600"
+                  className="h-11 w-11 text-lg font-black text-gray-500 hover:text-red-600"
                 >
-                  -
+                  −
                 </button>
-                <span className="w-12 text-center font-bold">{quantity}</span>
+                <span className="w-14 text-center font-bold text-lg">{quantity}</span>
                 <button
                   onClick={() => setQuantity((q) => Math.min(maxQuantity, q + 1))}
-                  className="h-10 w-10 text-lg font-black text-gray-500 hover:text-red-600"
+                  className="h-11 w-11 text-lg font-black text-gray-500 hover:text-red-600"
                 >
                   +
                 </button>
@@ -355,17 +503,67 @@ export const ProductDetail = () => {
 
               <button
                 onClick={addToCart}
-                disabled={product.stock <= 0}
-                className="rounded-xl bg-red-600 px-6 py-3 text-sm font-bold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-gray-300"
+                disabled={maxQuantity <= 0}
+                className="flex-1 rounded-xl bg-red-600 px-6 py-3 text-sm font-bold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-gray-300 transition-all"
               >
-                Thêm vào giỏ hàng
+                {maxQuantity > 0 ? 'Thêm vào giỏ hàng' : 'Hết hàng'}
               </button>
             </div>
+
+            {/* Flash Sale badge */}
+            {product.isFlashSale && (
+              <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
+                🔥 Đang diễn ra Flash Sale — Giảm đến {product.sale}%
+              </div>
+            )}
           </section>
         </div>
       </div>
 
       <ReviewSection productId={product.id} currentUserId={state.user?.id || null} />
+
+      {/* Related Products (other variants in same product line) */}
+      {(product.relatedProducts?.length || 0) > 0 && (
+        <div className="mx-auto max-w-6xl px-4 pt-8">
+          <h2 className="mb-4 text-lg font-black text-gray-900">Các phiên bản khác</h2>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+            {product.relatedProducts.map((related) => {
+              const variant = related.variants?.[0] || related.variantItems?.[0];
+              const thumb = related.thumbnailUrl || (related.images?.[0]) || '';
+              const relatedPrice = related.price || variant?.price || 0;
+              const isCurrentVariant = variant?.storageLabel === selectedStorage;
+              return (
+                <button
+                  key={related.id}
+                  onClick={() => navigate(`/products/${related.slug}`)}
+                  className={`rounded-2xl border bg-white p-3 text-left transition-all hover:border-red-300 hover:shadow-md ${
+                    isCurrentVariant ? 'opacity-40 cursor-default' : ''
+                  }`}
+                  disabled={isCurrentVariant}
+                >
+                  <div className="aspect-square mb-2 flex items-center justify-center overflow-hidden rounded-xl bg-gray-50">
+                    {thumb ? (
+                      <img
+                        src={thumb}
+                        alt={related.name}
+                        className="h-full w-full object-contain"
+                        onError={(e) => { e.target.src = 'https://picsum.photos/seed/rel/200/200'; }}
+                      />
+                    ) : (
+                      <div className="text-gray-300 text-xs">No image</div>
+                    )}
+                  </div>
+                  <p className="mb-1 text-xs font-medium text-gray-700 line-clamp-2">{related.name}</p>
+                  <p className="text-sm font-bold text-red-600">{Number(relatedPrice).toLocaleString('vi-VN')}₫</p>
+                  {variant?.storageLabel && (
+                    <p className="mt-0.5 text-[10px] text-gray-400">{variant.storageLabel}</p>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </main>
   );
 };

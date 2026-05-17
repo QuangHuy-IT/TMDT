@@ -10,6 +10,7 @@
     import com.tmdt.phone_store_backend.domain.entity.FlashSaleProduct;
     import com.tmdt.phone_store_backend.domain.entity.ProductSpecification;
     import com.tmdt.phone_store_backend.domain.entity.ProductVariant;
+    import com.tmdt.phone_store_backend.domain.entity.ProductSeries;
     import com.tmdt.phone_store_backend.domain.enums.ProductStatus;
     import com.tmdt.phone_store_backend.domain.enums.StockStatus;
     import com.tmdt.phone_store_backend.dto.AdminProductDto;
@@ -28,6 +29,7 @@
     import com.tmdt.phone_store_backend.repository.InventoryRepository;
     import com.tmdt.phone_store_backend.repository.ProductImageRepository;
     import com.tmdt.phone_store_backend.repository.ProductRepository;
+    import com.tmdt.phone_store_backend.repository.ProductSeriesRepository;
     import com.tmdt.phone_store_backend.repository.ProductSpecificationRepository;
     import com.tmdt.phone_store_backend.repository.ProductVariantRepository;
     import com.tmdt.phone_store_backend.repository.FlashSaleCampaignRepository;
@@ -44,7 +46,8 @@
     import java.util.Locale;
     import java.util.Map;
     import java.util.Objects;
-    import java.util.Set;
+    import java.util.Optional;
+import java.util.Set;
     import lombok.AllArgsConstructor;
     import org.springframework.stereotype.Service;
     import org.springframework.transaction.annotation.Transactional;
@@ -58,6 +61,7 @@
         private final BrandRepository brandRepository;
         private final BannerRepository bannerRepository;
         private final CategoryRepository categoryRepository;
+        private final ProductSeriesRepository productSeriesRepository;
         private final ProductVariantRepository productVariantRepository;
         private final InventoryRepository inventoryRepository;
         private final ProductImageRepository productImageRepository;
@@ -75,8 +79,18 @@
                 String price,
                 String storage,
                 String sort,
-                Integer limit) {
-            return productRepository.findByDeletedAtIsNullOrderByCreatedAtDesc().stream()
+                Integer limit,
+                String seriesSlug) {
+            List<Product> products = productRepository.findByDeletedAtIsNullOrderByCreatedAtDesc();
+
+            // Filter by series slug first
+            if (seriesSlug != null && !seriesSlug.isBlank()) {
+                products = products.stream()
+                        .filter(p -> p.getSeries() != null && seriesSlug.equalsIgnoreCase(p.getSeries().getSlug()))
+                        .toList();
+            }
+
+            return products.stream()
                     .filter(product -> matchesBrand(product, brandSlug))
                     .map(this::toDto)
                     .filter(dto -> matchesPrice(dto, price))
@@ -94,7 +108,17 @@
         }
 
         public List<AdminProductDto> getLatestProducts(Integer limit) {
-            return getPublicProducts(null, null, null, "release-desc", limit);
+            return getPublicProducts(null, null, null, "release-desc", limit, null);
+        }
+
+        public List<AdminProductDto> getRelatedProducts(String baseName) {
+            if (baseName == null || baseName.isBlank()) {
+                return List.of();
+            }
+            return productRepository.findByBaseNameIgnoreCaseAndDeletedAtIsNull(baseName).stream()
+                    .filter(p -> p.getStatus() == ProductStatus.ACTIVE)
+                    .map(this::toDto)
+                    .toList();
         }
 
         public List<AdminProductDto> getFlashSaleProducts(Integer limit) {
@@ -157,19 +181,37 @@
                 product = productRepository.findByIdAndDeletedAtIsNull(Long.parseLong(idOrSlug))
                         .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm: " + idOrSlug));
             } else {
-                product = productRepository.findBySlugAndDeletedAtIsNull(idOrSlug)
-                        .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm: " + idOrSlug));
+                // Try exact match first
+                Optional<Product> exactMatch = productRepository.findBySlugAndDeletedAtIsNull(idOrSlug);
+                if (exactMatch.isPresent()) {
+                    product = exactMatch.get();
+                } else {
+                    // Fallback: try to find by prefix (handles old slugs with hash suffixes)
+                    // Extract base slug (remove hash suffix like "-abc12345")
+                    String baseSlug = idOrSlug;
+                    if (idOrSlug.matches(".*-[a-z0-9]{6,}$")) {
+                        baseSlug = idOrSlug.replaceAll("-[a-z0-9]{6,}$", "");
+                    }
+                    product = productRepository.findBySlugOrPrefix(idOrSlug, baseSlug + "-")
+                            .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm: " + idOrSlug));
+                }
             }
 
             AdminProductDto dto = toDto(product);
 
-            // Check for active flash sale on any variant
-            List<ProductVariant> variants = productVariantRepository.findByProductId(product.getId());
-            BigDecimal minFlashPrice = null;
-            Long flashSaleId = null;
-            Map<String, BigDecimal> updatedBasePrices = new LinkedHashMap<>(dto.getVariants().getBasePrices());
+            // Attach related products (same baseName, different storage variants) for the variant switcher
+            List<AdminProductDto> relatedProducts = getRelatedProducts(product.getBaseName()).stream()
+                    .filter(p -> !p.getId().equals(product.getId()))
+                    .toList();
+            dto.setVariantOptions(buildVariantOptionsFromRelated(dto, relatedProducts));
+            dto.setRelatedProducts(relatedProducts);
 
-            for (ProductVariant variant : variants) {
+            // Check for active flash sale on the variant
+            List<ProductVariant> productVariants = productVariantRepository.findByProductId(product.getId());
+            BigDecimal minFlashPrice = null;
+            Long flashSaleSessionId = null;
+
+            for (ProductVariant variant : productVariants) {
                 List<FlashSaleProduct> activeFlashSales = flashSaleProductRepository.findActiveByVariantId(variant.getId());
 
                 if (activeFlashSales != null && !activeFlashSales.isEmpty()) {
@@ -177,18 +219,16 @@
                     BigDecimal flashPrice = fp.getFlashPrice();
                     if (minFlashPrice == null || flashPrice.compareTo(minFlashPrice) < 0) {
                         minFlashPrice = flashPrice;
-                        flashSaleId = fp.getSession().getId();
+                        flashSaleSessionId = fp.getSession().getId();
                     }
                     // Update variant price in-place
-                    for (AdminProductVariantDto vdto : dto.getVariantItems()) {
-                        if (vdto.getId().equals(variant.getId())) {
-                            vdto.setPrice(flashPrice);
-                            break;
+                    if (dto.getVariantItems() != null) {
+                        for (AdminProductVariantDto vdto : dto.getVariantItems()) {
+                            if (vdto.getId().equals(variant.getId())) {
+                                vdto.setPrice(flashPrice);
+                                break;
+                            }
                         }
-                    }
-                    String storageLabel = getStorageLabel(variant);
-                    if (!storageLabel.isBlank()) {
-                        updatedBasePrices.put(storageLabel, flashPrice);
                     }
                 }
             }
@@ -196,12 +236,70 @@
             if (minFlashPrice != null) {
                 dto.setPrice(minFlashPrice);
                 dto.setFlashSalePrice(minFlashPrice);
-                dto.setFlashSaleId(flashSaleId);
+                dto.setFlashSaleId(flashSaleSessionId);
                 dto.setIsFlashSale(true);
-                dto.getVariants().setBasePrices(updatedBasePrices);
             }
 
             return dto;
+        }
+
+        private ProductVariantOptionDto buildVariantOptionsFromRelated(
+                AdminProductDto currentDto, List<AdminProductDto> relatedProducts) {
+            // Collect all storage labels and colors from current + all related products
+            Map<String, BigDecimal> allStorages = new LinkedHashMap<>();
+            Map<String, ProductVariantColorDto> allColors = new LinkedHashMap<>();
+
+            // Add from current product
+            if (currentDto.getVariantItems() != null) {
+                for (AdminProductVariantDto v : currentDto.getVariantItems()) {
+                    if (v.getStorageLabel() != null && !v.getStorageLabel().isBlank()) {
+                        allStorages.putIfAbsent(v.getStorageLabel(),
+                                v.getPrice() != null ? v.getPrice() : BigDecimal.ZERO);
+                    }
+                    if (v.getColor() != null && !v.getColor().isBlank()) {
+                        allColors.putIfAbsent(v.getColor(),
+                                new ProductVariantColorDto(v.getColor(), mapColorHex(v.getColor()), null));
+                    }
+                }
+            }
+
+            // Add from related products (different storage variants of same baseName)
+            for (AdminProductDto related : relatedProducts) {
+                if (related.getVariantItems() != null) {
+                    for (AdminProductVariantDto v : related.getVariantItems()) {
+                        if (v.getStorageLabel() != null && !v.getStorageLabel().isBlank()) {
+                            allStorages.putIfAbsent(v.getStorageLabel(),
+                                    v.getPrice() != null ? v.getPrice() : BigDecimal.ZERO);
+                        }
+                        if (v.getColor() != null && !v.getColor().isBlank()) {
+                            allColors.putIfAbsent(v.getColor(),
+                                    new ProductVariantColorDto(v.getColor(), mapColorHex(v.getColor()), null));
+                        }
+                    }
+                }
+            }
+
+            // Sort storages: numeric ascending
+            List<String> sortedStorages = allStorages.entrySet().stream()
+                    .sorted(Comparator.comparingInt(e -> parseStorageNumeric(e.getKey())))
+                    .map(Map.Entry::getKey)
+                    .toList();
+
+            ProductVariantOptionDto opts = new ProductVariantOptionDto();
+            opts.setStorages(sortedStorages);
+            opts.setColors(new ArrayList<>(allColors.values()));
+            opts.setBasePrices(allStorages);
+            return opts;
+        }
+
+        private int parseStorageNumeric(String label) {
+            if (label == null) return 0;
+            String digits = label.replaceAll("[^0-9]", "");
+            try {
+                return Integer.parseInt(digits);
+            } catch (NumberFormatException e) {
+                return 0;
+            }
         }
 
         public AdminProductDto createProduct(AdminProductRequestDto requestDto) {
@@ -209,28 +307,84 @@
             Category category = getOrCreateDefaultCategory();
 
             LocalDateTime now = LocalDateTime.now();
-            Product product = new Product();
-            product.setName(requestDto.getName().trim());
-            product.setSlug(generateSlug(requestDto.getName()));
-            product.setBrand(brand);
-            product.setCategory(category);
-            product.setShortDescription(getDescription(requestDto));
-            product.setDetailDescription(getDescription(requestDto));
-            product.setStatus(ProductStatus.ACTIVE);
-            product.setSale(requestDto.getSale() != null ? requestDto.getSale() : 0);
-            product.setIsFeatured(Boolean.FALSE);
-            product.setWarrantyMonths(12);
-            product.setCreatedAt(now);
-            product.setUpdatedAt(now);
-            product.setThumbnailUrl(requestDto.getThumbnailUrl());
-            Product savedProduct = productRepository.save(product);
+            ProductSeries series = null;
+            if (requestDto.getSeriesId() != null) {
+                series = productSeriesRepository.findById(requestDto.getSeriesId()).orElse(null);
+            }
 
-            saveVariants(savedProduct, requestDto, now);
+            // baseName is the shared product line name (e.g., "iPhone 17 Pro Max")
+            String baseName = requestDto.getBaseName() != null && !requestDto.getBaseName().isBlank()
+                    ? requestDto.getBaseName().trim()
+                    : requestDto.getName().trim();
 
-            saveImages(savedProduct, requestDto.getImages(), now);
-            saveSpecifications(savedProduct, requestDto.getSpecifications(), now);
+            // description shared across all variants
+            String shortDesc = getDescription(requestDto);
+            String detailDesc = getDescription(requestDto);
 
-            return toDto(savedProduct);
+            List<AdminProductVariantRequestDto> normalizedVariants = normalizeVariants(requestDto);
+            if (normalizedVariants.isEmpty()) {
+                throw new IllegalArgumentException("Phải có ít nhất 1 phiên bản.");
+            }
+
+            // Create one Product per Variant (CellphoneS model: each storage/RAM combo = separate product)
+            AdminProductDto firstResult = null;
+            for (int i = 0; i < normalizedVariants.size(); i++) {
+                AdminProductVariantRequestDto variantReq = normalizedVariants.get(i);
+                Product product = new Product();
+                product.setName(buildVariantName(baseName, variantReq));
+                product.setBaseName(baseName);
+                product.setSlug(generateSlug(product.getName()));
+                product.setBrand(brand);
+                product.setCategory(category);
+                product.setSeries(series);
+                product.setShortDescription(shortDesc);
+                product.setDetailDescription(detailDesc);
+                product.setStatus(ProductStatus.ACTIVE);
+                product.setSale(requestDto.getSale() != null ? requestDto.getSale() : 0);
+                product.setIsFeatured(Boolean.FALSE);
+                product.setWarrantyMonths(12);
+                product.setCreatedAt(now);
+                product.setUpdatedAt(now);
+                product.setThumbnailUrl(requestDto.getThumbnailUrl());
+                Product savedProduct = productRepository.save(product);
+
+                // Save variant (each product has exactly 1 variant)
+                ProductVariant variant = new ProductVariant();
+                variant.setProduct(savedProduct);
+                variant.setSku(generateSku(savedProduct.getId(), variantReq, 1));
+                variant.setColor(normalizeColor(variantReq.getColor()));
+                variant.setRamGb(variantReq.getRamGb());
+                variant.setStorageGb(resolveStorageGb(variantReq));
+                variant.setPrice(resolveVariantPrice(variantReq, requestDto.getPrice()));
+                variant.setIsActive(Boolean.TRUE);
+                variant.setCreatedAt(now);
+                variant.setUpdatedAt(now);
+                ProductVariant savedVariant = productVariantRepository.save(variant);
+
+                // Save inventory
+                int quantityOnHand = Math.max(0, resolveVariantStock(variantReq, requestDto.getStock()));
+                Inventory inventory = new Inventory();
+                inventory.setVariant(savedVariant);
+                inventory.setQuantityOnHand(quantityOnHand);
+                inventory.setQuantityReserved(0);
+                inventory.setReorderLevel(5);
+                inventory.setStockStatus(resolveStockStatus(quantityOnHand));
+                inventory.setUpdatedAt(now);
+                inventoryRepository.save(inventory);
+
+                // Save images and specs (only on the first product to avoid duplication)
+                if (i == 0) {
+                    saveImages(savedProduct, requestDto.getImages(), now);
+                    saveSpecifications(savedProduct, requestDto.getSpecifications(), now);
+                }
+
+                AdminProductDto dto = toDto(savedProduct);
+                if (firstResult == null) {
+                    firstResult = dto;
+                }
+            }
+
+            return firstResult;
         }
 
         public AdminProductDto updateProduct(Long id, AdminProductRequestDto requestDto) {
@@ -240,9 +394,20 @@
             Brand brand = getOrCreateBrand(requestDto.getBrand());
             LocalDateTime now = LocalDateTime.now();
 
+            // baseName is the shared product line name
+            String baseName = requestDto.getBaseName() != null && !requestDto.getBaseName().isBlank()
+                    ? requestDto.getBaseName().trim()
+                    : product.getBaseName();
+
+            product.setBaseName(baseName);
             product.setName(requestDto.getName().trim());
             product.setSlug(generateSlug(requestDto.getName()));
             product.setBrand(brand);
+            if (requestDto.getSeriesId() != null) {
+                product.setSeries(getOrCreateSeries(requestDto.getSeriesId()));
+            } else {
+                product.setSeries(null);
+            }
             product.setShortDescription(getDescription(requestDto));
             product.setDetailDescription(getDescription(requestDto));
             product.setSale(requestDto.getSale() != null ? requestDto.getSale() : 0);
@@ -250,8 +415,8 @@
             product.setUpdatedAt(now);
             productRepository.save(product);
 
-            deleteVariantsByProductId(id);
-            saveVariants(product, requestDto, now);
+            // Update only this product's single variant
+            updateProductVariant(product, requestDto, now);
 
             productImageRepository.deleteByProductId(id);
             saveImages(product, requestDto.getImages(), now);
@@ -331,8 +496,14 @@
             dto.setId(product.getId());
             dto.setSlug(product.getSlug());
             dto.setName(product.getName());
+            dto.setBaseName(product.getBaseName());
             dto.setBrand(product.getBrand().getName());
             dto.setBrandSlug(product.getBrand().getSlug());
+            if (product.getSeries() != null) {
+                dto.setSeriesId(product.getSeries().getId());
+                dto.setSeriesName(product.getSeries().getName());
+                dto.setSeriesSlug(product.getSeries().getSlug());
+            }
             dto.setPrice(price);
             dto.setStock(stock);
             dto.setSale(product.getSale() != null ? product.getSale() : 0);
@@ -340,7 +511,8 @@
             dto.setThumbnailUrl(product.getThumbnailUrl());
             dto.setImages(images.stream().map(ProductImage::getImageUrl).toList());
             dto.setSpecifications(specs);
-            dto.setVariants(variantOptions);
+            dto.setVariantOptions(variantOptions);
+            dto.setVariants(variantItems);
             dto.setVariantItems(variantItems);
             dto.setIsFeatured(product.getIsFeatured());
             dto.setCreatedAt(product.getCreatedAt());
@@ -354,7 +526,7 @@
                 return null;
             }
 
-            List<AdminProductDto> products = getPublicProducts(brandSlug, null, null, "release-desc", limitPerBrand);
+            List<AdminProductDto> products = getPublicProducts(brandSlug, null, null, "release-desc", limitPerBrand, null);
             if (products.isEmpty()) {
                 return null;
             }
@@ -417,11 +589,14 @@
             }
 
             String normalized = storage.trim().toUpperCase(Locale.ROOT);
-            if (dto.getVariants() != null && dto.getVariants().getStorages() != null) {
-                return dto.getVariants().getStorages().stream()
-                        .filter(Objects::nonNull)
-                        .map(value -> value.trim().toUpperCase(Locale.ROOT))
-                        .anyMatch(normalized::equals);
+            // Each product now has exactly 1 variant stored in variantItems
+            if (dto.getVariantItems() != null && !dto.getVariantItems().isEmpty()) {
+                for (AdminProductVariantDto item : dto.getVariantItems()) {
+                    String label = item.getStorageLabel();
+                    if (label != null && label.trim().toUpperCase(Locale.ROOT).equals(normalized)) {
+                        return true;
+                    }
+                }
             }
             return false;
         }
@@ -458,34 +633,61 @@
             productVariantRepository.flush();
         }
 
-        private void saveVariants(Product product, AdminProductRequestDto requestDto, LocalDateTime now) {
+        private void updateProductVariant(Product product, AdminProductRequestDto requestDto, LocalDateTime now) {
             List<AdminProductVariantRequestDto> variants = normalizeVariants(requestDto);
-            for (int index = 0; index < variants.size(); index++) {
-                AdminProductVariantRequestDto variantRequest = variants.get(index);
+            AdminProductVariantRequestDto variantReq = variants.isEmpty() ? null : variants.get(0);
 
-                ProductVariant variant = new ProductVariant();
-                variant.setProduct(product);
-                variant.setSku(generateSku(product.getId(), variantRequest, index + 1));
-                variant.setColor(normalizeColor(variantRequest.getColor()));
-                variant.setRamGb(variantRequest.getRamGb());
-                variant.setStorageGb(resolveStorageGb(variantRequest));
-                variant.setPrice(resolveVariantPrice(variantRequest, requestDto.getPrice()));
-                variant.setIsActive(Boolean.TRUE);
-                variant.setCreatedAt(now);
-                variant.setUpdatedAt(now);
-                ProductVariant savedVariant = productVariantRepository.save(variant);
+            // Delete existing variant and inventory
+            deleteVariantsByProductId(product.getId());
 
-                int quantityOnHand = Math.max(0, resolveVariantStock(variantRequest, requestDto.getStock()));
-
-                Inventory inventory = new Inventory();
-                inventory.setVariant(savedVariant);
-                inventory.setQuantityOnHand(quantityOnHand);
-                inventory.setQuantityReserved(0);
-                inventory.setReorderLevel(5);
-                inventory.setStockStatus(resolveStockStatus(quantityOnHand));
-                inventory.setUpdatedAt(now);
-                inventoryRepository.save(inventory);
+            if (variantReq == null) {
+                return;
             }
+
+            ProductVariant variant = new ProductVariant();
+            variant.setProduct(product);
+            variant.setSku(generateSku(product.getId(), variantReq, 1));
+            variant.setColor(normalizeColor(variantReq.getColor()));
+            variant.setRamGb(variantReq.getRamGb());
+            variant.setStorageGb(resolveStorageGb(variantReq));
+            variant.setPrice(resolveVariantPrice(variantReq, requestDto.getPrice()));
+            variant.setIsActive(Boolean.TRUE);
+            variant.setCreatedAt(now);
+            variant.setUpdatedAt(now);
+            ProductVariant savedVariant = productVariantRepository.save(variant);
+
+            int quantityOnHand = Math.max(0, resolveVariantStock(variantReq, requestDto.getStock()));
+            Inventory inventory = new Inventory();
+            inventory.setVariant(savedVariant);
+            inventory.setQuantityOnHand(quantityOnHand);
+            inventory.setQuantityReserved(0);
+            inventory.setReorderLevel(5);
+            inventory.setStockStatus(resolveStockStatus(quantityOnHand));
+            inventory.setUpdatedAt(now);
+            inventoryRepository.save(inventory);
+        }
+
+        private String buildVariantName(String baseName, AdminProductVariantRequestDto variant) {
+            StringBuilder sb = new StringBuilder(baseName != null ? baseName.trim() : "");
+            if (variant.getRamGb() != null && variant.getRamGb() > 0) {
+                sb.append(" ").append(variant.getRamGb()).append("GB RAM");
+            }
+            if (variant.getStorageLabel() != null && !variant.getStorageLabel().isBlank()) {
+                if (sb.length() > 0) sb.append(" - ");
+                sb.append(variant.getStorageLabel());
+            } else if (variant.getStorageGb() != null && variant.getStorageGb() > 0) {
+                if (sb.length() > 0) sb.append(" - ");
+                sb.append(formatStorageGb(variant.getStorageGb()));
+            }
+            return sb.toString();
+        }
+
+        private String formatStorageGb(Integer storageGb) {
+            if (storageGb == null || storageGb <= 0) return "";
+            if (storageGb % 1024 == 0) {
+                return (storageGb / 1024) + "TB";
+            }
+            return storageGb + "GB";
         }
 
         private List<AdminProductVariantRequestDto> normalizeVariants(AdminProductRequestDto requestDto) {
@@ -714,6 +916,11 @@
                     });
         }
 
+        private ProductSeries getOrCreateSeries(Long seriesId) {
+            return productSeriesRepository.findById(seriesId)
+                    .orElse(null);
+        }
+
         private String getDescription(AdminProductRequestDto requestDto) {
             if (requestDto.getDescription() == null || requestDto.getDescription().isBlank()) {
                 return "Chưa có mô tả";
@@ -722,16 +929,30 @@
         }
 
         private String generateSlug(String value) {
-            String slug = value == null ? "item"
+            String baseSlug = value == null ? "san-pham"
                     : value.toLowerCase(Locale.ROOT)
+                            .replaceAll("[àáạảãâầấậẩẫăằắặẳẵ]", "a")
+                            .replaceAll("[èéẹẻẽêềếệểễ]", "e")
+                            .replaceAll("[ìíịỉĩ]", "i")
+                            .replaceAll("[òóọỏõôồốộổỗơờớợởỡ]", "o")
+                            .replaceAll("[ùúụủũưừứựửữ]", "u")
+                            .replaceAll("[ỳýỵỷỹ]", "y")
+                            .replaceAll("đ", "d")
                             .replaceAll("[^a-z0-9\\s-]", "")
                             .replaceAll("\\s+", "-")
                             .replaceAll("-+", "-")
                             .replaceAll("(^-|-$)", "");
-            if (slug.isBlank()) {
-                slug = "item";
+            if (baseSlug.isBlank()) {
+                baseSlug = "san-pham";
             }
-            return slug + "-" + System.currentTimeMillis();
+            // Check uniqueness and append number if needed
+            String finalSlug = baseSlug;
+            int counter = 1;
+            while (productRepository.findBySlugAndDeletedAtIsNull(finalSlug).isPresent()) {
+                finalSlug = baseSlug + "-" + counter;
+                counter++;
+            }
+            return finalSlug;
         }
 
         private StockStatus resolveStockStatus(Integer stock) {

@@ -1,70 +1,84 @@
-import React, { useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { newsService } from '../services/newsService';
 
-const NEWS_ITEMS = [
-  {
-    id: 1,
-    category: 'Tin tức công nghệ',
-    title: 'iPhone 17 Pro sẽ trang bị chip A19 Bionic thế hệ mới',
-    excerpt: 'Apple được kỳ vọng sẽ ra mắt dòng iPhone 17 với chip A19 Bionic được sản xuất trên tiến trình 3nm thế hệ thứ hai, mang lại hiệu năng vượt trội và tiết kiệm năng lượng hơn.',
-    image: 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=600&q=80',
-    date: '10/05/2026',
-    badge: 'Hot',
-  },
-  {
-    id: 2,
-    category: 'Khuyến mãi',
-    title: 'HHShop tung chương trình Flash Sale tháng 5 - Giảm đến 50%',
-    excerpt: 'Đón chào tháng 5, HHShop triển khai loạt khuyến mãi khủng với ưu đãi giảm đến 50% cho nhiều dòng sản phẩm smartphone từ các thương hiệu lớn như Samsung, Xiaomi, OPPO.',
-    image: 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=600&q=80',
-    date: '08/05/2026',
-    badge: 'Khuyến mãi',
-  },
-  {
-    id: 3,
-    category: 'Đánh giá sản phẩm',
-    title: 'So sánh Samsung Galaxy S25 Ultra vs iPhone 16 Pro Max: Nên chọn máy nào?',
-    excerpt: 'Hai flagship đình đám nhất 2025-2026: Galaxy S25 Ultra và iPhone 16 Pro Max. Cùng HHShop phân tích chi tiết từ thiết kế, camera, hiệu năng đến giá cả để bạn đưa ra quyết định phù hợp nhất.',
-    image: 'https://images.unsplash.com/photo-1610945265064-0e34e5519bbf?w=600&q=80',
-    date: '05/05/2026',
-    badge: 'So sánh',
-  },
-  {
-    id: 4,
-    category: 'Hướng dẫn',
-    title: 'Cách chọn mua điện thoại phù hợp với nhu cầu và ngân sách',
-    excerpt: 'Với vô số lựa chọn trên thị trường, việc chọn một chiếc điện thoại phù hợp không hề dễ dàng. HHShop sẽ hướng dẫn bạn những tiêu chí quan trọng nhất khi chọn mua smartphone.',
-    image: 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=600&q=80',
-    date: '01/05/2026',
-    badge: 'Hướng dẫn',
-  },
-  {
-    id: 5,
-    category: 'Tin tức công nghệ',
-    title: 'Xiaomi ra mắt dòng Xiaomi 15 với camera Leica 200MP',
-    excerpt: 'Xiaomi vừa chính thức ra mắt dòng Xiaomi 15 series với hệ thống camera Leica đột phá lên đến 200MP, màn hình AMOLED 120Hz và vi xử lý Snapdragon 8 Gen 4 mạnh mẽ nhất.',
-    image: 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=600&q=80',
-    date: '28/04/2026',
-    badge: null,
-  },
-  {
-    id: 6,
-    category: 'Sự kiện',
-    title: 'HHShop khai trương 5 cửa hàng mới tại Hà Nội và TP.HCM',
-    excerpt: 'Nhân dịp mở rộng hệ thống, HHShop chính thức khai trương 5 chi nhánh mới tại các vị trí chiến lược ở Hà Nội và TP.HCM, nâng tổng số cửa hàng toàn quốc lên con số ấn tượng.',
-    image: 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=600&q=80',
-    date: '25/04/2026',
-    badge: null,
-  },
+const CATEGORIES = [
+  { value: 'ALL', label: 'Tất cả' },
+  { value: 'CONG_NGHE', label: 'Tin tức công nghệ' },
+  { value: 'KHUYEN_MAI', label: 'Khuyến mãi' },
+  { value: 'DANH_GIA', label: 'Đánh giá sản phẩm' },
+  { value: 'HUONG_DAN', label: 'Hướng dẫn' },
+  { value: 'SU_KIEN', label: 'Sự kiện' },
 ];
 
-const CATEGORIES = ['Tất cả', 'Tin tức công nghệ', 'Khuyến mãi', 'Đánh giá sản phẩm', 'Hướng dẫn', 'Sự kiện'];
+const BADGE_COLORS = {
+  Hot: 'bg-red-600',
+  'Khuyến mãi': 'bg-orange-500',
+  'So sánh': 'bg-blue-500',
+  'Hướng dẫn': 'bg-green-500',
+  'Mới': 'bg-purple-500',
+};
+
+const formatDate = (str) => {
+  if (!str) return '';
+  try {
+    return new Date(str).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  } catch { return str; }
+};
 
 export const NewsPage = () => {
+  const [featured, setFeatured] = useState(null);
+  const [news, setNews] = useState([]);
+  const [category, setCategory] = useState('ALL');
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [page, setPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+
   useEffect(() => {
     document.title = 'Tin tức | HHShop';
     window.scrollTo(0, 0);
-  }, []);
+    loadNews(0, true);
+  }, [category]);
+
+  const loadNews = async (pageNum, reset = false) => {
+    if (reset) {
+      setLoading(true);
+    } else {
+      setLoadingMore(true);
+    }
+    try {
+      const res = category === 'ALL'
+        ? await newsService.getPublishedNews(pageNum, 9)
+        : await newsService.getNewsByCategory(category, pageNum, 9);
+      const items = res.content || [];
+      setTotalPages(res.totalPages);
+      setHasMore(pageNum < res.totalPages - 1);
+
+      if (reset || pageNum === 0) {
+        const [first, ...rest] = items;
+        setFeatured(first || null);
+        setNews(rest);
+      } else {
+        setNews((prev) => [...prev, ...items]);
+      }
+      setPage(pageNum);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+      setLoadingMore(false);
+    }
+  };
+
+  const handleLoadMore = () => {
+    if (!loadingMore && hasMore) {
+      loadNews(page + 1, false);
+    }
+  };
+
+  const getBadgeColor = (badge) => BADGE_COLORS[badge] || 'bg-red-600';
 
   return (
     <div className="min-h-screen bg-slate-50 pb-20">
@@ -99,96 +113,152 @@ export const NewsPage = () => {
       <div className="mx-auto max-w-7xl px-4 py-10 space-y-10">
 
         {/* Featured Article */}
-        <div className="relative overflow-hidden rounded-3xl bg-white border border-slate-200 shadow-sm">
-          <div className="grid md:grid-cols-2 gap-0">
-            <div className="relative h-64 md:h-auto overflow-hidden bg-slate-100">
-              <img
-                src={NEWS_ITEMS[0].image}
-                alt={NEWS_ITEMS[0].title}
-                className="w-full h-full object-cover"
-              />
-              <span className="absolute top-4 left-4 bg-red-600 text-white text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wider">
-                {NEWS_ITEMS[0].badge}
-              </span>
-            </div>
-            <div className="flex flex-col justify-center p-8 md:p-10">
-              <p className="text-xs font-black uppercase tracking-widest text-red-600 mb-3">{NEWS_ITEMS[0].category}</p>
-              <h2 className="text-xl md:text-2xl font-black text-slate-900 leading-snug mb-4">
-                {NEWS_ITEMS[0].title}
-              </h2>
-              <p className="text-sm text-slate-500 leading-relaxed mb-6">
-                {NEWS_ITEMS[0].excerpt}
-              </p>
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-slate-400">{NEWS_ITEMS[0].date}</span>
-                <button className="rounded-xl bg-red-600 px-5 py-2.5 text-xs font-black text-white transition-all hover:bg-red-700 hover:-translate-y-0.5">
-                  Đọc tiếp
-                </button>
+        {loading ? (
+          <div className="relative overflow-hidden rounded-3xl bg-white border border-slate-200 shadow-sm animate-pulse">
+            <div className="grid md:grid-cols-2 gap-0">
+              <div className="h-64 md:h-80 bg-slate-200" />
+              <div className="flex flex-col justify-center p-8 md:p-10 space-y-3">
+                <div className="h-3 w-24 bg-slate-200 rounded" />
+                <div className="h-6 w-full bg-slate-200 rounded" />
+                <div className="h-4 w-3/4 bg-slate-200 rounded" />
+                <div className="h-4 w-full bg-slate-200 rounded" />
               </div>
             </div>
           </div>
-        </div>
+        ) : featured ? (
+          <Link
+            to={`/tin-tuc/${featured.slug}`}
+            className="group block relative overflow-hidden rounded-3xl bg-white border border-slate-200 shadow-sm transition-all hover:shadow-lg"
+          >
+            <div className="grid md:grid-cols-2 gap-0">
+              <div className="relative h-64 md:h-auto overflow-hidden bg-slate-100">
+                <img
+                  src={featured.imageUrl || `https://picsum.photos/seed/${featured.id}/800/500`}
+                  alt={featured.title}
+                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                />
+                {featured.badge && (
+                  <span className={`absolute top-4 left-4 text-white text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wider ${getBadgeColor(featured.badge)}`}>
+                    {featured.badge}
+                  </span>
+                )}
+              </div>
+              <div className="flex flex-col justify-center p-8 md:p-10">
+                <p className="text-xs font-black uppercase tracking-widest text-red-600 mb-3">{featured.categoryLabel || featured.category}</p>
+                <h2 className="text-xl md:text-2xl font-black text-slate-900 leading-snug mb-4 group-hover:text-red-600 transition-colors">
+                  {featured.title}
+                </h2>
+                <p className="text-sm text-slate-500 leading-relaxed mb-6">
+                  {featured.excerpt}
+                </p>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-400">{formatDate(featured.publishedAt)}</span>
+                  <span className="rounded-xl bg-red-600 px-5 py-2.5 text-xs font-black text-white transition-all group-hover:bg-red-700">
+                    Đọc tiếp
+                  </span>
+                </div>
+              </div>
+            </div>
+          </Link>
+        ) : (
+          <div className="relative overflow-hidden rounded-3xl bg-white border border-slate-200 shadow-sm p-16 text-center">
+            <p className="text-gray-400 font-bold">Chưa có bài viết nào</p>
+          </div>
+        )}
 
         {/* Category Filter Pills */}
         <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
-          {CATEGORIES.map((cat, idx) => (
+          {CATEGORIES.map((cat) => (
             <button
-              key={cat}
+              key={cat.value}
+              onClick={() => setCategory(cat.value)}
               className={`shrink-0 rounded-full px-5 py-2 text-xs font-black transition-all ${
-                idx === 0
+                category === cat.value
                   ? 'bg-red-600 text-white shadow-lg shadow-red-200'
                   : 'bg-white text-slate-600 border border-slate-200 hover:border-red-200 hover:text-red-600'
               }`}
             >
-              {cat}
+              {cat.label}
             </button>
           ))}
         </div>
 
         {/* News Grid */}
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {NEWS_ITEMS.slice(1).map((item) => (
-            <article
-              key={item.id}
-              className="group cursor-pointer overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm transition-all hover:-translate-y-1 hover:shadow-lg"
-            >
-              <div className="relative h-44 overflow-hidden bg-slate-100">
-                <img
-                  src={item.image}
-                  alt={item.title}
-                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                />
-                {item.badge && (
-                  <span className="absolute top-3 left-3 bg-red-600 text-white text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider">
-                    {item.badge}
-                  </span>
-                )}
-              </div>
-              <div className="p-5">
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">{item.category}</p>
-                <h3 className="font-black text-slate-900 text-sm leading-snug mb-2 line-clamp-2 group-hover:text-red-600 transition-colors">
-                  {item.title}
-                </h3>
-                <p className="text-xs text-slate-500 leading-relaxed line-clamp-2 mb-3">
-                  {item.excerpt}
-                </p>
-                <div className="flex items-center justify-between pt-3 border-t border-slate-100">
-                  <span className="text-[11px] font-semibold text-slate-400">{item.date}</span>
-                  <button className="text-xs font-black text-red-600 hover:text-red-700 transition-colors">
-                    Đọc tiếp →
-                  </button>
+        {loading ? (
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <div key={i} className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm animate-pulse">
+                <div className="h-44 bg-slate-200" />
+                <div className="p-5 space-y-3">
+                  <div className="h-2 w-16 bg-slate-200 rounded" />
+                  <div className="h-4 w-full bg-slate-200 rounded" />
+                  <div className="h-4 w-2/3 bg-slate-200 rounded" />
                 </div>
               </div>
-            </article>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : news.length === 0 && !loading ? (
+          <div className="py-16 text-center">
+            <p className="text-gray-400 font-bold">Không có bài viết nào trong danh mục này</p>
+          </div>
+        ) : (
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {news.map((item) => (
+              <Link
+                key={item.id}
+                to={`/tin-tuc/${item.slug}`}
+                className="group block cursor-pointer overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm transition-all hover:-translate-y-1 hover:shadow-lg"
+              >
+                <div className="relative h-44 overflow-hidden bg-slate-100">
+                  <img
+                    src={item.imageUrl || `https://picsum.photos/seed/${item.id}/600/400`}
+                    alt={item.title}
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    onError={(e) => { e.target.src = `https://picsum.photos/seed/${item.id}/600/400`; }}
+                  />
+                  {item.badge && (
+                    <span className={`absolute top-3 left-3 text-white text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider ${getBadgeColor(item.badge)}`}>
+                      {item.badge}
+                    </span>
+                  )}
+                </div>
+                <div className="p-5">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">{item.categoryLabel || item.category}</p>
+                  <h3 className="font-black text-slate-900 text-sm leading-snug mb-2 line-clamp-2 group-hover:text-red-600 transition-colors">
+                    {item.title}
+                  </h3>
+                  <p className="text-xs text-slate-500 leading-relaxed line-clamp-2 mb-3">
+                    {item.excerpt}
+                  </p>
+                  <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+                    <span className="text-[11px] font-semibold text-slate-400">{formatDate(item.publishedAt)}</span>
+                    <span className="text-xs font-black text-red-600 group-hover:text-red-700 transition-colors">
+                      Đọc tiếp →
+                    </span>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
 
         {/* Load More */}
-        <div className="flex justify-center">
-          <button className="rounded-2xl border-2 border-slate-200 bg-white px-10 py-3.5 text-sm font-black text-slate-600 transition-all hover:border-red-200 hover:text-red-600 hover:-translate-y-0.5">
-            Xem thêm tin tức
-          </button>
-        </div>
+        {!loading && hasMore && (
+          <div className="flex justify-center">
+            <button
+              onClick={handleLoadMore}
+              disabled={loadingMore}
+              className="rounded-2xl border-2 border-slate-200 bg-white px-10 py-3.5 text-sm font-black text-slate-600 transition-all hover:border-red-200 hover:text-red-600 hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              {loadingMore ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-slate-300 border-t-red-600 rounded-full animate-spin" />
+                  Đang tải...
+                </>
+              ) : 'Xem thêm tin tức'}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

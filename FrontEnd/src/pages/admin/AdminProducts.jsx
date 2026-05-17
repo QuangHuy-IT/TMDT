@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import ProductService from '../../services/productService';
+import AdminService from '../../services/adminService';
+import SeriesService from '../../services/seriesService';
 
 const ITEMS_PER_PAGE = 8;
 
@@ -13,8 +15,8 @@ const SPEC_LABELS = {
   connectivity: 'Kết nối',
 };
 
-const STORAGE_PRESETS = ['64GB', '128GB', '256GB', '512GB', '1TB', '2TB'];
-const RAM_PRESETS = ['2', '4', '6', '8', '12', '16'];
+const STORAGE_PRESETS = ['64GB', '128GB', '256GB', '512GB', '1TB', '2TB', '5TB'];
+const RAM_PRESETS = ['2', '4', '6', '8', '12', '16', '32', '64', '128'];
 const COLOR_PRESETS = ['Đen', 'Trắng', 'Xanh', 'Tím', 'Vàng', 'Hồng', 'Đỏ', 'Bạc', 'Nâu'];
 
 const createEmptyVariant = (overrides = {}) => ({
@@ -35,16 +37,20 @@ const normalizeStorageLabel = (value) => {
   return normalized;
 };
 
-const buildVariantPreviewName = (baseName, variant) => {
+const buildVariantName = (baseName, variant) => {
   const base = String(baseName || '').trim();
+  if (!base) return '';
   const ramPart = variant?.ramGb ? `${variant.ramGb}GB RAM` : '';
   const storagePart = normalizeStorageLabel(variant?.storageLabel || '');
-  return [base, ramPart, storagePart].filter(Boolean).join(' - ');
+  const parts = [base, ramPart, storagePart].filter(Boolean);
+  return parts.join(' - ');
 };
 
 const emptyForm = {
+  baseName: '',
   name: '',
   brand: '',
+  seriesId: '',
   description: '',
   thumbnailUrl: '',
   images: [],
@@ -59,81 +65,158 @@ const emptyForm = {
   variants: [],
 };
 
-// ─── Rich Text Editor (react-quill-new) ───────────────────────────────────────
-import ReactQuill from 'react-quill-new';
-import 'react-quill-new/dist/quill.snow.css';
+import { TiptapEditor } from '../../components/ui/RichTextEditor';
 
-const quillModules = {
-  toolbar: [
-    [{ header: [1, 2, 3, false] }],
-    ['bold', 'italic', 'strike'],
-    [{ list: 'ordered' }, { list: 'bullet' }],
-    [{ align: [] }],
-    ['link'],
-    [{ color: [] }, { background: [] }],
-    ['clean'],
-  ],
-};
-
-const quillFormats = [
-  'header', 'bold', 'italic', 'strike', 'list', 'bullet',
-  'align', 'link', 'color', 'background',
-];
-
-// ─── Full-screen Form Page ─────────────────────────────────────────────────────
 const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
-  const [form, setForm] = useState(editingProduct ? null : emptyForm);
-  const [loading, setLoading] = useState(!!editingProduct);
+  // Always start with empty form to avoid white screen during loading
+  const [form, setForm] = useState(emptyForm);
+  const [fetching, setFetching] = useState(!!editingProduct);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadingVariantIndex, setUploadingVariantIndex] = useState(null);
 
-  // Variant picker state
-  const [pickerStorage, setPickerStorage] = useState([]);
-  const [pickerRam, setPickerRam] = useState([]);
+  const [pickerStorage, setPickerStorage] = useState('');
+  const [pickerRam, setPickerRam] = useState('');
   const [pickerColor, setPickerColor] = useState('Đen');
+
+  const [brands, setBrands] = useState([]);
+  const [showBrandInput, setShowBrandInput] = useState(false);
+  const [newBrandName, setNewBrandName] = useState('');
+  const [savingBrand, setSavingBrand] = useState(false);
+
+  const [seriesList, setSeriesList] = useState([]);
+  const [showSeriesInput, setShowSeriesInput] = useState(false);
+  const [newSeriesName, setNewSeriesName] = useState('');
+  const [savingSeries, setSavingSeries] = useState(false);
 
   const fileInputRef = useRef(null);
   const thumbnailInputRef = useRef(null);
 
-  // Load editing product data
+  // Fetch editing product data
   useEffect(() => {
     if (!editingProduct) {
       setForm(emptyForm);
-      setLoading(false);
+      setFetching(false);
       return;
     }
 
-    const mappedVariants = (editingProduct.variantItems || []).map((variant) => ({
-      id: variant.id,
-      color: variant.color || 'Đen',
-      storageLabel: variant.storageLabel || '',
-      price: variant.price ?? '',
-      stock: variant.stock ?? '',
-      ramGb: variant.ramGb ?? '',
-      colorImageUrl: variant.colorImageUrl || '',
-    }));
+    const fetchProduct = async () => {
+      setFetching(true);
+      try {
+        const res = await ProductService.getProductDetail(
+          editingProduct._id || editingProduct.id
+        );
+        const data = res.data;
 
-    setForm({
-      name: editingProduct.name || '',
-      brand: editingProduct.brand || '',
-      description: editingProduct.description || '',
-      thumbnailUrl: editingProduct.thumbnailUrl || '',
-      images: editingProduct.images || [],
-      specifications: {
-        ...emptyForm.specifications,
-        ...(editingProduct.specifications || {}),
-      },
-      variants: mappedVariants,
-    });
-    setPickerColor('Đen');
-    setPickerStorage([]);
-    setPickerRam([]);
-    setLoading(false);
-  }, [editingProduct]);
+        const mappedVariants = (data.variantItems || []).map((variant) => ({
+          id: variant.id,
+          color: variant.color || 'Đen',
+          storageLabel: variant.storageLabel || '',
+          price: variant.price ?? '',
+          stock: variant.stock ?? '',
+          ramGb: variant.ramGb ?? '',
+          colorImageUrl: variant.colorImageUrl || '',
+        }));
+
+        setForm({
+          baseName: data.baseName || data.name || '',
+          name: data.name || '',
+          brand: data.brand || '',
+          seriesId: data.seriesId || '',
+          description: data.description || '',
+          thumbnailUrl: data.thumbnailUrl || '',
+          images: data.images || [],
+          specifications: {
+            ...emptyForm.specifications,
+            ...(data.specifications || {}),
+          },
+          variants: mappedVariants,
+        });
+        setPickerColor('Đen');
+        setPickerStorage('');
+        setPickerRam('');
+      } catch (err) {
+        alert('Không tải được sản phẩm. Vui lòng thử lại.');
+        onClose();
+      } finally {
+        setFetching(false);
+      }
+    };
+
+    fetchProduct();
+  }, [editingProduct?._id, editingProduct?.id]);
+
+  useEffect(() => {
+    AdminService.getBrands().then((res) => {
+      const data = res.data?.data ?? res.data ?? [];
+      setBrands(Array.isArray(data) ? data : []);
+    }).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (form.brand) {
+      const selectedBrand = brands.find(b => b.name === form.brand);
+      if (selectedBrand) {
+        SeriesService.getSeriesByBrand(selectedBrand.id).then((res) => {
+          setSeriesList(Array.isArray(res.data) ? res.data : []);
+        }).catch(() => {});
+      }
+    }
+  }, [form.brand, brands]);
+
+  const handleCreateBrand = async () => {
+    if (!newBrandName.trim()) return;
+    setSavingBrand(true);
+    try {
+      const res = await AdminService.createBrand({ name: newBrandName.trim(), isActive: true });
+      const newBrand = res.data;
+      setBrands((prev) => [newBrand, ...prev]);
+      setForm((prev) => ({ ...prev, brand: newBrand.name }));
+      setShowBrandInput(false);
+      setNewBrandName('');
+      setSeriesList([]);
+      setForm((prev) => ({ ...prev, seriesId: '' }));
+    } catch (e) {
+      alert(e.response?.data?.message || 'Tạo thương hiệu thất bại');
+    } finally {
+      setSavingBrand(false);
+    }
+  };
+
+  const handleCreateSeries = async () => {
+    if (!newSeriesName.trim() || !form.brand) return;
+    const selectedBrand = brands.find(b => b.name === form.brand);
+    if (!selectedBrand) { alert('Vui lòng chọn thương hiệu trước'); return; }
+    setSavingSeries(true);
+    try {
+      const res = await SeriesService.createSeries({
+        name: newSeriesName.trim(),
+        brandId: selectedBrand.id,
+        isActive: true,
+      });
+      const newSeries = res.data;
+      setSeriesList((prev) => [...prev, newSeries]);
+      setForm((prev) => ({ ...prev, seriesId: newSeries.id }));
+      setShowSeriesInput(false);
+      setNewSeriesName('');
+    } catch (e) {
+      alert(e.response?.data?.message || 'Tạo dòng sản phẩm thất bại');
+    } finally {
+      setSavingSeries(false);
+    }
+  };
 
   const updateForm = (updater) => {
-    setForm((prev) => (typeof updater === 'function' ? updater(prev) : { ...prev, ...updater }));
+    setForm((prev) => {
+      const next = typeof updater === 'function' ? updater(prev) : { ...prev, ...updater };
+      // Auto-regenerate name from baseName + first variant
+      if (next.baseName !== undefined || next.variants !== undefined) {
+        const bn = next.baseName || '';
+        const firstVar = next.variants?.[0];
+        next.name = buildVariantName(bn, firstVar) || next.name || '';
+      }
+      return next;
+    });
   };
 
   const updateSpecField = (key, value) => {
@@ -164,7 +247,6 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
     }));
   };
 
-  // ── Thumbnail upload ─────────────────────────────────────────────────────────
   const handleThumbnailUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -180,7 +262,6 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
     }
   };
 
-  // ── Gallery upload ───────────────────────────────────────────────────────────
   const handleGalleryUpload = async (e) => {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
@@ -200,7 +281,6 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
     }
   };
 
-  // ── Variant color image upload ───────────────────────────────────────────────
   const handleVariantColorImageUpload = async (e, variantIndex) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -222,40 +302,25 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
 
   const removeThumbnail = () => updateForm({ thumbnailUrl: '' });
 
-  // ── Quick add variant ────────────────────────────────────────────────────────
   const handleAddVariant = () => {
-    if (pickerStorage.length === 0) {
-      alert('Vui lòng chọn ít nhất một dung lượng.');
+    if (!pickerStorage) {
+      alert('Vui lòng chọn dung lượng.');
       return;
     }
-    // Tạo biến thể cho mỗi tổ hợp storage + ram
-    for (const storage of pickerStorage) {
-      for (const ram of pickerRam) {
-        appendVariant({ color: pickerColor, storageLabel: storage, ramGb: ram });
-      }
-      // Nếu không chọn RAM, vẫn thêm variant cho storage đó
-      if (pickerRam.length === 0) {
-        appendVariant({ color: pickerColor, storageLabel: storage, ramGb: '' });
-      }
-    }
-    // Reset picker
-    setPickerStorage([]);
-    setPickerRam([]);
+    const ramToAdd = pickerRam || '';
+    appendVariant({ color: pickerColor, storageLabel: pickerStorage, ramGb: ramToAdd });
+    setPickerStorage('');
+    setPickerRam('');
   };
 
-  const togglePickerStorage = (value) => {
-    setPickerStorage((prev) =>
-      prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]
-    );
+  const handlePickerStorage = (value) => {
+    setPickerStorage((prev) => prev === value ? '' : value);
   };
 
-  const togglePickerRam = (value) => {
-    setPickerRam((prev) =>
-      prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]
-    );
+  const handlePickerRam = (value) => {
+    setPickerRam((prev) => prev === value ? '' : value);
   };
 
-  // ── Save ────────────────────────────────────────────────────────────────────
   const handleSave = async () => {
     if (!form.name.trim() || !form.brand.trim()) {
       alert('Vui lòng nhập tên sản phẩm và thương hiệu.');
@@ -274,7 +339,7 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
       }));
 
     if (preparedVariants.length === 0) {
-      alert('Vui lòng thêm ít nhất 1 biến thể.');
+      alert('Vui lòng thêm ít nhất 1 phiên bản.');
       return;
     }
 
@@ -286,8 +351,10 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
     }, {});
 
     const payload = {
-      name: form.name,
+      baseName: (form.baseName || '').trim() || form.name.trim(),
+      name: form.name.trim(),
       brand: form.brand,
+      seriesId: form.seriesId || null,
       description: form.description,
       thumbnailUrl: form.thumbnailUrl || null,
       images: form.images,
@@ -313,19 +380,20 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
     }
   };
 
-  if (loading) {
+  if (fetching) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0a0a0f]">
-        <p className="text-gray-400 font-bold">Đang tải...</p>
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-10 h-10 border-2 border-white/20 border-t-red-500 rounded-full animate-spin" />
+          <p className="text-gray-400 font-bold text-sm">Đang tải sản phẩm...</p>
+        </div>
       </div>
     );
   }
 
-  if (!form) return null;
-
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-[#0a0a0f] overflow-hidden">
-      {/* ── Header ──────────────────────────────────────────────────────────── */}
+      {/* Header */}
       <header className="flex items-center justify-between px-6 py-4 border-b border-white/5 bg-[#0f1117] flex-shrink-0">
         <div className="flex items-center gap-4">
           <button
@@ -362,50 +430,150 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
         </div>
       </header>
 
-      {/* ── Body: scrollable 2-column layout ─────────────────────────────────── */}
+      {/* Body */}
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-[1400px] mx-auto px-6 py-8 grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-8">
 
-          {/* ── Left Column: Form ─────────────────────────────────────────────── */}
+          {/* Left Column: Form */}
           <div className="space-y-8">
 
             {/* Basic Info */}
             <section className="bg-[#13151e] border border-white/5 rounded-2xl p-6 space-y-5">
               <h3 className="text-sm font-black text-white uppercase tracking-wider">Thông tin cơ bản</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Tên sản phẩm */}
                 <div>
-                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">Tên sản phẩm *</label>
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">
+                    Tên sản phẩm *
+                  </label>
                   <input
                     type="text"
-                    value={form.name}
-                    placeholder="iPhone 15 Pro Max"
-                    onChange={(e) => updateForm({ name: e.target.value })}
+                    value={form.baseName}
+                    placeholder="VD: iPhone 17 Pro Max"
+                    onChange={(e) => updateForm({ baseName: e.target.value })}
                     className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-red-500/50 transition-all"
                   />
+                  <p className="text-[10px] text-gray-600 mt-1">
+                    Tên chung cho tất cả phiên bản. RAM & dung lượng được thêm tự động.
+                  </p>
                 </div>
+
+                {/* Brand */}
                 <div>
                   <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">Thương hiệu *</label>
-                  <input
-                    type="text"
-                    value={form.brand}
-                    placeholder="Apple"
-                    onChange={(e) => updateForm({ brand: e.target.value })}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-red-500/50 transition-all"
-                  />
+                  {!showBrandInput ? (
+                    <div className="flex gap-2">
+                      <select
+                        value={form.brand}
+                        onChange={(e) => updateForm({ brand: e.target.value })}
+                        className="flex-1 bg-[#1e2030] border border-white/20 rounded-xl px-4 py-3 text-sm text-gray-200 focus:outline-none focus:border-red-500"
+                        style={{ color: '#e5e7eb' }}
+                      >
+                        <option value="">-- Chọn thương hiệu --</option>
+                        {brands.map((b) => (
+                          <option key={b.id} value={b.name}>{b.name}</option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        onClick={() => setShowBrandInput(true)}
+                        className="px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-gray-400 hover:text-green-400 hover:border-green-500/30 transition-all"
+                        title="Thêm thương hiệu mới"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                        </svg>
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={newBrandName}
+                        onChange={(e) => setNewBrandName(e.target.value)}
+                        placeholder="Nhập tên thương hiệu mới..."
+                        onKeyDown={(e) => e.key === 'Enter' && handleCreateBrand()}
+                        className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-red-500/50"
+                      />
+                      <button type="button" onClick={handleCreateBrand} disabled={savingBrand}
+                        className="px-3 py-2 bg-green-600 hover:bg-green-700 rounded-xl text-white transition-all disabled:opacity-50">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                      </button>
+                      <button type="button"
+                        onClick={() => { setShowBrandInput(false); setNewBrandName(''); }}
+                        className="px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-gray-400 hover:text-white transition-all">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Series */}
+                <div>
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">Dòng sản phẩm (Series)</label>
+                  {form.brand ? (
+                    <>
+                      {!showSeriesInput ? (
+                        <div className="flex gap-2">
+                          <select
+                            value={form.seriesId || ''}
+                            onChange={(e) => updateForm({ seriesId: e.target.value ? Number(e.target.value) : '' })}
+                            className="flex-1 bg-[#1e2030] border border-white/20 rounded-xl px-4 py-3 text-sm text-gray-200 focus:outline-none focus:border-red-500"
+                            style={{ color: '#e5e7eb' }}
+                          >
+                            <option value="">-- Không thuộc dòng nào --</option>
+                            {seriesList.map((s) => (
+                              <option key={s.id} value={s.id}>{s.name}</option>
+                            ))}
+                          </select>
+                          <button type="button" onClick={() => setShowSeriesInput(true)}
+                            className="px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-gray-400 hover:text-green-400 hover:border-green-500/30 transition-all"
+                            title="Thêm dòng sản phẩm mới">
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                            </svg>
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex gap-2">
+                          <input type="text" value={newSeriesName}
+                            onChange={(e) => setNewSeriesName(e.target.value)}
+                            placeholder="Nhập tên dòng sản phẩm mới..."
+                            onKeyDown={(e) => e.key === 'Enter' && handleCreateSeries()}
+                            className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-red-500/50" />
+                          <button type="button" onClick={handleCreateSeries} disabled={savingSeries}
+                            className="px-3 py-2 bg-green-600 hover:bg-green-700 rounded-xl text-white transition-all disabled:opacity-50">
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                          </button>
+                          <button type="button"
+                            onClick={() => { setShowSeriesInput(false); setNewSeriesName(''); }}
+                            className="px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-gray-400 hover:text-white transition-all">
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <p className="text-xs text-gray-600 italic">Vui lòng chọn thương hiệu trước</p>
+                  )}
                 </div>
               </div>
 
               {/* Description */}
               <div>
-                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">Mô tả (hỗ trợ chèn ảnh từ máy & URL)</label>
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">Mô tả</label>
                 <div className="rounded-xl overflow-hidden border border-white/10">
-                  <ReactQuill
-                    theme="snow"
+                  <TiptapEditor
                     value={form.description}
                     onChange={(content) => updateForm({ description: content })}
-                    modules={quillModules}
-                    formats={quillFormats}
-                    className="bg-white text-gray-800 [&_.ql-container]:min-h-[160px] [&_.ql-editor]:min-h-[160px]"
                     placeholder="Mô tả sản phẩm..."
                   />
                 </div>
@@ -416,15 +584,13 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
             <section className="bg-[#13151e] border border-white/5 rounded-2xl p-6 space-y-5">
               <h3 className="text-sm font-black text-white uppercase tracking-wider">Hình ảnh</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-                {/* Thumbnail */}
                 <div>
                   <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">Ảnh Thumbnail</label>
                   <p className="text-[10px] text-gray-600 mb-2">Ảnh đại diện hiển thị trong danh sách. Nên dùng ảnh vuông.</p>
                   {form.thumbnailUrl ? (
                     <div className="relative group w-28 h-28">
                       <img
-                        src={form.thumbnailUrl}
+                        src={form.thumbnailUrl && form.thumbnailUrl.trim() ? form.thumbnailUrl : undefined}
                         alt="Thumbnail"
                         className="w-full h-full object-contain bg-white/5 rounded-xl border border-white/10 p-1"
                         onError={(e) => { e.target.src = 'https://picsum.photos/seed/fallback/80/80'; }}
@@ -453,7 +619,6 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
                   <input ref={thumbnailInputRef} type="file" accept="image/*" className="hidden" onChange={handleThumbnailUpload} />
                 </div>
 
-                {/* Gallery */}
                 <div>
                   <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">Ảnh Gallery</label>
                   <p className="text-[10px] text-gray-600 mb-2">Nhiều ảnh hiển thị trong trang chi tiết sản phẩm.</p>
@@ -476,21 +641,25 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
                 <div className="flex flex-wrap gap-3">
                   {form.images.map((img, index) => (
                     <div key={index} className="relative group">
-                      <img
-                        src={img}
-                        alt=""
-                        className="w-20 h-20 object-contain bg-white/5 rounded-xl border border-white/10 p-1"
-                        onError={(e) => { e.target.src = 'https://picsum.photos/seed/fallback/80/80'; }}
-                      />
-                      <button
-                        onClick={() => removeImage(index)}
-                        className="absolute -top-2 -right-2 w-5 h-5 bg-red-600 rounded-full text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity font-bold"
-                      >
-                        ×
-                      </button>
-                      {index === 0 && (
-                        <span className="absolute bottom-1 left-1 text-[8px] bg-red-600 text-white px-1 rounded font-bold">CHÍNH</span>
-                      )}
+                      {img && img.trim() ? (
+                        <>
+                          <img
+                            src={img}
+                            alt=""
+                            className="w-20 h-20 object-contain bg-white/5 rounded-xl border border-white/10 p-1"
+                            onError={(e) => { e.target.src = 'https://picsum.photos/seed/fallback/80/80'; }}
+                          />
+                          <button
+                            onClick={() => removeImage(index)}
+                            className="absolute -top-2 -right-2 w-5 h-5 bg-red-600 rounded-full text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity font-bold"
+                          >
+                            ×
+                          </button>
+                          {index === 0 && (
+                            <span className="absolute bottom-1 left-1 text-[8px] bg-red-600 text-white px-1 rounded font-bold">CHÍNH</span>
+                          )}
+                        </>
+                      ) : null}
                     </div>
                   ))}
                 </div>
@@ -501,17 +670,16 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
             <section className="bg-[#13151e] border border-white/5 rounded-2xl p-6 space-y-5">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-sm font-black text-white uppercase tracking-wider">Biến thể</h3>
-                  <p className="text-xs text-gray-500 mt-1">Chọn dung lượng & RAM, sau đó nhấn "Thêm biến thể".</p>
+                  <h3 className="text-sm font-black text-white uppercase tracking-wider">Phiên bản</h3>
+                  <p className="text-xs text-gray-500 mt-1">Mỗi phiên bản (RAM/storage khác nhau) = 1 sản phẩm riêng khi lưu.</p>
                 </div>
                 <span className="text-xs bg-white/5 text-gray-400 px-3 py-1 rounded-lg">
-                  {form.variants.length} biến thể
+                  {form.variants.length} phiên bản
                 </span>
               </div>
 
               {/* Quick picker */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 rounded-xl border border-white/10 bg-white/[0.02]">
-                {/* Storage */}
                 <div>
                   <p className="text-[10px] text-gray-500 uppercase font-bold tracking-widest mb-2">Dung lượng</p>
                   <div className="flex flex-wrap gap-1.5">
@@ -519,9 +687,9 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
                       <button
                         key={s}
                         type="button"
-                        onClick={() => togglePickerStorage(s)}
+                        onClick={() => handlePickerStorage(s)}
                         className={`px-2.5 py-1.5 text-[11px] font-bold rounded-lg border transition-all ${
-                          pickerStorage.includes(s)
+                          pickerStorage === s
                             ? 'bg-red-600 border-red-600 text-white'
                             : 'border-white/10 text-gray-400 hover:border-white/20 hover:text-white'
                         }`}
@@ -532,17 +700,18 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
                   </div>
                 </div>
 
-                {/* RAM */}
                 <div>
-                  <p className="text-[10px] text-gray-500 uppercase font-bold tracking-widest mb-2">RAM <span className="text-gray-600 font-normal">(không bắt buộc)</span></p>
+                  <p className="text-[10px] text-gray-500 uppercase font-bold tracking-widest mb-2">
+                    RAM <span className="text-gray-600 font-normal">(tùy chọn)</span>
+                  </p>
                   <div className="flex flex-wrap gap-1.5">
                     {RAM_PRESETS.map((r) => (
                       <button
                         key={r}
                         type="button"
-                        onClick={() => togglePickerRam(r)}
+                        onClick={() => handlePickerRam(r)}
                         className={`px-2.5 py-1.5 text-[11px] font-bold rounded-lg border transition-all ${
-                          pickerRam.includes(r)
+                          pickerRam === r
                             ? 'bg-red-600 border-red-600 text-white'
                             : 'border-white/10 text-gray-400 hover:border-white/20 hover:text-white'
                         }`}
@@ -553,7 +722,6 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
                   </div>
                 </div>
 
-                {/* Color + Action */}
                 <div className="flex flex-col justify-between gap-3">
                   <div>
                     <p className="text-[10px] text-gray-500 uppercase font-bold tracking-widest mb-2">Màu</p>
@@ -562,7 +730,7 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
                       type="text"
                       value={pickerColor}
                       onChange={(e) => setPickerColor(e.target.value)}
-                      placeholder="Chọn hoặc gõ màu (VD: Đen, Tím...)"
+                      placeholder="VD: Đen, Bạc..."
                       className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-gray-300 placeholder-gray-600 focus:outline-none focus:border-red-500/50"
                     />
                     <datalist id="color-presets">
@@ -572,10 +740,10 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
                   <button
                     type="button"
                     onClick={handleAddVariant}
-                    disabled={pickerStorage.length === 0}
+                    disabled={!pickerStorage}
                     className="w-full py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-xs font-bold text-white transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
                   >
-                    + Thêm biến thể
+                    + Thêm phiên bản
                   </button>
                 </div>
               </div>
@@ -583,10 +751,11 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
               {/* Variant list */}
               <div className="space-y-3">
                 {(form.variants || []).map((variant, index) => (
-                  <div key={variant.id || index} className="p-4 rounded-xl border border-white/10 bg-white/[0.02] space-y-3">
+                  <div key={variant.id || index}
+                    className="p-4 rounded-xl border border-white/10 bg-white/[0.02] space-y-3">
                     <div className="flex items-center justify-between">
                       <p className="text-[11px] text-emerald-300/90">
-                        {buildVariantPreviewName(form.name, variant) || 'Nhập tên sản phẩm để xem trước'}
+                        {buildVariantName(form.baseName || form.name, variant) || 'Nhập tên dòng sản phẩm để xem trước'}
                       </p>
                       <button
                         type="button"
@@ -604,7 +773,7 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
                           list="variant-color-presets"
                           value={variant.color || ''}
                           onChange={(e) => updateVariantField(index, 'color', e.target.value)}
-                          placeholder="Đen, Trắng, Xanh..."
+                          placeholder="Đen, Bạc..."
                           className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-2 text-xs text-gray-300 placeholder-gray-600 focus:outline-none focus:border-red-500/50"
                         />
                       </div>
@@ -651,7 +820,6 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
                       </div>
                     </div>
 
-                    {/* Color image */}
                     <div>
                       <label className="text-[10px] text-gray-500 block mb-1">Ảnh màu sắc</label>
                       <div className="flex items-center gap-3">
@@ -688,7 +856,7 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
                             />
                           </label>
                         )}
-                        <p className="text-[9px] text-gray-600">Ảnh hiển thị khi chọn màu {variant.color || 'này'} ở trang chi tiết</p>
+                        <p className="text-[9px] text-gray-600">Ảnh hiển thị khi chọn màu {variant.color || 'này'}</p>
                       </div>
                     </div>
                   </div>
@@ -696,8 +864,8 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
 
                 {(form.variants || []).length === 0 && (
                   <div className="text-center py-10 border border-dashed border-white/5 rounded-xl">
-                    <p className="text-gray-600 text-sm font-bold">Chưa có biến thể nào.</p>
-                    <p className="text-gray-700 text-xs mt-1">Chọn dung lượng & RAM bên trên rồi nhấn "Thêm biến thể".</p>
+                    <p className="text-gray-600 text-sm font-bold">Chưa có phiên bản nào.</p>
+                    <p className="text-gray-700 text-xs mt-1">Chọn dung lượng bên trên rồi nhấn "Thêm phiên bản".</p>
                   </div>
                 )}
               </div>
@@ -730,16 +898,22 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
             </section>
           </div>
 
-          {/* ── Right Column: Live Preview ─────────────────────────────────────── */}
+          {/* Right Column: Live Preview */}
           <div className="lg:block">
             <div className="sticky top-8">
               <h3 className="text-xs font-black text-gray-500 uppercase tracking-widest mb-4">Xem trước</h3>
               <div className="bg-white rounded-2xl overflow-hidden shadow-2xl">
-                {/* Preview thumbnail */}
                 <div className="aspect-square bg-gray-50 flex items-center justify-center overflow-hidden">
-                  {form.thumbnailUrl || form.images.length > 0 ? (
+                  {form.thumbnailUrl ? (
                     <img
-                      src={form.thumbnailUrl || form.images[0]}
+                      src={form.thumbnailUrl}
+                      alt="preview"
+                      className="w-full h-full object-contain"
+                      onError={(e) => { e.target.src = 'https://picsum.photos/seed/preview/400/400'; }}
+                    />
+                  ) : form.images.length > 0 ? (
+                    <img
+                      src={form.images[0]}
                       alt="preview"
                       className="w-full h-full object-contain"
                       onError={(e) => { e.target.src = 'https://picsum.photos/seed/preview/400/400'; }}
@@ -756,13 +930,15 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
                   )}
                 </div>
 
-                {/* Preview info */}
                 <div className="p-4 space-y-2">
                   {form.brand && (
                     <p className="text-[10px] text-gray-400 uppercase font-bold tracking-widest">{form.brand}</p>
                   )}
+                  {form.baseName && (
+                    <p className="text-[10px] text-blue-400 font-bold">{form.baseName}</p>
+                  )}
                   <p className="font-bold text-gray-900 text-sm leading-tight">
-                    {form.name || 'Tên sản phẩm'}
+                    {buildVariantName(form.baseName || form.name, form.variants[0]) || 'Tên sản phẩm'}
                   </p>
                   {form.variants.length > 0 && (
                     <p className="text-lg font-black text-red-600">
@@ -872,7 +1048,6 @@ export const AdminProducts = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-black text-white tracking-tight">Sản phẩm</h1>
@@ -883,7 +1058,9 @@ export const AdminProducts = () => {
           disabled={isReadOnlyMode}
           className="flex items-center gap-2 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-xl transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
           Thêm sản phẩm
         </button>
       </div>
@@ -894,9 +1071,10 @@ export const AdminProducts = () => {
         </div>
       )}
 
-      {/* Search */}
       <div className="relative">
-        <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+        <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        </svg>
         <input
           type="text"
           placeholder="Tìm theo tên, thương hiệu..."
@@ -914,6 +1092,7 @@ export const AdminProducts = () => {
             <tr className="text-[10px] text-gray-500 uppercase tracking-widest border-b border-white/5">
               <th className="text-left px-6 py-3 font-medium">Sản phẩm</th>
               <th className="text-left px-6 py-3 font-medium hidden md:table-cell">Thương hiệu</th>
+              <th className="text-left px-6 py-3 font-medium hidden lg:table-cell">Series</th>
               <th className="text-right px-6 py-3 font-medium">Giá</th>
               <th className="text-center px-6 py-3 font-medium">Thao tác</th>
             </tr>
@@ -940,6 +1119,13 @@ export const AdminProducts = () => {
                   <td className="px-6 py-3 hidden md:table-cell">
                     <span className="text-xs bg-white/5 text-gray-400 px-2 py-1 rounded-lg">{product.brand}</span>
                   </td>
+                  <td className="px-6 py-3 hidden lg:table-cell">
+                    {product.seriesName ? (
+                      <span className="text-xs bg-blue-500/10 text-blue-400 px-2 py-1 rounded-lg">{product.seriesName}</span>
+                    ) : (
+                      <span className="text-[11px] text-gray-600">—</span>
+                    )}
+                  </td>
                   <td className="px-6 py-3 text-right">
                     <span className="text-sm font-bold text-red-400">{Number(product.price || 0).toLocaleString()}₫</span>
                   </td>
@@ -950,14 +1136,18 @@ export const AdminProducts = () => {
                         disabled={isReadOnlyMode}
                         className="p-1.5 rounded-lg text-gray-400 hover:text-blue-400 hover:bg-blue-500/10 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
                       >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
                       </button>
                       <button
                         onClick={() => setDeleteConfirm(pid)}
                         disabled={isReadOnlyMode}
                         className="p-1.5 rounded-lg text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
                       >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
                       </button>
                     </div>
                   </td>
@@ -1001,7 +1191,6 @@ export const AdminProducts = () => {
         </div>
       )}
 
-      {/* Full-screen form overlay */}
       {showForm && (
         <ProductFormPage
           editingProduct={editingProduct}
@@ -1010,12 +1199,13 @@ export const AdminProducts = () => {
         />
       )}
 
-      {/* Delete confirm modal */}
       {deleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
           <div className="bg-[#13151e] border border-white/10 rounded-2xl w-full max-w-sm p-6 text-center">
             <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-4">
-              <svg className="w-6 h-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+              <svg className="w-6 h-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
             </div>
             <h3 className="text-lg font-black text-white mb-2">Xóa sản phẩm?</h3>
             <p className="text-sm text-gray-400 mb-6">Hành động này không thể hoàn tác.</p>

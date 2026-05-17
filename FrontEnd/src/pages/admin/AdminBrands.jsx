@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import AdminService from '../../services/adminService';
 import ProductService from '../../services/productService';
 
@@ -11,8 +11,13 @@ const AdminBrands = () => {
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [form, setForm] = useState({ name: '', logoUrl: '', isActive: true });
+  const [form, setForm] = useState({ name: '', logoUrl: '', isActive: true, sortOrder: 0 });
   const logoInputRef = React.useRef(null);
+
+  // Drag state
+  const [draggedIndex, setDraggedIndex] = useState(null);
+  const [dragOverIndex, setDragOverIndex] = useState(null);
+  const dragNode = useRef(null);
 
   useEffect(() => { fetchBrands(); }, []);
 
@@ -21,14 +26,13 @@ const AdminBrands = () => {
     setFetchError(null);
     try {
       const res = await AdminService.getBrands();
-      // API trả về object có field data, hoặc trả thẳng array
       const data = res.data?.data ?? res.data ?? [];
       setBrands(Array.isArray(data) ? data : []);
     } catch (e) {
       console.error('[AdminBrands] Fetch error:', e);
       const msg = e.response?.data?.message || e.message || 'Không thể tải danh sách thương hiệu. Đảm bảo backend đang chạy tại http://localhost:8080';
       setFetchError(msg);
-      setBrands([]); // fallback rỗng
+      setBrands([]);
     } finally {
       setLoading(false);
     }
@@ -36,13 +40,13 @@ const AdminBrands = () => {
 
   const openAdd = () => {
     setEditingBrand(null);
-    setForm({ name: '', logoUrl: '', isActive: true });
+    setForm({ name: '', logoUrl: '', isActive: true, sortOrder: 0 });
     setShowForm(true);
   };
 
   const openEdit = (brand) => {
     setEditingBrand(brand);
-    setForm({ name: brand.name || '', logoUrl: brand.logoUrl || '', isActive: brand.isActive !== false });
+    setForm({ name: brand.name || '', logoUrl: brand.logoUrl || '', isActive: brand.isActive !== false, sortOrder: brand.sortOrder || 0 });
     setShowForm(true);
   };
 
@@ -65,11 +69,12 @@ const AdminBrands = () => {
     if (!form.name.trim()) { alert('Vui lòng nhập tên thương hiệu.'); return; }
     setSaving(true);
     try {
+      const payload = { ...form, sortOrder: form.sortOrder || 0 };
       if (editingBrand) {
-        const res = await AdminService.updateBrand(editingBrand.id, form);
+        const res = await AdminService.updateBrand(editingBrand.id, payload);
         setBrands((p) => p.map((b) => b.id === editingBrand.id ? res.data : b));
       } else {
-        const res = await AdminService.createBrand(form);
+        const res = await AdminService.createBrand(payload);
         setBrands((p) => [res.data, ...p]);
       }
       setShowForm(false);
@@ -90,13 +95,72 @@ const AdminBrands = () => {
     }
   };
 
+  const handleToggleActive = async (brand) => {
+    try {
+      const res = await AdminService.updateBrand(brand.id, { ...brand, isActive: !brand.isActive });
+      setBrands((p) => p.map((b) => b.id === brand.id ? res.data : b));
+    } catch {
+      alert('Cập nhật thất bại');
+    }
+  };
+
+  // ── Drag & Drop Handlers ─────────────────────────────────────────────────
+  const handleDragStart = (e, index) => {
+    setDraggedIndex(index);
+    dragNode.current = e.target;
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/html', e.currentTarget);
+  };
+
+  const handleDragEnter = (e, index) => {
+    e.preventDefault();
+    setDragOverIndex(index);
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDrop = async (e, dropIndex) => {
+    e.preventDefault();
+    const dragIndex = draggedIndex;
+    if (dragIndex === null || dragIndex === dropIndex) {
+      setDraggedIndex(null);
+      setDragOverIndex(null);
+      return;
+    }
+
+    const updated = [...brands];
+    const [moved] = updated.splice(dragIndex, 1);
+    updated.splice(dropIndex, 0, moved);
+    setBrands(updated);
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+
+    // Save new order to backend
+    try {
+      const brandIds = updated.map((b) => b.id);
+      const res = await AdminService.reorderBrands(brandIds);
+      setBrands(res.data || updated);
+    } catch (e) {
+      alert('Lưu thứ tự thất bại. Vui lòng thử lại.');
+      fetchBrands();
+    }
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-black text-white tracking-tight">Thương hiệu</h1>
-          <p className="text-sm text-gray-500 mt-1">{brands.length} thương hiệu</p>
+          <p className="text-sm text-gray-500 mt-1">{brands.length} thương hiệu · Kéo thả để sắp xếp thứ tự hiển thị</p>
         </div>
         <button
           onClick={openAdd}
@@ -107,7 +171,17 @@ const AdminBrands = () => {
         </button>
       </div>
 
-      {/* Table */}
+      {/* Hint */}
+      {brands.length > 1 && (
+        <div className="flex items-center gap-2 text-xs text-gray-500 bg-white/5 border border-white/5 rounded-xl px-4 py-2.5">
+          <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          Kéo thả để thay đổi thứ tự hiển thị trên trang chủ. Thương hiệu ở trên sẽ hiển thị trước.
+        </div>
+      )}
+
+      {/* Brand list */}
       <div className="bg-[#13151e] border border-white/5 rounded-2xl overflow-hidden">
         {loading && <div className="px-6 py-4 text-sm text-gray-400 border-b border-white/5">Đang tải...</div>}
         {fetchError && (
@@ -116,52 +190,73 @@ const AdminBrands = () => {
             <button onClick={fetchBrands} className="mt-2 text-xs text-red-400 underline hover:text-red-300">Thử lại</button>
           </div>
         )}
-        <table className="w-full">
-          <thead>
-            <tr className="text-[10px] text-gray-500 uppercase tracking-widest border-b border-white/5">
-              <th className="text-left px-6 py-3 font-medium">Thương hiệu</th>
-              <th className="text-left px-6 py-3 font-medium hidden md:table-cell">Slug</th>
-              <th className="text-center px-6 py-3 font-medium">Trạng thái</th>
-              <th className="text-center px-6 py-3 font-medium">Thao tác</th>
-            </tr>
-          </thead>
-          <tbody>
-            {brands.map((brand) => (
-              <tr key={brand.id} className="border-b border-white/[0.03] hover:bg-white/[0.02] transition-colors">
-                <td className="px-6 py-3">
-                  <div className="flex items-center gap-3">
-                    {brand.logoUrl ? (
-                      <img src={brand.logoUrl} alt={brand.name} className="w-10 h-10 rounded-lg object-contain bg-white/5 border border-white/10 p-0.5" onError={(e) => { e.target.src = 'https://picsum.photos/seed/brand/40/40'; }} />
-                    ) : (
-                      <div className="w-10 h-10 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-gray-500 font-bold text-lg">{brand.name.charAt(0)}</div>
-                    )}
-                    <span className="text-sm font-medium text-white">{brand.name}</span>
-                  </div>
-                </td>
-                <td className="px-6 py-3 hidden md:table-cell">
-                  <code className="text-xs text-gray-500 bg-white/5 px-2 py-1 rounded">{brand.slug}</code>
-                </td>
-                <td className="px-6 py-3 text-center">
-                  <span className={`text-[11px] font-bold px-2 py-1 rounded-full ${brand.isActive !== false ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
-                    {brand.isActive !== false ? 'Hoạt động' : 'Tắt'}
-                  </span>
-                </td>
-                <td className="px-6 py-3">
-                  <div className="flex items-center justify-center gap-2">
-                    <button onClick={() => openEdit(brand)} className="p-1.5 rounded-lg text-gray-400 hover:text-blue-400 hover:bg-blue-500/10 transition-all">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                    </button>
-                    <button onClick={() => setDeleteConfirm(brand.id)} className="p-1.5 rounded-lg text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-all">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {!loading && brands.length === 0 && (
+
+        {!loading && brands.length === 0 && !fetchError && (
           <div className="py-16 text-center text-gray-600 font-bold">Chưa có thương hiệu nào</div>
+        )}
+
+        {!loading && brands.length > 0 && (
+          <div className="divide-y divide-white/[0.03]">
+            {brands.map((brand, index) => (
+              <div
+                key={brand.id}
+                draggable
+                onDragStart={(e) => handleDragStart(e, index)}
+                onDragEnter={(e) => handleDragEnter(e, index)}
+                onDragOver={handleDragOver}
+                onDrop={(e) => handleDrop(e, index)}
+                onDragEnd={handleDragEnd}
+                className={`flex items-center gap-4 px-6 py-4 group transition-all cursor-grab active:cursor-grabbing ${
+                  dragOverIndex === index && draggedIndex !== index ? 'bg-red-500/5 border-t border-b border-red-500/20' : ''
+                } ${draggedIndex === index ? 'opacity-40' : ''} hover:bg-white/[0.02]`}
+              >
+                {/* Drag handle */}
+                <div className="flex-shrink-0 text-gray-600 hover:text-gray-400 transition-colors">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 8h16M4 16h16" />
+                  </svg>
+                </div>
+
+                {/* Logo */}
+                <div className="flex-shrink-0">
+                  {brand.logoUrl ? (
+                    <img src={brand.logoUrl} alt={brand.name} className="w-12 h-12 rounded-xl object-contain bg-white/5 border border-white/10 p-1" onError={(e) => { e.target.src = 'https://picsum.photos/seed/brand/48/48'; }} />
+                  ) : (
+                    <div className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-gray-500 font-bold text-lg">{brand.name.charAt(0)}</div>
+                  )}
+                </div>
+
+                {/* Name + order */}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-white truncate">{brand.name}</p>
+                  <p className="text-[11px] text-gray-600 mt-0.5">#{index + 1} · {brand.isActive !== false ? 'Hoạt động' : 'Tắt'}</p>
+                </div>
+
+                {/* Toggle */}
+                <button
+                  onClick={() => handleToggleActive(brand)}
+                  className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 ${
+                    brand.isActive !== false ? 'bg-red-600' : 'bg-gray-600'
+                  }`}
+                  title={brand.isActive !== false ? 'Tắt thương hiệu' : 'Bật thương hiệu'}
+                >
+                  <span className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${
+                    brand.isActive !== false ? 'translate-x-5' : 'translate-x-0'
+                  }`} />
+                </button>
+
+                {/* Actions */}
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  <button onClick={() => openEdit(brand)} className="p-2 rounded-lg text-gray-400 hover:text-blue-400 hover:bg-blue-500/10 transition-all" title="Sửa">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                  </button>
+                  <button onClick={() => setDeleteConfirm(brand.id)} className="p-2 rounded-lg text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-all" title="Xóa">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
         )}
       </div>
 

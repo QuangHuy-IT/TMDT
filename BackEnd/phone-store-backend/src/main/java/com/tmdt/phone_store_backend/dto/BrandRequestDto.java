@@ -13,4 +13,6 @@ public class BrandRequestDto {
     private String logoUrl;
 
     private Boolean isActive = true;
+
+    private Integer sortOrder;
 }

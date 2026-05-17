@@ -2,9 +2,12 @@ package com.tmdt.phone_store_backend.domain.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import java.time.LocalDateTime;
@@ -19,26 +22,27 @@ import lombok.Setter;
 @AllArgsConstructor
 @Entity
 @Table(
-        name = "brands",
-        uniqueConstraints = {
-                @UniqueConstraint(name = "uk_brands_name", columnNames = "name"),
-                @UniqueConstraint(name = "uk_brands_slug", columnNames = "slug")
-        }
+        name = "product_series",
+        uniqueConstraints = @UniqueConstraint(name = "uk_product_series_name_brand", columnNames = {"name", "brand_id"})
 )
-public class Brand {
+public class ProductSeries {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, length = 120)
+    @Column(nullable = false, length = 255)
     private String name;
 
-    @Column(nullable = false, length = 160)
+    @Column(nullable = false, length = 255)
     private String slug;
 
-    @Column(name = "logo_url", length = 500)
-    private String logoUrl;
+    @Column(length = 500)
+    private String description;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "brand_id", nullable = false)
+    private Brand brand;
 
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = Boolean.TRUE;

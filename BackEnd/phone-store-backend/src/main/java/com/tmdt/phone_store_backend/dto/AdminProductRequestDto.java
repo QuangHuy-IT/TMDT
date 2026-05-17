@@ -19,9 +19,13 @@ public class AdminProductRequestDto {
     @Size(max = 255, message = "Tên sản phẩm tối đa 255 ký tự")
     private String name;
 
+    private String baseName;
+
     @NotBlank(message = "Thương hiệu không được để trống")
     @Size(max = 120, message = "Thương hiệu tối đa 120 ký tự")
     private String brand;
+
+    private Long seriesId;
 
     @NotNull(message = "Giá không được để trống")
     @DecimalMin(value = "0", message = "Giá phải lớn hơn hoặc bằng 0")

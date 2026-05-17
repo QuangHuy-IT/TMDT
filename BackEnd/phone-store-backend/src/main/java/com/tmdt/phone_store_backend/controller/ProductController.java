@@ -25,11 +25,17 @@ public class ProductController {
             @RequestParam(required = false) String price,
             @RequestParam(required = false) String storage,
             @RequestParam(required = false) String sort,
-            @RequestParam(required = false) Integer limit) {
-        if (brand == null && price == null && storage == null && sort == null && limit == null) {
+            @RequestParam(required = false) Integer limit,
+            @RequestParam(required = false) String series) {
+        if (brand == null && price == null && storage == null && sort == null && limit == null && series == null) {
             return ResponseEntity.ok(productAdminService.getAllProducts());
         }
-        return ResponseEntity.ok(productAdminService.getPublicProducts(brand, price, storage, sort, limit));
+        return ResponseEntity.ok(productAdminService.getPublicProducts(brand, price, storage, sort, limit, series));
+    }
+
+    @GetMapping("/related/{baseName}")
+    public ResponseEntity<List<AdminProductDto>> getRelatedProducts(@PathVariable String baseName) {
+        return ResponseEntity.ok(productAdminService.getRelatedProducts(baseName));
     }
 
     @GetMapping("/featured")

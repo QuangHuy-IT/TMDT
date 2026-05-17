@@ -13,16 +13,26 @@ export const ProductCard = ({ product, variant = 'default', className }) => {
 
   // === Default mode mappings ===
   const productId = product.id || product._id;
-  const productSlug = product.slug || product.productSlug || productId;
-  const name = product.name || product.productName || 'Sản phẩm';
+  // Strip hash suffix from slug (e.g., "iphone-15-abc123" -> "iphone-15")
+  const rawSlug = product.slug || product.productSlug || productId || '';
+  const productSlug = String(rawSlug).split('-').length > 1 && /[a-z0-9]{6,}$/.test(String(rawSlug).split('-').pop())
+    ? String(rawSlug).replace(/-[a-z0-9]{6,}$/, '')
+    : rawSlug;
+  const baseName = product.name || product.productName || 'Sản phẩm';
+  
+  // Build formatted display name with RAM and storage (like CellphoneS: "iPhone 17 Pro - 8GB RAM - 512GB")
+  const variantItems = product.variantItems || [];
+  const firstVariant = variantItems[0] || {};
+  const ramDisplay = firstVariant.ramGb ? `${firstVariant.ramGb}GB RAM` : null;
+  const storageDisplay = firstVariant.storageGb ? `${firstVariant.storageGb}GB` : (firstVariant.storageLabel || null);
+  const displayName = [baseName, ramDisplay, storageDisplay].filter(Boolean).join(' - ');
+  // Build thumbnail - prioritize thumbnailUrl, then first image in array
+  const productImages = Array.isArray(product.images) ? product.images.filter(img => img && typeof img === 'string' && img.trim()) : [];
   const thumbnail =
     product.thumbnail ||
-    product.imageUrl ||
-    (product.images?.length > 0
-      ? typeof product.images[0] === 'string'
-        ? product.images[0]
-        : product.images[0].imageUrl
-      : '/placeholder-product.png');
+    product.thumbnailUrl ||
+    (productImages.length > 0 ? productImages[0] : null) ||
+    '/placeholder-product.png';
 
   // === Flash Sale mode mappings ===
   const flashPrice = product.flashPrice || product.price || 0;
@@ -101,7 +111,7 @@ export const ProductCard = ({ product, variant = 'default', className }) => {
       >
         <img
           src={thumbnail}
-          alt={name}
+          alt={displayName}
           className={cn(
             'w-full h-full object-contain transition-transform duration-500',
             isFlashSale ? 'group-hover:scale-105' : 'group-hover:scale-110'
@@ -148,7 +158,7 @@ export const ProductCard = ({ product, variant = 'default', className }) => {
               : 'text-slate-900 text-sm md:text-base group-hover:text-blue-600'
           )}
         >
-          {name}
+          {displayName}
         </h3>
 
         {/* Price */}

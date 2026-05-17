@@ -21,6 +21,7 @@ import { Profile } from './pages/Profile';
 import { About } from './pages/About';
 import { FlashSalePage } from './pages/FlashSalePage';
 import { NewsPage } from './pages/NewsPage';
+import { NewsDetail } from './pages/NewsDetail';
 import { WarrantyPolicy } from './pages/WarrantyPolicy';
 import { ReturnPolicy } from './pages/ReturnPolicy';
 import { PrivacyPolicy } from './pages/PrivacyPolicy';
@@ -36,6 +37,7 @@ import AdminBanners from './pages/admin/AdminBanners';
 import AdminPromotions from './pages/admin/AdminPromotions';
 import AdminFlashSale from './pages/admin/AdminFlashSale';
 import AdminVouchers from './pages/admin/AdminVouchers';
+import AdminNews from './pages/admin/AdminNews';
 
 // Context
 import { ShopProvider } from './context/ShopContext';
@@ -123,6 +125,7 @@ function App() {
               <Route path="promotions" element={<AdminPromotions />} />
               <Route path="flash-sales" element={<AdminFlashSale />} />
               <Route path="vouchers" element={<AdminVouchers />} />
+              <Route path="news" element={<AdminNews />} />
               <Route path="inventory" element={<AdminInventory />} />
               <Route path="orders" element={<AdminOrders />} />
               <Route path="users" element={<AdminUsers />} />
@@ -147,6 +150,7 @@ function App() {
                         <Route path="/tim-kiem" element={<TimKiem />} />
                         <Route path="/gioi-thieu" element={<About />} />
                         <Route path="/tin-tuc" element={<NewsPage />} />
+                        <Route path="/tin-tuc/:slug" element={<NewsDetail />} />
                         <Route path="/khuyen-mai" element={<FlashSalePage />} />
                         <Route path="/chinh-sach-bao-hanh" element={<WarrantyPolicy />} />
                         <Route path="/chinh-sach-doi-tra" element={<ReturnPolicy />} />

@@ -1,8 +1,34 @@
 export const priceToNumber = (value) => Number(value || 0);
 
-export const getVariantColors = (product) => product?.variants?.colors || [];
-export const getVariantStorages = (product) => product?.variants?.storages || [];
-export const getVariantItems = (product) => product?.variantItems || [];
+export const getVariantColors = (product) => {
+  // New model: variants = List<AdminProductVariantDto> (each product = 1 variant)
+  if (Array.isArray(product?.variants) && product.variants.length > 0) {
+    return product.variants.map(v => v.color).filter(Boolean);
+  }
+  // Old model: variants.colors = array of color objects
+  if (Array.isArray(product?.variants?.colors)) {
+    return product.variants.colors.map(c => typeof c === 'string' ? c : c?.name || c?.color);
+  }
+  return [];
+};
+export const getVariantStorages = (product) => {
+  // New model: variants = List<AdminProductVariantDto>
+  if (Array.isArray(product?.variants) && product.variants.length > 0) {
+    return product.variants.map(v => v.storageLabel).filter(Boolean);
+  }
+  // Old model: variants.storages = array of strings
+  if (Array.isArray(product?.variants?.storages)) {
+    return product.variants.storages;
+  }
+  return [];
+};
+export const getVariantItems = (product) => {
+  // Support both new model (variants = list) and old model (variantItems = list)
+  if (Array.isArray(product?.variants) && product.variants.length > 0) {
+    return product.variants;
+  }
+  return Array.isArray(product?.variantItems) ? product.variantItems : [];
+};
 
 export const getProductThumbnail = (product) => {
   // Ưu tiên: thumbnailUrl > images[0] > image (legacy)

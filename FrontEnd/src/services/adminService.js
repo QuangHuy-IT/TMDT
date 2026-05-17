@@ -7,6 +7,7 @@ const AdminService = {
   createBrand: (payload) => api.post('/admin/brands', payload),
   updateBrand: (id, payload) => api.put(`/admin/brands/${id}`, payload),
   deleteBrand: (id) => api.delete(`/admin/brands/${id}`),
+  reorderBrands: (brandIds) => api.put('/admin/brands/reorder', brandIds),
 
   // ── Banners ─────────────────────────────────────────────────────────────
   getBanners: () => api.get('/admin/banners'),

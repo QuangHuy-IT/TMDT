@@ -14,8 +14,12 @@ public class AdminProductDto {
     private Long id;
     private String slug;
     private String name;
+    private String baseName;
     private String brand;
     private String brandSlug;
+    private Long seriesId;
+    private String seriesName;
+    private String seriesSlug;
     private BigDecimal price;
     private Integer stock;
     private Integer sale;
@@ -23,8 +27,10 @@ public class AdminProductDto {
     private List<String> images;
     private String thumbnailUrl;
     private Map<String, String> specifications;
-    private ProductVariantOptionDto variants;
+    private List<AdminProductVariantDto> variants;
+    private ProductVariantOptionDto variantOptions;
     private List<AdminProductVariantDto> variantItems;
+    private List<AdminProductDto> relatedProducts;
     private Boolean isFeatured;
     private LocalDateTime createdAt;
     private LocalDateTime releaseDate;
