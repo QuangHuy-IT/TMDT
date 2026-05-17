@@ -146,6 +146,7 @@ function App() {
                     <RouteErrorBoundary>
                       <Routes>
                         <Route path="/" element={<Home />} />
+                        <Route path="/products/:slug" element={<ProductDetail />} />
                         <Route path="/products" element={<TimKiem />} />
                         <Route path="/tim-kiem" element={<TimKiem />} />
                         <Route path="/gioi-thieu" element={<About />} />
@@ -157,7 +158,6 @@ function App() {
                         <Route path="/chinh-sach-bao-mat" element={<PrivacyPolicy />} />
                         <Route path="/chinh-sach-giao-hang" element={<ShippingPolicy />} />
                         <Route path="/brands/:brandSlug" element={<BrandProducts />} />
-                        <Route path="/product/:slug" element={<ProductDetail />} />
                         <Route path="/cart" element={<ProtectedRoute><Cart /></ProtectedRoute>} />
                         <Route path="/checkout" element={<ProtectedRoute><Checkout /></ProtectedRoute>} />
                         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />

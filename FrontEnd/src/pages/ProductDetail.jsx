@@ -9,7 +9,6 @@ const inferColorHex = (value) => {
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase();
-
   if (normalized.includes('den')) return '#111827';
   if (normalized.includes('trang') || normalized.includes('white')) return '#f3f4f6';
   if (normalized.includes('xanh')) return '#2563eb';
@@ -21,7 +20,19 @@ const inferColorHex = (value) => {
   return '#6b7280';
 };
 
-const normalizeProduct = (raw, fallbackId) => {
+/**
+ * Normalize API response to unified structure.
+ *
+ * New backend response:
+ *   {
+ *     id, name, brand, brandSlug, description, images, thumbnailUrl, specifications,
+ *     variantOptions: { storages: [...], colors: [...], basePrices: {...} },
+ *     variants: [...all variants...],
+ *     selectedVariant: {...current variant...},
+ *     selectedVariant.slug = URL slug for this variant
+ *   }
+ */
+const normalizeProduct = (raw) => {
   if (!raw || typeof raw !== 'object') return null;
 
   let images = [];
@@ -32,50 +43,35 @@ const normalizeProduct = (raw, fallbackId) => {
     images = [raw.thumbnailUrl];
   }
 
-  const variantItems = Array.isArray(raw.variants) ? raw.variants
-    : Array.isArray(raw.variantItems) ? raw.variantItems : [];
-
+  const allVariants = Array.isArray(raw.variants) ? raw.variants : [];
   const variantOptions = raw.variantOptions && typeof raw.variantOptions === 'object'
     ? raw.variantOptions : {};
-
-  const relatedProducts = Array.isArray(raw.relatedProducts) ? raw.relatedProducts : [];
+  const selectedVariant = raw.selectedVariant && typeof raw.selectedVariant === 'object'
+    ? raw.selectedVariant : null;
 
   const storages = Array.isArray(variantOptions.storages) ? variantOptions.storages : [];
   const basePrices = variantOptions.basePrices || {};
 
-  const colors = [];
-  const colorSet = new Set();
-  variantItems.forEach(item => {
-    if (item.color && !colorSet.has(item.color)) {
-      colorSet.add(item.color);
-      colors.push({ name: item.color, hex: inferColorHex(item.color) });
-    }
-  });
-
-  const fallbackStock = variantItems.reduce((sum, item) => sum + Number(item?.stock || 0), 0);
-  const stock = Number(raw.stock ?? fallbackStock ?? 0);
+  const totalStock = allVariants.reduce((sum, v) => sum + Number(v?.stock || 0), 0);
 
   return {
     ...raw,
-    id: raw.id || raw._id || fallbackId,
+    id: raw.id,
+    name: raw.name || 'Sản phẩm',
     images,
-    price: Number(raw.price || 0),
-    stock,
-    baseName: raw.baseName || raw.name || '',
-    variantItems,
-    relatedProducts,
-    variants: {
-      storages,
-      colors,
-      basePrices,
-    },
+    stock: totalStock,
     specifications: raw.specifications && typeof raw.specifications === 'object'
       ? raw.specifications : {},
+    allVariants,
+    variantOptions,
+    selectedVariant,
+    storages,
+    basePrices,
   };
 };
 
 export const ProductDetail = () => {
-  const { slug } = useParams();
+  const { slug } = useParams();  // slug = variant slug, e.g., "iphone-17-pro-max-8gb-256gb-black"
   const navigate = useNavigate();
   const location = useLocation();
   const { state, dispatch } = useContext(ShopContext);
@@ -85,11 +81,9 @@ export const ProductDetail = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // UI state (NOT tied to product.id to avoid resets during renders)
+  // UI state
   const [activeImage, setActiveImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
-  const [selectedStorage, setSelectedStorage] = useState(null);
-  const [selectedColor, setSelectedColor] = useState(null);
 
   useEffect(() => {
     let mounted = true;
@@ -99,13 +93,12 @@ export const ProductDetail = () => {
       setError('');
       setActiveImage(0);
       setQuantity(1);
-      setSelectedStorage(null);
-      setSelectedColor(null);
 
       try {
+        // slug here IS the variant slug
         const response = await ProductService.getProductDetail(slug);
         if (!mounted) return;
-        const normalized = normalizeProduct(response.data, slug);
+        const normalized = normalizeProduct(response.data);
         setProduct(normalized);
       } catch (e) {
         if (!mounted) return;
@@ -120,116 +113,75 @@ export const ProductDetail = () => {
     return () => { mounted = false; };
   }, [slug]);
 
-  // Initialize selections when product data changes
-  useEffect(() => {
-    if (!product) return;
-    const storages = product.variants?.storages || [];
-    const colors = product.variants?.colors || [];
-    setSelectedStorage(storages.length > 0 ? storages[0] : null);
-    setSelectedColor(colors.length > 0 ? colors[0] : null);
-  }, [product?.baseName]); // Only re-init when baseName changes (i.e., navigating to a different product line)
-
+  // Derived state
   const images = product?.images || [];
+  const selectedVariant = product?.selectedVariant || null;
 
-  // Current price based on selected storage
+  // Current price from selected variant
   const currentPrice = useMemo(() => {
     if (!product) return 0;
     if (product.isFlashSale && product.flashSalePrice != null) {
       return Number(product.flashSalePrice);
     }
-    if (selectedStorage && product.variants?.basePrices?.[selectedStorage] != null) {
-      return Number(product.variants.basePrices[selectedStorage]);
+    if (selectedVariant?.price != null) {
+      return Number(selectedVariant.price);
     }
     return Number(product.price || 0);
-  }, [product, selectedStorage]);
+  }, [product, selectedVariant]);
 
-  // Find the "active" variant: matches selectedStorage AND selectedColor
-  // Search across ALL variants: current product's variantItems + relatedProducts
-  const allVariants = useMemo(() => [
-    ...(product?.variantItems || []),
-    ...(product?.relatedProducts || []).flatMap(p => p.variantItems || p.variants || []),
-  ], [product]);
-
-  const activeVariant = useMemo(() => {
-    if (!allVariants.length) return null;
-    return allVariants.find(v => {
-      const matchStorage = v.storageLabel === selectedStorage;
-      const matchColor = !selectedColor || !v.color
-        || v.color.toLowerCase() === selectedColor.name.toLowerCase();
-      return matchStorage && matchColor;
-    }) || allVariants.find(v => v.storageLabel === selectedStorage)
-      || allVariants[0] || null;
-  }, [allVariants, selectedStorage, selectedColor]);
-
-  // Available colors for the selected storage (across all variants)
-  const availableColors = useMemo(() => {
-    if (!allVariants.length || !selectedStorage) return product?.variants?.colors || [];
-    const colorsForStorage = [];
-    const seen = new Set();
-    allVariants.forEach(v => {
-      if (v.storageLabel === selectedStorage && v.color && !seen.has(v.color)) {
-        seen.add(v.color);
-        colorsForStorage.push({ name: v.color, hex: inferColorHex(v.color) });
-      }
-    });
-    return colorsForStorage.length > 0 ? colorsForStorage : (product?.variants?.colors || []);
-  }, [allVariants, selectedStorage, product]);
-
-  // If selected color not available for this storage, auto-select the first available
-  useEffect(() => {
-    if (!product || availableColors.length === 0) return;
-    const colorAvailable = availableColors.some(c =>
-      c.name.toLowerCase() === selectedColor?.name?.toLowerCase()
-    );
-    if (!colorAvailable) {
-      setSelectedColor(availableColors[0]);
-    }
-  }, [availableColors]);
-
-  // Max stock for current variant
+  // Stock from selected variant
   const maxQuantity = useMemo(() => {
-    if (activeVariant?.stock != null) return Math.max(1, Number(activeVariant.stock));
+    if (selectedVariant?.stock != null) return Math.max(1, Number(selectedVariant.stock));
     if (product?.stock != null) return Math.max(1, Number(product.stock));
     return 1;
-  }, [activeVariant, product]);
+  }, [selectedVariant, product]);
+
+  // Available colors for the selected variant's storage
+  const availableColors = useMemo(() => {
+    if (!product?.allVariants || !selectedVariant) return [];
+    const storage = selectedVariant.storageLabel;
+    const seen = new Set();
+    const colors = [];
+    product.allVariants.forEach(v => {
+      if (v.storageLabel === storage && v.color && !seen.has(v.color)) {
+        seen.add(v.color);
+        colors.push({ name: v.color, hex: inferColorHex(v.color) });
+      }
+    });
+    return colors;
+  }, [product, selectedVariant]);
+
+  // Selected color state (synced with selectedVariant)
+  const [selectedColor, setSelectedColor] = useState(null);
+  useEffect(() => {
+    if (selectedVariant?.color) {
+      setSelectedColor({ name: selectedVariant.color, hex: inferColorHex(selectedVariant.color) });
+    }
+  }, [selectedVariant?.id]);
 
   const addToCart = () => {
     if (!product) return;
-
     if (!isAuthenticated) {
       navigate('/login', { state: { from: location } });
       return;
     }
-
     if (maxQuantity <= 0) return;
 
     dispatch({
       type: 'ADD_TO_CART',
       payload: {
         ...product,
-        variantId: activeVariant?.id || null,
+        variantId: selectedVariant?.id || null,
         id: String(product.id),
         quantity,
         price: currentPrice,
-        ram: activeVariant?.ramGb ? `${activeVariant.ramGb}GB` : '',
-        storage: activeVariant?.storageLabel || selectedStorage || '',
-        color: selectedColor?.name || '',
-        sku: activeVariant?.sku || '',
+        ram: selectedVariant?.ramGb ? `${selectedVariant.ramGb}GB` : '',
+        storage: selectedVariant?.storageLabel || '',
+        color: selectedColor?.name || selectedVariant?.color || '',
+        sku: selectedVariant?.sku || '',
         images: product.images,
       },
     });
-  };
-
-  // Navigate to different storage variant
-  const switchStorage = (storage) => {
-    if (!product) return;
-    const target = [...(product.variantItems || []), ...(product.relatedProducts || [])]
-      .find(v => v.storageLabel === storage);
-    if (target?.slug) {
-      navigate(`/products/${target.slug}`);
-    } else {
-      setSelectedStorage(storage);
-    }
   };
 
   if (loading) {
@@ -245,22 +197,21 @@ export const ProductDetail = () => {
       <div className="flex min-h-[70vh] flex-col items-center justify-center bg-gray-50 px-4 text-center">
         <h2 className="text-2xl font-black text-gray-800">Không tìm thấy sản phẩm</h2>
         <p className="mt-2 text-sm text-gray-500">{error || 'Sản phẩm không tồn tại hoặc đã bị xóa.'}</p>
-        <button
-          onClick={() => navigate('/')}
-          className="mt-6 rounded-xl bg-red-600 px-6 py-3 text-sm font-bold text-white hover:bg-red-700"
-        >
+        <button onClick={() => navigate('/')}
+          className="mt-6 rounded-xl bg-red-600 px-6 py-3 text-sm font-bold text-white hover:bg-red-700">
           Về trang chủ
         </button>
       </div>
     );
   }
 
-  const displayName = product.name || product.baseName || 'Sản phẩm';
-  const hasMultipleStorages = (product.variants?.storages?.length || 0) > 1;
+  const hasMultipleStorages = (product.storages?.length || 0) > 1;
+  const displayName = product.name || 'Sản phẩm';
 
   return (
     <main className="min-h-screen bg-[#f8f8f6] pb-20">
       <div className="mx-auto max-w-6xl px-4 pt-8">
+        {/* Breadcrumb */}
         <nav className="mb-6 flex items-center gap-2 text-xs text-gray-400">
           <button onClick={() => navigate('/')} className="hover:text-red-600">Trang chủ</button>
           <span>/</span>
@@ -271,7 +222,8 @@ export const ProductDetail = () => {
         </nav>
 
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
-          {/* ===== LEFT: Image Gallery ===== */}
+
+          {/* LEFT: Image Gallery */}
           <section className="space-y-3">
             <div className="relative rounded-2xl border border-gray-100 bg-white overflow-hidden">
               <div className="relative aspect-square flex items-center justify-center overflow-hidden bg-gray-50">
@@ -286,20 +238,16 @@ export const ProductDetail = () => {
 
                 {images.length > 1 && (
                   <>
-                    <button
-                      onClick={() => setActiveImage((i) => (i - 1 + images.length) % images.length)}
+                    <button onClick={() => setActiveImage((i) => (i - 1 + images.length) % images.length)}
                       className="absolute left-3 top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 shadow-lg hover:bg-white"
-                      aria-label="Ảnh trước"
-                    >
+                      aria-label="Ảnh trước">
                       <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                         <path d="M10 12L6 8l4-4" stroke="#374151" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                       </svg>
                     </button>
-                    <button
-                      onClick={() => setActiveImage((i) => (i + 1) % images.length)}
+                    <button onClick={() => setActiveImage((i) => (i + 1) % images.length)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 shadow-lg hover:bg-white"
-                      aria-label="Ảnh sau"
-                    >
+                      aria-label="Ảnh sau">
                       <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                         <path d="M6 12l4-4-4-4" stroke="#374151" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                       </svg>
@@ -310,12 +258,9 @@ export const ProductDetail = () => {
                 {images.length > 1 && (
                   <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
                     {images.map((_, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => setActiveImage(idx)}
+                      <button key={idx} onClick={() => setActiveImage(idx)}
                         className={`h-1.5 rounded-full transition-all ${activeImage === idx ? 'w-5 bg-red-500' : 'w-1.5 bg-white/60'}`}
-                        aria-label={`Ảnh ${idx + 1}`}
-                      />
+                        aria-label={`Ảnh ${idx + 1}`} />
                     ))}
                   </div>
                 )}
@@ -325,11 +270,8 @@ export const ProductDetail = () => {
             {images.length > 1 && (
               <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
                 {images.map((image, index) => (
-                  <button
-                    key={`${image}-${index}`}
-                    onClick={() => setActiveImage(index)}
-                    className={`h-16 w-16 shrink-0 overflow-hidden rounded-lg border-2 transition-all ${activeImage === index ? 'border-red-500' : 'border-gray-200'}`}
-                  >
+                  <button key={`${image}-${index}`} onClick={() => setActiveImage(index)}
+                    className={`h-16 w-16 shrink-0 overflow-hidden rounded-lg border-2 transition-all ${activeImage === index ? 'border-red-500' : 'border-gray-200'}`}>
                     <img src={image} alt={`Thumb ${index + 1}`} className="h-full w-full object-cover" />
                   </button>
                 ))}
@@ -365,16 +307,14 @@ export const ProductDetail = () => {
             )}
           </section>
 
-          {/* ===== RIGHT: Product Info + Variants ===== */}
+          {/* RIGHT: Product Info */}
           <section className="space-y-5">
             {/* Brand + Stock badge */}
             <div className="flex items-center gap-2">
               <span className="rounded-full bg-red-50 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-red-600">
                 {product.brand || 'Khác'}
               </span>
-              <span className={`text-[11px] font-bold uppercase ${
-                maxQuantity > 0 ? 'text-green-600' : 'text-red-500'
-              }`}>
+              <span className={`text-[11px] font-bold uppercase ${maxQuantity > 0 ? 'text-green-600' : 'text-red-500'}`}>
                 {maxQuantity > 0 ? `Còn ${maxQuantity} sản phẩm` : 'Hết hàng'}
               </span>
             </div>
@@ -398,30 +338,23 @@ export const ProductDetail = () => {
               )}
             </div>
 
-            {/* ===== Storage Variant Buttons ===== */}
+            {/* Storage Variant Buttons */}
             {hasMultipleStorages && (
               <div>
                 <p className="mb-3 text-xs font-bold uppercase text-gray-500">Phiên bản</p>
                 <div className="flex flex-wrap gap-2">
-                  {product.variants.storages.map((storage) => {
-                    const storagePrice = product.variants.basePrices?.[storage];
-                    const isActive = storage === selectedStorage;
-                    const existsInRelated = product.relatedProducts?.some(
-                      p => (p.variants?.[0] || p.variantItems?.[0])?.storageLabel === storage
-                        && p.id !== product.id
-                    );
-                    const productOfStorage = [...(product.variantItems || []), ...(product.relatedProducts || [])]
-                      .find(v => v.storageLabel === storage);
-                    const canNavigate = isActive || existsInRelated;
+                  {product.storages.map((storage) => {
+                    const variantOfStorage = product.allVariants.find(v => v.storageLabel === storage);
+                    const storagePrice = product.basePrices?.[storage];
+                    const isActive = selectedVariant?.storageLabel === storage;
+                    const targetSlug = variantOfStorage?.slug;
 
                     return (
                       <button
                         key={storage}
                         onClick={() => {
-                          if (!isActive && productOfStorage?.slug) {
-                            navigate(`/products/${productOfStorage.slug}`);
-                          } else {
-                            switchStorage(storage);
+                          if (!isActive && targetSlug) {
+                            navigate(`/products/${targetSlug}`);
                           }
                         }}
                         className={`relative rounded-xl border px-4 py-2.5 text-sm font-bold transition-all ${
@@ -443,7 +376,7 @@ export const ProductDetail = () => {
               </div>
             )}
 
-            {/* ===== Color Buttons ===== */}
+            {/* Color Buttons */}
             {availableColors.length > 0 && (
               <div>
                 <p className="mb-3 text-xs font-bold uppercase text-gray-500">
@@ -454,14 +387,23 @@ export const ProductDetail = () => {
                 </p>
                 <div className="flex flex-wrap gap-3">
                   {availableColors.map((color) => {
-                    const isActive = selectedColor?.name?.toLowerCase() === color.name.toLowerCase();
+                    const isActive = selectedVariant?.color?.toLowerCase() === color.name.toLowerCase();
+                    const variantOfColor = product.allVariants.find(
+                      v => v.storageLabel === selectedVariant?.storageLabel && v.color?.toLowerCase() === color.name.toLowerCase()
+                    );
                     return (
                       <button
                         key={color.name}
-                        onClick={() => setSelectedColor(color)}
+                        onClick={() => {
+                          if (!isActive && variantOfColor?.slug) {
+                            navigate(`/products/${variantOfColor.slug}`);
+                          }
+                        }}
                         title={color.name}
                         className={`h-11 w-11 rounded-full border-2 transition-all ${
-                          isActive ? 'border-gray-900 ring-2 ring-offset-2 ring-gray-900' : 'border-gray-300 hover:border-gray-400'
+                          isActive
+                            ? 'border-gray-900 ring-2 ring-offset-2 ring-gray-900'
+                            : 'border-gray-300 hover:border-gray-400'
                         }`}
                         style={{ backgroundColor: color.hex || '#6b7280' }}
                       />
@@ -471,46 +413,35 @@ export const ProductDetail = () => {
               </div>
             )}
 
-            {/* ===== Storage note when only one storage ===== */}
-            {!hasMultipleStorages && selectedStorage && (
+            {/* Current variant info */}
+            {selectedVariant && (
               <div className="flex items-center gap-2 text-sm text-gray-500">
                 <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                <span>Phiên bản {selectedStorage}</span>
-                {activeVariant?.ramGb && <span className="text-gray-400">| {activeVariant.ramGb}GB RAM</span>}
+                <span>
+                  Phiên bản {selectedVariant.storageLabel || 'mặc định'}
+                  {selectedVariant.ramGb && <span className="text-gray-400"> | {selectedVariant.ramGb}GB RAM</span>}
+                  {selectedVariant.color && <span className="text-gray-400"> | {selectedVariant.color}</span>}
+                </span>
               </div>
             )}
 
-            {/* ===== Add to Cart ===== */}
+            {/* Add to Cart */}
             <div className="flex items-center gap-3">
               <div className="flex items-center overflow-hidden rounded-xl border border-gray-200">
-                <button
-                  onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                  className="h-11 w-11 text-lg font-black text-gray-500 hover:text-red-600"
-                >
-                  −
-                </button>
+                <button onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                  className="h-11 w-11 text-lg font-black text-gray-500 hover:text-red-600">−</button>
                 <span className="w-14 text-center font-bold text-lg">{quantity}</span>
-                <button
-                  onClick={() => setQuantity((q) => Math.min(maxQuantity, q + 1))}
-                  className="h-11 w-11 text-lg font-black text-gray-500 hover:text-red-600"
-                >
-                  +
-                </button>
+                <button onClick={() => setQuantity((q) => Math.min(maxQuantity, q + 1))}
+                  className="h-11 w-11 text-lg font-black text-gray-500 hover:text-red-600">+</button>
               </div>
-
-              <button
-                onClick={addToCart}
-                disabled={maxQuantity <= 0}
-                className="flex-1 rounded-xl bg-red-600 px-6 py-3 text-sm font-bold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-gray-300 transition-all"
-              >
+              <button onClick={addToCart} disabled={maxQuantity <= 0}
+                className="flex-1 rounded-xl bg-red-600 px-6 py-3 text-sm font-bold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-gray-300 transition-all">
                 {maxQuantity > 0 ? 'Thêm vào giỏ hàng' : 'Hết hàng'}
               </button>
             </div>
 
-            {/* Flash Sale badge */}
             {product.isFlashSale && (
               <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
                 🔥 Đang diễn ra Flash Sale — Giảm đến {product.sale}%
@@ -522,30 +453,27 @@ export const ProductDetail = () => {
 
       <ReviewSection productId={product.id} currentUserId={state.user?.id || null} />
 
-      {/* Related Products (other variants in same product line) */}
-      {(product.relatedProducts?.length || 0) > 0 && (
+      {/* Other variants of the same product */}
+      {(product.allVariants?.length || 0) > 1 && (
         <div className="mx-auto max-w-6xl px-4 pt-8">
           <h2 className="mb-4 text-lg font-black text-gray-900">Các phiên bản khác</h2>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-            {product.relatedProducts.map((related) => {
-              const variant = related.variants?.[0] || related.variantItems?.[0];
-              const thumb = related.thumbnailUrl || (related.images?.[0]) || '';
-              const relatedPrice = related.price || variant?.price || 0;
-              const isCurrentVariant = variant?.storageLabel === selectedStorage;
+            {product.allVariants.map((v) => {
+              const isCurrent = v.id === selectedVariant?.id;
               return (
                 <button
-                  key={related.id}
-                  onClick={() => navigate(`/products/${related.slug}`)}
+                  key={v.id}
+                  onClick={() => !isCurrent && navigate(`/products/${v.slug}`)}
+                  disabled={isCurrent}
                   className={`rounded-2xl border bg-white p-3 text-left transition-all hover:border-red-300 hover:shadow-md ${
-                    isCurrentVariant ? 'opacity-40 cursor-default' : ''
+                    isCurrent ? 'opacity-40 cursor-default' : ''
                   }`}
-                  disabled={isCurrentVariant}
                 >
                   <div className="aspect-square mb-2 flex items-center justify-center overflow-hidden rounded-xl bg-gray-50">
-                    {thumb ? (
+                    {product.thumbnailUrl ? (
                       <img
-                        src={thumb}
-                        alt={related.name}
+                        src={product.thumbnailUrl}
+                        alt={v.storageLabel}
                         className="h-full w-full object-contain"
                         onError={(e) => { e.target.src = 'https://picsum.photos/seed/rel/200/200'; }}
                       />
@@ -553,11 +481,14 @@ export const ProductDetail = () => {
                       <div className="text-gray-300 text-xs">No image</div>
                     )}
                   </div>
-                  <p className="mb-1 text-xs font-medium text-gray-700 line-clamp-2">{related.name}</p>
-                  <p className="text-sm font-bold text-red-600">{Number(relatedPrice).toLocaleString('vi-VN')}₫</p>
-                  {variant?.storageLabel && (
-                    <p className="mt-0.5 text-[10px] text-gray-400">{variant.storageLabel}</p>
-                  )}
+                  <p className="mb-1 text-xs font-medium text-gray-700 line-clamp-2">
+                    {product.name}
+                    {v.storageLabel && <span className="block text-gray-400 text-[10px]">{v.storageLabel}</span>}
+                    {v.color && <span className="block text-gray-400 text-[10px]">{v.color}</span>}
+                  </p>
+                  <p className="text-sm font-bold text-red-600">
+                    {Number(v.price || 0).toLocaleString('vi-VN')}₫
+                  </p>
                 </button>
               );
             })}

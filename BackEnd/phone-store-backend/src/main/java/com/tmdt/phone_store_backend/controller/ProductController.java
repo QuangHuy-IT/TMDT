@@ -33,9 +33,16 @@ public class ProductController {
         return ResponseEntity.ok(productAdminService.getPublicProducts(brand, price, storage, sort, limit, series));
     }
 
-    @GetMapping("/related/{baseName}")
-    public ResponseEntity<List<AdminProductDto>> getRelatedProducts(@PathVariable String baseName) {
-        return ResponseEntity.ok(productAdminService.getRelatedProducts(baseName));
+    /**
+     * Product detail via variant slug.
+     * Example: /api/products/iphone-17-pro-max-8gb-256gb-black
+     *
+     * The variant slug uniquely identifies a product+storage+color combination.
+     * Response includes: product info + selectedVariant + allVariants[]
+     */
+    @GetMapping("/{variantSlug}")
+    public ResponseEntity<AdminProductDto> getPublicProductDetail(@PathVariable String variantSlug) {
+        return ResponseEntity.ok(productAdminService.getPublicProductDetail(variantSlug));
     }
 
     @GetMapping("/featured")
@@ -62,8 +69,8 @@ public class ProductController {
         return ResponseEntity.ok(productAdminService.getHomeBrandSections(brands, limitPerBrand));
     }
 
-    @GetMapping("/{idOrSlug}")
-    public ResponseEntity<AdminProductDto> getPublicProductDetail(@PathVariable String idOrSlug) {
-        return ResponseEntity.ok(productAdminService.getPublicProductDetail(idOrSlug));
+    @GetMapping("/related/{baseName}")
+    public ResponseEntity<List<AdminProductDto>> getRelatedProducts(@PathVariable String baseName) {
+        return ResponseEntity.ok(productAdminService.getRelatedProducts(baseName));
     }
 }

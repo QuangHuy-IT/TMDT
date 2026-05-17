@@ -13,19 +13,26 @@ export const ProductCard = ({ product, variant = 'default', className }) => {
 
   // === Default mode mappings ===
   const productId = product.id || product._id;
-  // Strip hash suffix from slug (e.g., "iphone-15-abc123" -> "iphone-15")
-  const rawSlug = product.slug || product.productSlug || productId || '';
-  const productSlug = String(rawSlug).split('-').length > 1 && /[a-z0-9]{6,}$/.test(String(rawSlug).split('-').pop())
-    ? String(rawSlug).replace(/-[a-z0-9]{6,}$/, '')
-    : rawSlug;
-  const baseName = product.name || product.productName || 'Sản phẩm';
-  
-  // Build formatted display name with RAM and storage (like CellphoneS: "iPhone 17 Pro - 8GB RAM - 512GB")
-  const variantItems = product.variantItems || [];
-  const firstVariant = variantItems[0] || {};
-  const ramDisplay = firstVariant.ramGb ? `${firstVariant.ramGb}GB RAM` : null;
-  const storageDisplay = firstVariant.storageGb ? `${firstVariant.storageGb}GB` : (firstVariant.storageLabel || null);
-  const displayName = [baseName, ramDisplay, storageDisplay].filter(Boolean).join(' - ');
+
+  // New model: use selectedVariant.slug if available, else fallback
+  // Example: "iphone-17-pro-max-8gb-256gb-black"
+  const selectedVariant = product.selectedVariant && typeof product.selectedVariant === 'object'
+    ? product.selectedVariant
+    : null;
+  const variantSlug = selectedVariant?.slug
+    || product.slug
+    || product.productSlug
+    || productId
+    || '';
+
+  const displayName = product.name || product.productName || 'Sản phẩm';
+
+  // Price: selectedVariant first, then product-level price
+  const price = selectedVariant?.price
+    ?? product.price
+    ?? product.minPrice
+    ?? 0;
+
   // Build thumbnail - prioritize thumbnailUrl, then first image in array
   const productImages = Array.isArray(product.images) ? product.images.filter(img => img && typeof img === 'string' && img.trim()) : [];
   const thumbnail =
@@ -34,24 +41,24 @@ export const ProductCard = ({ product, variant = 'default', className }) => {
     (productImages.length > 0 ? productImages[0] : null) ||
     '/placeholder-product.png';
 
+  // Sale/discount for flash sale mode (declared early so originalPrice can reference it)
+  const sale = product.sale || product.discount || 0;
+
   // === Flash Sale mode mappings ===
   const flashPrice = product.flashPrice || product.price || 0;
   const originalPrice =
     product.originalPrice ||
-    (product.sale > 0 ? Math.round(product.price * 100 / (100 - product.sale)) : product.price) ||
+    (sale > 0 ? Math.round(price * 100 / (100 - sale)) : price) ||
     0;
   const discountPercent = product.discountPercent || product.sale || product.discount || 0;
   const quantity = product.quantity || 1;
   const soldQuantity = product.soldQuantity || 0;
 
-  const price = product.price || product.minPrice || 0;
-  const sale = product.sale || product.discount || 0;
-
   const brandName = product.brand?.name || product.brandName || 'Mobile';
   const rating = product.rating || 5.0;
 
   const handleCardClick = () => {
-    navigate(`/product/${productSlug}`);
+    navigate(`/products/${variantSlug}`);
   };
 
   const handleFavClick = (e) => {
