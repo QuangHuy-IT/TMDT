@@ -366,21 +366,6 @@ export const ProductDetail = () => {
                 <p className="text-sm leading-relaxed text-gray-500">Sản phẩm đang được cập nhật mô tả.</p>
               )}
             </div>
-
-            {/* Specifications */}
-            {Object.keys(product.specifications || {}).length > 0 && (
-              <div className="rounded-2xl border border-gray-100 bg-white p-4">
-                <h2 className="mb-3 text-sm font-black uppercase tracking-wide text-gray-900">Thông số kỹ thuật</h2>
-                <div className="space-y-2">
-                  {Object.entries(product.specifications).map(([key, value]) => (
-                    <div key={key} className="flex justify-between gap-4 border-b border-gray-100 pb-2 text-sm last:border-0 last:pb-0">
-                      <span className="text-gray-500">{key}</span>
-                      <span className="text-right font-medium text-gray-800">{String(value || '')}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </section>
 
           {/* RIGHT: Product Info */}
@@ -545,6 +530,21 @@ export const ProductDetail = () => {
             {product.isFlashSale && (
               <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
                 🔥 Đang diễn ra Flash Sale — Giảm đến {product.sale}%
+              </div>
+            )}
+
+            {/* Specifications */}
+            {Object.keys(product.specifications || {}).length > 0 && (
+              <div className="rounded-2xl border border-gray-100 bg-white p-4">
+                <h2 className="mb-3 text-sm font-black uppercase tracking-wide text-gray-900">Thông số kỹ thuật</h2>
+                <div className="space-y-2">
+                  {Object.entries(product.specifications).map(([key, value]) => (
+                    <div key={key} className="flex justify-between gap-4 border-b border-gray-100 pb-2 text-sm last:border-0 last:pb-0">
+                      <span className="text-gray-500">{key}</span>
+                      <span className="text-right font-medium text-gray-800">{String(value || '')}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </section>

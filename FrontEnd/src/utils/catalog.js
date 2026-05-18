@@ -113,6 +113,16 @@ export const applyCatalogFilters = (products, filters = {}) => {
       return false;
     }
 
+    if (filters.selectedSeries && filters.selectedSeries.length > 0) {
+      const productSeriesSlug = product?.seriesSlug
+        ? String(product.seriesSlug).toLowerCase()
+        : (product?.seriesName ? String(product.seriesName).toLowerCase() : '');
+      const match = filters.selectedSeries.some(
+        (s) => productSeriesSlug === s.toLowerCase()
+      );
+      if (!match) return false;
+    }
+
     const specs = product?.specifications || {};
     if (!matchesTextOption(specs.ram, filters.rams)) {
       const variantRams = getVariantItems(product).map((variant) => `${variant?.ramGb || ''}GB`);
