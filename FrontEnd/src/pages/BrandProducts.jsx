@@ -116,7 +116,7 @@ export const BrandProducts = () => {
               <>
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
                   {displayedProducts.map((product) => (
-                    <ProductCard key={product._id || product.id} product={product} />
+                    <ProductCard key={`${product.id}-${product.variantId}`} product={product} />
                   ))}
                 </div>
 

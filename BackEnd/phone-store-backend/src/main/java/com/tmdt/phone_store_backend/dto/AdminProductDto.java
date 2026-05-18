@@ -13,11 +13,23 @@ public class AdminProductDto {
 
     private Long id;
 
-    /** Slug của variant đang được chọn (dùng cho URL: /products/iphone-17-pro-max-8gb-256gb-black) */
+    /** ID của variant đại diện trong card này (dùng cho key duy nhất trong danh sách) */
+    private Long variantId;
+
+    /**
+     * Slug của variant đại diện (dùng cho URL: /products/iphone-17-pro-max-8gb-256gb-black)
+     * Tên hiển thị trong card = name + " " + variantName
+     */
     private String slug;
 
     /** Tên sản phẩm (chung cho tất cả variants) */
     private String name;
+
+    /**
+     * Tên hiển thị của variant (ví dụ: "2GB 128GB" hoặc "8GB 256GB - Đen").
+     * Card hiển thị: "{name} {variantName}".
+     */
+    private String variantName;
 
     /** Thương hiệu */
     private String brand;

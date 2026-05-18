@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useMemo, useState } from 'react';
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ShopContext } from '../context/ShopContext';
 import ProductService from '../services/productService';
 import ReviewSection from '../components/review/ReviewSection';
@@ -52,6 +52,16 @@ const normalizeProduct = (raw) => {
   const storages = Array.isArray(variantOptions.storages) ? variantOptions.storages : [];
   const basePrices = variantOptions.basePrices || {};
 
+  // Build color images map: { colorName: imageUrl }
+  const colorImages = {};
+  if (Array.isArray(variantOptions.colors)) {
+    variantOptions.colors.forEach(c => {
+      if (c?.name && c?.imageUrl && c.imageUrl.trim()) {
+        colorImages[c.name.toLowerCase()] = c.imageUrl;
+      }
+    });
+  }
+
   const totalStock = allVariants.reduce((sum, v) => sum + Number(v?.stock || 0), 0);
 
   return {
@@ -67,6 +77,7 @@ const normalizeProduct = (raw) => {
     selectedVariant,
     storages,
     basePrices,
+    colorImages,
   };
 };
 
@@ -74,6 +85,7 @@ export const ProductDetail = () => {
   const { slug } = useParams();  // slug = variant slug, e.g., "iphone-17-pro-max-8gb-256gb-black"
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { state, dispatch } = useContext(ShopContext);
   const { isAuthenticated } = state;
 
@@ -84,6 +96,8 @@ export const ProductDetail = () => {
   // UI state
   const [activeImage, setActiveImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
+  // User-chosen color image: null on page load, set only when user actively clicks a color button
+  const [userSelectedColorImage, setUserSelectedColorImage] = useState(null);
 
   useEffect(() => {
     let mounted = true;
@@ -91,8 +105,9 @@ export const ProductDetail = () => {
     const fetchDetail = async () => {
       setLoading(true);
       setError('');
-      setActiveImage(0);
-      setQuantity(1);
+        setActiveImage(0);
+        setQuantity(1);
+        setUserSelectedColorImage(null);
 
       try {
         // slug here IS the variant slug
@@ -100,6 +115,23 @@ export const ProductDetail = () => {
         if (!mounted) return;
         const normalized = normalizeProduct(response.data);
         setProduct(normalized);
+
+        // Auto-set color image based on the loaded variant's color
+        const variant = normalized?.selectedVariant;
+        if (variant?.color) {
+          const colorNameLower = variant.color.toLowerCase();
+          const colorImage = normalized.colorImages?.[colorNameLower] || variant.colorImageUrl || null;
+          setUserSelectedColorImage(colorImage);
+        }
+
+        // Read ?product_id from URL and switch color if present
+        const productIdParam = searchParams.get('product_id');
+        if (productIdParam && normalized?.allVariants) {
+          const targetVariant = normalized.allVariants.find(v => String(v.id) === productIdParam);
+          if (targetVariant?.slug && targetVariant.slug !== slug) {
+            navigate(`/products/${targetVariant.slug}`, { replace: true });
+          }
+        }
       } catch (e) {
         if (!mounted) return;
         setError('Không tải được thông tin sản phẩm.');
@@ -111,10 +143,9 @@ export const ProductDetail = () => {
 
     fetchDetail();
     return () => { mounted = false; };
-  }, [slug]);
+  }, [slug, searchParams]);
 
   // Derived state
-  const images = product?.images || [];
   const selectedVariant = product?.selectedVariant || null;
 
   // Current price from selected variant
@@ -143,9 +174,11 @@ export const ProductDetail = () => {
     const seen = new Set();
     const colors = [];
     product.allVariants.forEach(v => {
-      if (v.storageLabel === storage && v.color && !seen.has(v.color)) {
-        seen.add(v.color);
-        colors.push({ name: v.color, hex: inferColorHex(v.color) });
+      if (v.storageLabel === storage && v.color && !seen.has(v.color.toLowerCase())) {
+        seen.add(v.color.toLowerCase());
+        const colorNameLower = v.color.toLowerCase();
+        const colorImage = product.colorImages?.[colorNameLower] || v.colorImageUrl || null;
+        colors.push({ name: v.color, hex: inferColorHex(v.color), imageUrl: colorImage });
       }
     });
     return colors;
@@ -155,9 +188,51 @@ export const ProductDetail = () => {
   const [selectedColor, setSelectedColor] = useState(null);
   useEffect(() => {
     if (selectedVariant?.color) {
-      setSelectedColor({ name: selectedVariant.color, hex: inferColorHex(selectedVariant.color) });
+      const colorNameLower = selectedVariant.color.toLowerCase();
+      const colorImage = product?.colorImages?.[colorNameLower] || selectedVariant.colorImageUrl || null;
+      setSelectedColor({ name: selectedVariant.color, hex: inferColorHex(selectedVariant.color), imageUrl: colorImage });
     }
-  }, [selectedVariant?.id]);
+  }, [product, selectedVariant?.id]);
+
+  // When userSelectedColorImage changes (e.g. after navigating to a new color), jump to that image
+  useEffect(() => {
+    if (!userSelectedColorImage || !product?.images) return;
+    const allImages = product.images;
+    const thumbnail = product.thumbnailUrl;
+    let gallery = allImages;
+    if (thumbnail && allImages.length > 0 && allImages[0] === thumbnail) {
+      gallery = allImages.slice(1);
+    }
+    const filtered = gallery.filter(img => img !== userSelectedColorImage);
+    const colorImageIndex = filtered.length; // color image is appended at the end
+    setActiveImage(colorImageIndex);
+  }, [userSelectedColorImage]);
+
+  // Dynamic gallery:
+  // - Gallery images (product.images) — exclude thumbnail from front to avoid duplication
+  // - When a variant has a color image, it's always appended to the end of the gallery
+  // - Thumbnails strip uses this array; main display uses galleryImages[0]
+  const galleryImages = useMemo(() => {
+    const allImages = product?.images || [];
+    const thumbnail = product?.thumbnailUrl;
+
+    // Remove thumbnail from front of gallery to avoid showing it twice
+    let gallery = allImages;
+    if (thumbnail && allImages.length > 0 && allImages[0] === thumbnail) {
+      gallery = allImages.slice(1);
+    }
+
+    // Append color image to the END when user actively selected a color with an image
+    if (userSelectedColorImage) {
+      // Avoid duplicate if somehow already in gallery
+      const filtered = gallery.filter(img => img !== userSelectedColorImage);
+      return [...filtered, userSelectedColorImage];
+    }
+
+    return gallery;
+  }, [product?.images, product?.thumbnailUrl, userSelectedColorImage]);
+
+  const images = galleryImages;
 
   const addToCart = () => {
     if (!product) return;
@@ -354,6 +429,8 @@ export const ProductDetail = () => {
                         key={storage}
                         onClick={() => {
                           if (!isActive && targetSlug) {
+                            setActiveImage(0);
+                            setUserSelectedColorImage(null);
                             navigate(`/products/${targetSlug}`);
                           }
                         }}
@@ -391,22 +468,44 @@ export const ProductDetail = () => {
                     const variantOfColor = product.allVariants.find(
                       v => v.storageLabel === selectedVariant?.storageLabel && v.color?.toLowerCase() === color.name.toLowerCase()
                     );
+                    const hasColorImage = color.imageUrl && color.imageUrl.trim();
                     return (
                       <button
                         key={color.name}
                         onClick={() => {
                           if (!isActive && variantOfColor?.slug) {
-                            navigate(`/products/${variantOfColor.slug}`);
+                            setActiveImage(0);
+                            navigate(`/products/${variantOfColor.slug}?product_id=${variantOfColor.id}`);
                           }
                         }}
                         title={color.name}
-                        className={`h-11 w-11 rounded-full border-2 transition-all ${
+                        className={`relative rounded-full transition-all overflow-hidden ${
                           isActive
-                            ? 'border-gray-900 ring-2 ring-offset-2 ring-gray-900'
-                            : 'border-gray-300 hover:border-gray-400'
-                        }`}
-                        style={{ backgroundColor: color.hex || '#6b7280' }}
-                      />
+                            ? 'ring-2 ring-offset-2 ring-gray-900'
+                            : 'hover:ring-2 hover:ring-offset-1 hover:ring-gray-400'
+                        } ${hasColorImage ? 'h-14 w-14' : 'h-11 w-11'}`}
+                        style={hasColorImage ? {} : { backgroundColor: color.hex || '#6b7280' }}
+                      >
+                        {hasColorImage ? (
+                          <img
+                            src={color.imageUrl}
+                            alt={color.name}
+                            className="h-full w-full object-cover"
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                              e.currentTarget.parentElement.style.backgroundColor = color.hex || '#6b7280';
+                            }}
+                          />
+                        ) : null}
+                        {!hasColorImage && (
+                          <span className="absolute inset-0 flex items-center justify-center">
+                            <span
+                              className="h-3 w-3 rounded-full"
+                              style={{ backgroundColor: color.hex || '#6b7280', boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.1)' }}
+                            />
+                          </span>
+                        )}
+                      </button>
                     );
                   })}
                 </div>

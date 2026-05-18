@@ -25,7 +25,10 @@ export const ProductCard = ({ product, variant = 'default', className }) => {
     || productId
     || '';
 
+  // Product name with variant spec (e.g. "iPhone 17 Pro Max 8GB 256GB")
+  const variantSpec = product.variantName || '';
   const displayName = product.name || product.productName || 'Sản phẩm';
+  const fullDisplayName = variantSpec ? `${displayName} ${variantSpec}` : displayName;
 
   // Price: selectedVariant first, then product-level price
   const price = selectedVariant?.price
@@ -165,7 +168,7 @@ export const ProductCard = ({ product, variant = 'default', className }) => {
               : 'text-slate-900 text-sm md:text-base group-hover:text-blue-600'
           )}
         >
-          {displayName}
+          {fullDisplayName}
         </h3>
 
         {/* Price */}

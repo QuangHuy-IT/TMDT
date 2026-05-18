@@ -19,6 +19,21 @@ const STORAGE_PRESETS = ['64GB', '128GB', '256GB', '512GB', '1TB', '2TB', '5TB']
 const RAM_PRESETS = ['2', '4', '6', '8', '12', '16', '32', '64', '128'];
 const COLOR_PRESETS = ['Đen', 'Trắng', 'Xanh', 'Tím', 'Vàng', 'Hồng', 'Đỏ', 'Bạc', 'Nâu', 'Cam'];
 
+// Convert storage label like "128GB", "256GB", "1TB" to integer bytes
+const parseStorageToNumber = (label) => {
+  if (!label) return null;
+  const upper = label.toUpperCase().trim();
+  if (upper.endsWith('TB')) {
+    const num = parseInt(upper.replace(/[^\d]/g, ''), 10);
+    return isNaN(num) ? null : num * 1024;
+  }
+  if (upper.endsWith('GB')) {
+    const num = parseInt(upper.replace(/[^\d]/g, ''), 10);
+    return isNaN(num) ? null : num;
+  }
+  return null;
+};
+
 const emptyForm = {
   name: '',
   brand: '',
@@ -245,10 +260,10 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
 
   const handleAddVariant = () => {
     if (!pickerStorage) {
-      alert('Vui lòng chọn dung lượng.');
+      alert('Vui lòng chọn Dung lượng trước khi thêm phiên bản.');
       return;
     }
-    appendVariant({ color: pickerColor, storageLabel: pickerStorage, ramGb: pickerRam });
+    appendVariant({ color: pickerColor, storageLabel: pickerStorage, ramGb: pickerRam || null });
     setPickerStorage('');
     setPickerRam('');
   };
@@ -301,11 +316,19 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
     }
 
     const validVariants = (form.variants || []).filter(v =>
-      v.color || v.storageLabel || v.price || v.stock || v.ramGb
+      v.storageLabel || v.price || v.stock || v.ramGb || v.color
     );
 
     if (validVariants.length === 0) {
       alert('Vui lòng thêm ít nhất 1 phiên bản.');
+      return;
+    }
+
+    // Every variant must have storage
+    const missingStorage = validVariants.find(v => !v.storageLabel);
+    if (missingStorage) {
+      const idx = (form.variants || []).indexOf(missingStorage) + 1;
+      alert(`Phiên bản #${idx} thiếu Dung lượng. Vui lòng chọn Dung lượng cho tất cả các phiên bản.`);
       return;
     }
 
@@ -322,16 +345,19 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
       thumbnailUrl: form.thumbnailUrl || null,
       images: form.images,
       specifications: payloadSpecifications,
-      variants: validVariants.map(v => ({
-        id: v.id || null,
-        color: (v.color || '').trim() || 'Default',
-        storageLabel: (v.storageLabel || '').trim(),
-        ramGb: v.ramGb ? Number(v.ramGb) : null,
-        price: Number(v.price || 0),
-        stock: Number(v.stock || 0),
-        colorImageUrl: v.colorImageUrl || null,
-      })),
-      sale: 0,
+      variants: validVariants.map(v => {
+        const label = (v.storageLabel || '').trim();
+        return {
+          id: v.id || null,
+          color: (v.color || '').trim() || 'Default',
+          storageLabel: label,
+          storageGb: parseStorageToNumber(label),
+          ramGb: v.ramGb ? Number(v.ramGb) : null,
+          price: Number(v.price || 0),
+          stock: Number(v.stock || 0),
+          colorImageUrl: v.colorImageUrl || null,
+        };
+      }),
     };
 
     setSaving(true);
@@ -509,16 +535,6 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
                     <p className="text-xs text-gray-600 italic">Vui lòng chọn thương hiệu trước</p>
                   )}
                 </div>
-
-                {/* Sale % */}
-                <div>
-                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">Giảm giá (%)</label>
-                  <input type="number" value={form.sale || 0}
-                    placeholder="0"
-                    onChange={(e) => updateForm({ sale: Number(e.target.value) || 0 })}
-                    min="0" max="100"
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-red-500/50 transition-all" />
-                </div>
               </div>
 
               {/* Description */}
@@ -623,7 +639,7 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
 
                 <div>
                   <p className="text-[10px] text-gray-500 uppercase font-bold tracking-widest mb-2">
-                    RAM <span className="text-gray-600 font-normal">(tùy chọn)</span>
+                    RAM
                   </p>
                   <div className="flex flex-wrap gap-1.5">
                     {RAM_PRESETS.map(r => (
