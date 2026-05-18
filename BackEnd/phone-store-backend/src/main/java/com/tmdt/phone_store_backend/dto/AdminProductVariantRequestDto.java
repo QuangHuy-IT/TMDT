@@ -10,8 +10,12 @@ import lombok.Setter;
 @Setter
 public class AdminProductVariantRequestDto {
 
+    /** ID của variant đã tồn tại (null = variant mới) */
+    private Long id;
+
     private String color;
 
+    /** VD: "128GB", "256GB", "1TB" */
     private String storageLabel;
 
     @Min(value = 0, message = "RAM phải lớn hơn hoặc bằng 0")

@@ -1,82 +1,104 @@
 import React, { useContext, useEffect, useMemo, useState } from 'react';
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ShopContext } from '../context/ShopContext';
 import ProductService from '../services/productService';
 import ReviewSection from '../components/review/ReviewSection';
+import QuestionSection from '../components/question/QuestionSection';
 
 const inferColorHex = (value) => {
   const normalized = String(value || '')
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase();
-
   if (normalized.includes('den')) return '#111827';
   if (normalized.includes('trang') || normalized.includes('white')) return '#f3f4f6';
   if (normalized.includes('xanh')) return '#2563eb';
   if (normalized.includes('do') || normalized.includes('red')) return '#dc2626';
   if (normalized.includes('vang') || normalized.includes('gold')) return '#ca8a04';
+  if (normalized.includes('bac') || normalized.includes('silver')) return '#9ca3af';
+  if (normalized.includes('tim') || normalized.includes('purple')) return '#7c3aed';
+  if (normalized.includes('hong') || normalized.includes('pink')) return '#ec4899';
   return '#6b7280';
 };
 
-const normalizeProduct = (raw, fallbackId) => {
+/**
+ * Normalize API response to unified structure.
+ *
+ * New backend response:
+ *   {
+ *     id, name, brand, brandSlug, description, images, thumbnailUrl, specifications,
+ *     variantOptions: { storages: [...], colors: [...], basePrices: {...} },
+ *     variants: [...all variants...],
+ *     selectedVariant: {...current variant...},
+ *     selectedVariant.slug = URL slug for this variant
+ *   }
+ */
+const normalizeProduct = (raw) => {
   if (!raw || typeof raw !== 'object') return null;
 
-  const images = Array.isArray(raw.images)
-    ? raw.images.filter(Boolean)
-    : (raw.image ? [raw.image] : []);
+  let images = [];
+  if (Array.isArray(raw.images)) {
+    images = raw.images.filter(Boolean);
+  }
+  if (images.length === 0 && raw.thumbnailUrl && raw.thumbnailUrl.trim()) {
+    images = [raw.thumbnailUrl];
+  }
 
-  const variants = raw.variants && typeof raw.variants === 'object' ? raw.variants : {};
-  const storages = Array.isArray(variants.storages) ? variants.storages.filter(Boolean) : [];
-  const colors = Array.isArray(variants.colors)
-    ? variants.colors
-        .map((item) => {
-          if (typeof item === 'string') {
-            return { name: item, hex: inferColorHex(item) };
-          }
-          if (!item || typeof item !== 'object') return null;
-          const name = item.name || item.color || 'Mặc định';
-          return { name, hex: item.hex || inferColorHex(name) };
-        })
-        .filter(Boolean)
-    : [];
+  const allVariants = Array.isArray(raw.variants) ? raw.variants : [];
+  const variantOptions = raw.variantOptions && typeof raw.variantOptions === 'object'
+    ? raw.variantOptions : {};
+  const selectedVariant = raw.selectedVariant && typeof raw.selectedVariant === 'object'
+    ? raw.selectedVariant : null;
 
-  const basePrices = variants.basePrices && typeof variants.basePrices === 'object'
-    ? variants.basePrices
-    : {};
+  const storages = Array.isArray(variantOptions.storages) ? variantOptions.storages : [];
+  const basePrices = variantOptions.basePrices || {};
 
-  const variantItems = Array.isArray(raw.variantItems) ? raw.variantItems : [];
-  const fallbackStock = variantItems.reduce((sum, item) => sum + Number(item?.stock || 0), 0);
-  const stock = Number(raw.stock ?? fallbackStock ?? 0);
+  // Build color images map: { colorName: imageUrl }
+  const colorImages = {};
+  if (Array.isArray(variantOptions.colors)) {
+    variantOptions.colors.forEach(c => {
+      if (c?.name && c?.imageUrl && c.imageUrl.trim()) {
+        colorImages[c.name.toLowerCase()] = c.imageUrl;
+      }
+    });
+  }
+
+  const totalStock = allVariants.reduce((sum, v) => sum + Number(v?.stock || 0), 0);
 
   return {
     ...raw,
-    id: raw.id || raw._id || fallbackId,
+    id: raw.id,
+    name: raw.name || 'Sản phẩm',
     images,
-    price: Number(raw.price || 0),
-    stock,
-    variants: {
-      storages,
-      colors,
-      basePrices,
-    },
-    specifications: raw.specifications && typeof raw.specifications === 'object' ? raw.specifications : {},
+    stock: totalStock,
+    specifications: raw.specifications && typeof raw.specifications === 'object'
+      ? raw.specifications : {},
+    allVariants,
+    variantOptions,
+    selectedVariant,
+    storages,
+    basePrices,
+    colorImages,
   };
 };
 
 export const ProductDetail = () => {
-  const { slug } = useParams();
+  const { slug } = useParams();  // slug = variant slug, e.g., "iphone-17-pro-max-8gb-256gb-black"
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { state, dispatch } = useContext(ShopContext);
   const { isAuthenticated } = state;
 
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  // UI state
   const [activeImage, setActiveImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
-  const [selectedStorage, setSelectedStorage] = useState(null);
-  const [selectedColor, setSelectedColor] = useState(null);
+  // User-chosen color image: null on page load, set only when user actively clicks a color button
+  const [userSelectedColorImage, setUserSelectedColorImage] = useState(null);
 
   useEffect(() => {
     let mounted = true;
@@ -84,12 +106,33 @@ export const ProductDetail = () => {
     const fetchDetail = async () => {
       setLoading(true);
       setError('');
+        setActiveImage(0);
+        setQuantity(1);
+        setUserSelectedColorImage(null);
 
       try {
+        // slug here IS the variant slug
         const response = await ProductService.getProductDetail(slug);
         if (!mounted) return;
-        const normalized = normalizeProduct(response.data, slug);
+        const normalized = normalizeProduct(response.data);
         setProduct(normalized);
+
+        // Auto-set color image based on the loaded variant's color
+        const variant = normalized?.selectedVariant;
+        if (variant?.color) {
+          const colorNameLower = variant.color.toLowerCase();
+          const colorImage = normalized.colorImages?.[colorNameLower] || variant.colorImageUrl || null;
+          setUserSelectedColorImage(colorImage);
+        }
+
+        // Read ?product_id from URL and switch color if present
+        const productIdParam = searchParams.get('product_id');
+        if (productIdParam && normalized?.allVariants) {
+          const targetVariant = normalized.allVariants.find(v => String(v.id) === productIdParam);
+          if (targetVariant?.slug && targetVariant.slug !== slug) {
+            navigate(`/products/${targetVariant.slug}`, { replace: true });
+          }
+        }
       } catch (e) {
         if (!mounted) return;
         setError('Không tải được thông tin sản phẩm.');
@@ -100,53 +143,105 @@ export const ProductDetail = () => {
     };
 
     fetchDetail();
+    return () => { mounted = false; };
+  }, [slug, searchParams]);
 
-    return () => {
-      mounted = false;
-    };
-  }, [slug]);
+  // Derived state
+  const selectedVariant = product?.selectedVariant || null;
 
-  useEffect(() => {
-    const storages = product?.variants?.storages || [];
-    const colors = product?.variants?.colors || [];
-    setSelectedStorage(storages.length > 0 ? storages[0] : null);
-    setSelectedColor(colors.length > 0 ? colors[0] : null);
-    setActiveImage(0);
-    setQuantity(1);
-  }, [product?.id]);
-
-  const images = product?.images || [];
+  // Current price from selected variant
   const currentPrice = useMemo(() => {
     if (!product) return 0;
-    // Ưu tiên giá flash sale
     if (product.isFlashSale && product.flashSalePrice != null) {
       return Number(product.flashSalePrice);
     }
-    if (selectedStorage && product.variants?.basePrices?.[selectedStorage] != null) {
-      return Number(product.variants.basePrices[selectedStorage]);
+    if (selectedVariant?.price != null) {
+      return Number(selectedVariant.price);
     }
     return Number(product.price || 0);
-  }, [product, selectedStorage]);
+  }, [product, selectedVariant]);
 
-  const maxQuantity = Math.max(1, Number(product?.stock || 0));
+  // Stock from selected variant
+  const maxQuantity = useMemo(() => {
+    if (selectedVariant?.stock != null) return Math.max(1, Number(selectedVariant.stock));
+    if (product?.stock != null) return Math.max(1, Number(product.stock));
+    return 1;
+  }, [selectedVariant, product]);
 
-    const addToCart = () => {
+  // Available colors for the selected variant's storage
+  const availableColors = useMemo(() => {
+    if (!product?.allVariants || !selectedVariant) return [];
+    const storage = selectedVariant.storageLabel;
+    const seen = new Set();
+    const colors = [];
+    product.allVariants.forEach(v => {
+      if (v.storageLabel === storage && v.color && !seen.has(v.color.toLowerCase())) {
+        seen.add(v.color.toLowerCase());
+        const colorNameLower = v.color.toLowerCase();
+        const colorImage = product.colorImages?.[colorNameLower] || v.colorImageUrl || null;
+        colors.push({ name: v.color, hex: inferColorHex(v.color), imageUrl: colorImage });
+      }
+    });
+    return colors;
+  }, [product, selectedVariant]);
+
+  // Selected color state (synced with selectedVariant)
+  const [selectedColor, setSelectedColor] = useState(null);
+  useEffect(() => {
+    if (selectedVariant?.color) {
+      const colorNameLower = selectedVariant.color.toLowerCase();
+      const colorImage = product?.colorImages?.[colorNameLower] || selectedVariant.colorImageUrl || null;
+      setSelectedColor({ name: selectedVariant.color, hex: inferColorHex(selectedVariant.color), imageUrl: colorImage });
+    }
+  }, [product, selectedVariant?.id]);
+
+  // When userSelectedColorImage changes (e.g. after navigating to a new color), jump to that image
+  useEffect(() => {
+    if (!userSelectedColorImage || !product?.images) return;
+    const allImages = product.images;
+    const thumbnail = product.thumbnailUrl;
+    let gallery = allImages;
+    if (thumbnail && allImages.length > 0 && allImages[0] === thumbnail) {
+      gallery = allImages.slice(1);
+    }
+    const filtered = gallery.filter(img => img !== userSelectedColorImage);
+    const colorImageIndex = filtered.length; // color image is appended at the end
+    setActiveImage(colorImageIndex);
+  }, [userSelectedColorImage]);
+
+  // Dynamic gallery:
+  // - Gallery images (product.images) — exclude thumbnail from front to avoid duplication
+  // - When a variant has a color image, it's always appended to the end of the gallery
+  // - Thumbnails strip uses this array; main display uses galleryImages[0]
+  const galleryImages = useMemo(() => {
+    const allImages = product?.images || [];
+    const thumbnail = product?.thumbnailUrl;
+
+    // Remove thumbnail from front of gallery to avoid showing it twice
+    let gallery = allImages;
+    if (thumbnail && allImages.length > 0 && allImages[0] === thumbnail) {
+      gallery = allImages.slice(1);
+    }
+
+    // Append color image to the END when user actively selected a color with an image
+    if (userSelectedColorImage) {
+      // Avoid duplicate if somehow already in gallery
+      const filtered = gallery.filter(img => img !== userSelectedColorImage);
+      return [...filtered, userSelectedColorImage];
+    }
+
+    return gallery;
+  }, [product?.images, product?.thumbnailUrl, userSelectedColorImage]);
+
+  const images = galleryImages;
+
+  const addToCart = () => {
     if (!product) return;
-
     if (!isAuthenticated) {
       navigate('/login', { state: { from: location } });
       return;
     }
-
-    if ((product.stock || 0) <= 0) return;
-
-    // Tìm variantItem phù hợp với storage + color đã chọn
-    const variantItems = product.variantItems || [];
-    const selectedVariant = variantItems.find(
-      (v) =>
-        String(v.storageGb || '') === String(selectedStorage) &&
-        (v.color || '').toLowerCase() === (selectedColor?.name || '').toLowerCase()
-    );
+    if (maxQuantity <= 0) return;
 
     dispatch({
       type: 'ADD_TO_CART',
@@ -157,8 +252,8 @@ export const ProductDetail = () => {
         quantity,
         price: currentPrice,
         ram: selectedVariant?.ramGb ? `${selectedVariant.ramGb}GB` : '',
-        storage: selectedVariant?.storageGb ? `${selectedVariant.storageGb}GB` : String(selectedStorage || ''),
-        color: selectedColor?.name || '',
+        storage: selectedVariant?.storageLabel || '',
+        color: selectedColor?.name || selectedVariant?.color || '',
         sku: selectedVariant?.sku || '',
         images: product.images,
       },
@@ -178,101 +273,267 @@ export const ProductDetail = () => {
       <div className="flex min-h-[70vh] flex-col items-center justify-center bg-gray-50 px-4 text-center">
         <h2 className="text-2xl font-black text-gray-800">Không tìm thấy sản phẩm</h2>
         <p className="mt-2 text-sm text-gray-500">{error || 'Sản phẩm không tồn tại hoặc đã bị xóa.'}</p>
-        <button
-          onClick={() => navigate('/')}
-          className="mt-6 rounded-xl bg-red-600 px-6 py-3 text-sm font-bold text-white hover:bg-red-700"
-        >
+        <button onClick={() => navigate('/')}
+          className="mt-6 rounded-xl bg-red-600 px-6 py-3 text-sm font-bold text-white hover:bg-red-700">
           Về trang chủ
         </button>
       </div>
     );
   }
 
+  const hasMultipleStorages = (product.storages?.length || 0) > 1;
+  const displayName = product.name || 'Sản phẩm';
+
   return (
     <main className="min-h-screen bg-[#f8f8f6] pb-20">
       <div className="mx-auto max-w-6xl px-4 pt-8">
+        {/* Breadcrumb */}
         <nav className="mb-6 flex items-center gap-2 text-xs text-gray-400">
           <button onClick={() => navigate('/')} className="hover:text-red-600">Trang chủ</button>
           <span>/</span>
-          <button onClick={() => navigate(`/brands/${product.brandSlug || product.brand}`)} className="hover:text-red-600">{product.brand || 'Khác'}</button>
+          <button onClick={() => navigate(`/brands/${product.brandSlug || product.brand}`)}
+            className="hover:text-red-600">{product.brand || 'Khác'}</button>
           <span>/</span>
-          <span className="text-gray-700">{product.name}</span>
+          <span className="text-gray-700">{displayName}</span>
         </nav>
 
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
-          {/* ===== LEFT: Image Gallery ===== */}
+
+          {/* LEFT: Image Gallery */}
           <section className="space-y-3">
-            {/* Main Image */}
             <div className="relative rounded-2xl border border-gray-100 bg-white overflow-hidden">
               <div className="relative aspect-square flex items-center justify-center overflow-hidden bg-gray-50">
                 <img
-                  src={images[activeImage] || 'https://picsum.photos/seed/fallback/700/700'}
+                  src={images[activeImage] && images[activeImage].trim()
+                    ? images[activeImage]
+                    : 'https://picsum.photos/seed/fallback/700/700'}
                   alt={product.name}
                   className="h-full w-full object-contain"
-                  onError={(e) => {
-                    e.currentTarget.src = 'https://picsum.photos/seed/fallback/700/700';
-                  }}
+                  onError={(e) => { e.currentTarget.src = 'https://picsum.photos/seed/fallback/700/700'; }}
                 />
 
-                {/* Prev / Next Buttons */}
                 {images.length > 1 && (
                   <>
-                    <button
-                      onClick={() => setActiveImage((i) => (i - 1 + images.length) % images.length)}
-                      className="absolute left-3 top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 shadow-lg hover:bg-white disabled:opacity-30"
-                      aria-label="Ảnh trước"
-                    >
-                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 12L6 8l4-4" stroke="#374151" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                    <button onClick={() => setActiveImage((i) => (i - 1 + images.length) % images.length)}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 shadow-lg hover:bg-white"
+                      aria-label="Ảnh trước">
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path d="M10 12L6 8l4-4" stroke="#374151" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
                     </button>
-                    <button
-                      onClick={() => setActiveImage((i) => (i + 1) % images.length)}
+                    <button onClick={() => setActiveImage((i) => (i + 1) % images.length)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 shadow-lg hover:bg-white"
-                      aria-label="Ảnh sau"
-                    >
-                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 12l4-4-4-4" stroke="#374151" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                      aria-label="Ảnh sau">
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path d="M6 12l4-4-4-4" stroke="#374151" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
                     </button>
                   </>
                 )}
 
-                {/* Dots indicator */}
                 {images.length > 1 && (
                   <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
                     {images.map((_, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => setActiveImage(idx)}
+                      <button key={idx} onClick={() => setActiveImage(idx)}
                         className={`h-1.5 rounded-full transition-all ${activeImage === idx ? 'w-5 bg-red-500' : 'w-1.5 bg-white/60'}`}
-                        aria-label={`Ảnh ${idx + 1}`}
-                      />
+                        aria-label={`Ảnh ${idx + 1}`} />
                     ))}
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Thumbnail Strip */}
             {images.length > 1 && (
               <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
                 {images.map((image, index) => (
-                  <button
-                    key={`${image}-${index}`}
-                    onClick={() => setActiveImage(index)}
-                    className={`h-16 w-16 shrink-0 overflow-hidden rounded-lg border-2 transition-all ${activeImage === index ? 'border-red-500' : 'border-gray-200'}`}
-                  >
+                  <button key={`${image}-${index}`} onClick={() => setActiveImage(index)}
+                    className={`h-16 w-16 shrink-0 overflow-hidden rounded-lg border-2 transition-all ${activeImage === index ? 'border-red-500' : 'border-gray-200'}`}>
                     <img src={image} alt={`Thumb ${index + 1}`} className="h-full w-full object-cover" />
                   </button>
                 ))}
               </div>
             )}
 
-            {/* ===== Below images: Description + Specifications ===== */}
+            {/* Description */}
             <div className="rounded-2xl border border-gray-100 bg-white p-4">
               <h2 className="mb-2 text-sm font-black uppercase tracking-wide text-gray-900">Mô tả</h2>
-              <p className="text-sm leading-relaxed text-gray-600">
-                {product.description || 'Sản phẩm đang được cập nhật mô tả.'}
-              </p>
+              {product.description ? (
+                <div
+                  className="prose prose-sm max-w-none text-sm leading-relaxed text-gray-600 [&_img]:rounded-lg [&_img]:max-w-full [&_h1]:text-lg [&_h1]:font-bold [&_h2]:text-base [&_h2]:font-bold [&_h3]:text-sm [&_h3]:font-bold [&_p]:mb-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_a]:text-red-600 [&_a]:underline"
+                  dangerouslySetInnerHTML={{ __html: product.description }}
+                />
+              ) : (
+                <p className="text-sm leading-relaxed text-gray-500">Sản phẩm đang được cập nhật mô tả.</p>
+              )}
+            </div>
+          </section>
+
+          {/* RIGHT: Product Info */}
+          <section className="space-y-5">
+            {/* Brand + Stock badge */}
+            <div className="flex items-center gap-2">
+              <span className="rounded-full bg-red-50 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-red-600">
+                {product.brand || 'Khác'}
+              </span>
+              <span className={`text-[11px] font-bold uppercase ${maxQuantity > 0 ? 'text-green-600' : 'text-red-500'}`}>
+                {maxQuantity > 0 ? `Còn ${maxQuantity} sản phẩm` : 'Hết hàng'}
+              </span>
             </div>
 
+            <h1 className="text-3xl font-black text-gray-900">{displayName}</h1>
+
+            {/* Price */}
+            <div>
+              {product.isFlashSale && product.flashSalePrice != null && (
+                <p className="text-sm text-gray-400 line-through mb-0.5">
+                  {Number(product.price || 0).toLocaleString('vi-VN')}₫
+                </p>
+              )}
+              <p className="text-3xl font-black text-red-600">
+                {Number(currentPrice || 0).toLocaleString('vi-VN')}₫
+              </p>
+              {product.isFlashSale && product.sale > 0 && (
+                <span className="mt-1 inline-block rounded bg-red-600 px-2 py-0.5 text-[11px] font-bold text-white">
+                  -{product.sale}%
+                </span>
+              )}
+            </div>
+
+            {/* Storage Variant Buttons */}
+            {hasMultipleStorages && (
+              <div>
+                <p className="mb-3 text-xs font-bold uppercase text-gray-500">Phiên bản</p>
+                <div className="flex flex-wrap gap-2">
+                  {product.storages.map((storage) => {
+                    const variantOfStorage = product.allVariants.find(v => v.storageLabel === storage);
+                    const storagePrice = product.basePrices?.[storage];
+                    const isActive = selectedVariant?.storageLabel === storage;
+                    const targetSlug = variantOfStorage?.slug;
+
+                    return (
+                      <button
+                        key={storage}
+                        onClick={() => {
+                          if (!isActive && targetSlug) {
+                            setActiveImage(0);
+                            setUserSelectedColorImage(null);
+                            navigate(`/products/${targetSlug}`);
+                          }
+                        }}
+                        className={`relative rounded-xl border px-4 py-2.5 text-sm font-bold transition-all ${
+                          isActive
+                            ? 'border-red-500 bg-red-50 text-red-600 shadow-sm'
+                            : 'border-gray-200 text-gray-700 hover:border-gray-300 hover:bg-gray-50'
+                        }`}
+                      >
+                        <span className="block text-base">{storage}</span>
+                        {storagePrice != null && (
+                          <span className={`block text-xs font-normal ${isActive ? 'text-red-400' : 'text-gray-400'}`}>
+                            {Number(storagePrice).toLocaleString('vi-VN')}₫
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Color Buttons */}
+            {availableColors.length > 0 && (
+              <div>
+                <p className="mb-3 text-xs font-bold uppercase text-gray-500">
+                  Màu sắc
+                  {selectedColor && (
+                    <span className="ml-2 font-normal normal-case text-gray-600">— {selectedColor.name}</span>
+                  )}
+                </p>
+                <div className="flex flex-wrap gap-3">
+                  {availableColors.map((color) => {
+                    const isActive = selectedVariant?.color?.toLowerCase() === color.name.toLowerCase();
+                    const variantOfColor = product.allVariants.find(
+                      v => v.storageLabel === selectedVariant?.storageLabel && v.color?.toLowerCase() === color.name.toLowerCase()
+                    );
+                    const hasColorImage = color.imageUrl && color.imageUrl.trim();
+                    return (
+                      <button
+                        key={color.name}
+                        onClick={() => {
+                          if (!isActive && variantOfColor?.slug) {
+                            setActiveImage(0);
+                            navigate(`/products/${variantOfColor.slug}?product_id=${variantOfColor.id}`);
+                          }
+                        }}
+                        title={color.name}
+                        className={`relative rounded-full transition-all overflow-hidden ${
+                          isActive
+                            ? 'ring-2 ring-offset-2 ring-gray-900'
+                            : 'hover:ring-2 hover:ring-offset-1 hover:ring-gray-400'
+                        } ${hasColorImage ? 'h-14 w-14' : 'h-11 w-11'}`}
+                        style={hasColorImage ? {} : { backgroundColor: color.hex || '#6b7280' }}
+                      >
+                        {hasColorImage ? (
+                          <img
+                            src={color.imageUrl}
+                            alt={color.name}
+                            className="h-full w-full object-cover"
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                              e.currentTarget.parentElement.style.backgroundColor = color.hex || '#6b7280';
+                            }}
+                          />
+                        ) : null}
+                        {!hasColorImage && (
+                          <span className="absolute inset-0 flex items-center justify-center">
+                            <span
+                              className="h-3 w-3 rounded-full"
+                              style={{ backgroundColor: color.hex || '#6b7280', boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.1)' }}
+                            />
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Current variant info */}
+            {selectedVariant && (
+              <div className="flex items-center gap-2 text-sm text-gray-500">
+                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>
+                  Phiên bản {selectedVariant.storageLabel || 'mặc định'}
+                  {selectedVariant.ramGb && <span className="text-gray-400"> | {selectedVariant.ramGb}GB RAM</span>}
+                  {selectedVariant.color && <span className="text-gray-400"> | {selectedVariant.color}</span>}
+                </span>
+              </div>
+            )}
+
+            {/* Add to Cart */}
+            <div className="flex items-center gap-3">
+              <div className="flex items-center overflow-hidden rounded-xl border border-gray-200">
+                <button onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                  className="h-11 w-11 text-lg font-black text-gray-500 hover:text-red-600">−</button>
+                <span className="w-14 text-center font-bold text-lg">{quantity}</span>
+                <button onClick={() => setQuantity((q) => Math.min(maxQuantity, q + 1))}
+                  className="h-11 w-11 text-lg font-black text-gray-500 hover:text-red-600">+</button>
+              </div>
+              <button onClick={addToCart} disabled={maxQuantity <= 0}
+                className="flex-1 rounded-xl bg-red-600 px-6 py-3 text-sm font-bold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-gray-300 transition-all">
+                {maxQuantity > 0 ? 'Thêm vào giỏ hàng' : 'Hết hàng'}
+              </button>
+            </div>
+
+            {product.isFlashSale && (
+              <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
+                🔥 Đang diễn ra Flash Sale — Giảm đến {product.sale}%
+              </div>
+            )}
+
+            {/* Specifications */}
             {Object.keys(product.specifications || {}).length > 0 && (
               <div className="rounded-2xl border border-gray-100 bg-white p-4">
                 <h2 className="mb-3 text-sm font-black uppercase tracking-wide text-gray-900">Thông số kỹ thuật</h2>
@@ -287,85 +548,55 @@ export const ProductDetail = () => {
               </div>
             )}
           </section>
-
-          <section className="space-y-5">
-            <div className="flex items-center gap-2">
-              <span className="rounded-full bg-red-50 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-red-600">
-                {product.brand || 'Khác'}
-              </span>
-              <span className={`text-[11px] font-bold uppercase ${product.stock > 0 ? 'text-green-600' : 'text-red-500'}`}>
-                {product.stock > 0 ? `Còn ${product.stock} sản phẩm` : 'Hết hàng'}
-              </span>
-            </div>
-
-            <h1 className="text-3xl font-black text-gray-900">{product.name}</h1>
-
-            <p className="text-3xl font-black text-red-600">{Number(currentPrice || 0).toLocaleString('vi-VN')}₫</p>
-
-            {product.variants?.storages?.length > 0 && (
-              <div>
-                <p className="mb-2 text-xs font-bold uppercase text-gray-500">Dung lượng</p>
-                <div className="flex flex-wrap gap-2">
-                  {product.variants.storages.map((storage) => (
-                    <button
-                      key={storage}
-                      onClick={() => setSelectedStorage(storage)}
-                      className={`rounded-lg border px-3 py-2 text-sm font-bold ${selectedStorage === storage ? 'border-red-500 bg-red-50 text-red-600' : 'border-gray-200 text-gray-700'}`}
-                    >
-                      {storage}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {product.variants?.colors?.length > 0 && (
-              <div>
-                <p className="mb-2 text-xs font-bold uppercase text-gray-500">Màu sắc</p>
-                <div className="flex flex-wrap gap-3">
-                  {product.variants.colors.map((color) => (
-                    <button
-                      key={color.name}
-                      onClick={() => setSelectedColor(color)}
-                      className={`h-9 w-9 rounded-full border-2 ${selectedColor?.name === color.name ? 'border-gray-900' : 'border-gray-300'}`}
-                      style={{ backgroundColor: color.hex || '#6b7280' }}
-                      title={color.name}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <div className="flex items-center gap-3">
-              <div className="flex items-center overflow-hidden rounded-xl border border-gray-200">
-                <button
-                  onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                  className="h-10 w-10 text-lg font-black text-gray-500 hover:text-red-600"
-                >
-                  -
-                </button>
-                <span className="w-12 text-center font-bold">{quantity}</span>
-                <button
-                  onClick={() => setQuantity((q) => Math.min(maxQuantity, q + 1))}
-                  className="h-10 w-10 text-lg font-black text-gray-500 hover:text-red-600"
-                >
-                  +
-                </button>
-              </div>
-
-              <button
-                onClick={addToCart}
-                disabled={product.stock <= 0}
-                className="rounded-xl bg-red-600 px-6 py-3 text-sm font-bold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-gray-300"
-              >
-                Thêm vào giỏ hàng
-              </button>
-            </div>
-          </section>
         </div>
       </div>
 
       <ReviewSection productId={product.id} currentUserId={state.user?.id || null} />
+
+      <QuestionSection productId={product.id} currentUserId={state.user?.id || null} />
+
+      {/* Other variants of the same product */}
+      {(product.allVariants?.length || 0) > 1 && (
+        <div className="mx-auto max-w-6xl px-4 pt-8">
+          <h2 className="mb-4 text-lg font-black text-gray-900">Các phiên bản khác</h2>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+            {product.allVariants.map((v) => {
+              const isCurrent = v.id === selectedVariant?.id;
+              return (
+                <button
+                  key={v.id}
+                  onClick={() => !isCurrent && navigate(`/products/${v.slug}`)}
+                  disabled={isCurrent}
+                  className={`rounded-2xl border bg-white p-3 text-left transition-all hover:border-red-300 hover:shadow-md ${
+                    isCurrent ? 'opacity-40 cursor-default' : ''
+                  }`}
+                >
+                  <div className="aspect-square mb-2 flex items-center justify-center overflow-hidden rounded-xl bg-gray-50">
+                    {product.thumbnailUrl ? (
+                      <img
+                        src={product.thumbnailUrl}
+                        alt={v.storageLabel}
+                        className="h-full w-full object-contain"
+                        onError={(e) => { e.target.src = 'https://picsum.photos/seed/rel/200/200'; }}
+                      />
+                    ) : (
+                      <div className="text-gray-300 text-xs">No image</div>
+                    )}
+                  </div>
+                  <p className="mb-1 text-xs font-medium text-gray-700 line-clamp-2">
+                    {product.name}
+                    {v.storageLabel && <span className="block text-gray-400 text-[10px]">{v.storageLabel}</span>}
+                    {v.color && <span className="block text-gray-400 text-[10px]">{v.color}</span>}
+                  </p>
+                  <p className="text-sm font-bold text-red-600">
+                    {Number(v.price || 0).toLocaleString('vi-VN')}₫
+                  </p>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </main>
   );
 };

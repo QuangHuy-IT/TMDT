@@ -443,12 +443,12 @@ const AdminVouchers = () => {
                     </td>
                     <td className="px-6 py-4 text-center">
                       <button onClick={() => handleToggle(v)}
-                        className={`relative w-10 h-5 rounded-full transition-colors ${
+                        className={`relative w-11 h-6 rounded-full transition-colors ${
                           v.isActive ? 'bg-red-600' : 'bg-gray-600'
                         }`}
                       >
-                        <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
-                          v.isActive ? 'translate-x-5' : 'translate-x-0.5'
+                        <span className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${
+                          v.isActive ? 'translate-x-5' : 'translate-x-0'
                         }`} />
                       </button>
                     </td>

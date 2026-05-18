@@ -31,7 +31,7 @@ public class AdminBrandController {
 
     @GetMapping
     public ResponseEntity<List<BrandDto>> getAllBrands() {
-        List<BrandDto> brands = brandRepository.findAll().stream()
+        List<BrandDto> brands = brandRepository.findAllByOrderBySortOrderAsc().stream()
                 .map(this::toDto)
                 .toList();
         return ResponseEntity.ok(brands);
@@ -50,11 +50,21 @@ public class AdminBrandController {
             throw new ResourceAlreadyExistsException("Thương hiệu '" + req.getName() + "' đã tồn tại");
         }
 
+        // Determine sortOrder: put at the end
+        Integer sortOrder = req.getSortOrder();
+        if (sortOrder == null) {
+            List<Brand> all = brandRepository.findAll();
+            sortOrder = all.isEmpty() ? 0 : all.stream()
+                    .mapToInt(b -> b.getSortOrder() != null ? b.getSortOrder() : 0)
+                    .max().orElse(0) + 1;
+        }
+
         Brand b = new Brand();
         b.setName(req.getName().trim());
         b.setSlug(toSlug(req.getName().trim()));
         b.setLogoUrl(req.getLogoUrl());
         b.setIsActive(req.getIsActive() != null ? req.getIsActive() : true);
+        b.setSortOrder(sortOrder);
         b.setCreatedAt(LocalDateTime.now());
         b.setUpdatedAt(LocalDateTime.now());
 
@@ -77,9 +87,37 @@ public class AdminBrandController {
         b.setSlug(toSlug(req.getName().trim()));
         if (req.getLogoUrl() != null) b.setLogoUrl(req.getLogoUrl());
         if (req.getIsActive() != null) b.setIsActive(req.getIsActive());
+        if (req.getSortOrder() != null) b.setSortOrder(req.getSortOrder());
         b.setUpdatedAt(LocalDateTime.now());
 
         return ResponseEntity.ok(toDto(brandRepository.save(b)));
+    }
+
+    @PutMapping("/reorder")
+    public ResponseEntity<List<BrandDto>> reorderBrands(@RequestBody List<Long> brandIds) {
+        if (brandIds == null || brandIds.isEmpty()) {
+            return ResponseEntity.badRequest().build();
+        }
+        try {
+            List<Brand> allBrands = brandRepository.findAllByOrderBySortOrderAsc();
+            for (int i = 0; i < brandIds.size(); i++) {
+                final int sortOrder = i;
+                Long brandId = brandIds.get(i);
+                allBrands.stream()
+                        .filter(b -> b.getId().equals(brandId))
+                        .findFirst()
+                        .ifPresent(b -> b.setSortOrder(sortOrder));
+            }
+            brandRepository.saveAll(allBrands);
+            List<BrandDto> result = brandRepository.findAllByOrderBySortOrderAsc().stream()
+                    .map(this::toDto)
+                    .toList();
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            System.err.println("ERROR in reorderBrands: " + e.getMessage());
+            e.printStackTrace();
+            throw e;
+        }
     }
 
     @DeleteMapping("/{id}")
@@ -98,6 +136,7 @@ public class AdminBrandController {
         dto.setSlug(b.getSlug());
         dto.setLogoUrl(b.getLogoUrl());
         dto.setIsActive(b.getIsActive());
+        dto.setSortOrder(b.getSortOrder());
         return dto;
     }
 

@@ -36,7 +36,7 @@ const FlashSaleProductCard = ({ product, className }) => {
   const isHot = soldPercent >= 60 && !isSoldOut;
 
   const handleCardClick = () => {
-    if (!isSoldOut) navigate(`/product/${productSlug}`);
+    if (!isSoldOut) navigate(`/products/${productSlug}`);
   };
 
   const handleFavClick = (e) => {
@@ -180,7 +180,7 @@ const FlashSaleProductCard = ({ product, className }) => {
           <button
             onClick={(e) => {
               e.stopPropagation();
-              navigate(`/product/${productSlug}`);
+              navigate(`/products/${productSlug}`);
             }}
             className="w-full py-2 bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-orange-500 text-white text-[11px] font-black uppercase tracking-wider rounded-xl shadow-md shadow-red-500/30 hover:shadow-lg hover:shadow-red-500/50 active:scale-95 transition-all duration-200 flex items-center justify-center gap-1.5"
           >

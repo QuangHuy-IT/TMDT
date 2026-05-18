@@ -52,7 +52,7 @@ public class InventoryAdminService {
             ProductVariant variant = variantMap.get(change.getVariantId());
             if (variant == null) {
                 throw new ResourceNotFoundException(
-                        "Biến thể không thuộc sản phẩm " + productId + ": " + change.getVariantId()
+                        "Phiên bản không thuộc sản phẩm " + productId + ": " + change.getVariantId()
                 );
             }
 
@@ -72,7 +72,7 @@ public class InventoryAdminService {
             int afterStock = beforeStock + change.getDelta();
             if (afterStock < 0) {
                 throw new IllegalArgumentException(
-                        "Không đủ tồn kho cho biến thể: " + buildVariantName(product, variant)
+                        "Không đủ tồn kho cho phiên bản: " + buildVariantName(product, variant)
                 );
             }
 

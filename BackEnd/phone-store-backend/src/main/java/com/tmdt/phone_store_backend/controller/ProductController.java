@@ -25,11 +25,24 @@ public class ProductController {
             @RequestParam(required = false) String price,
             @RequestParam(required = false) String storage,
             @RequestParam(required = false) String sort,
-            @RequestParam(required = false) Integer limit) {
-        if (brand == null && price == null && storage == null && sort == null && limit == null) {
+            @RequestParam(required = false) Integer limit,
+            @RequestParam(required = false) String series) {
+        if (brand == null && price == null && storage == null && sort == null && limit == null && series == null) {
             return ResponseEntity.ok(productAdminService.getAllProducts());
         }
-        return ResponseEntity.ok(productAdminService.getPublicProducts(brand, price, storage, sort, limit));
+        return ResponseEntity.ok(productAdminService.getPublicProducts(brand, price, storage, sort, limit, series));
+    }
+
+    /**
+     * Product detail via variant slug.
+     * Example: /api/products/iphone-17-pro-max-8gb-256gb-black
+     *
+     * The variant slug uniquely identifies a product+storage+color combination.
+     * Response includes: product info + selectedVariant + allVariants[]
+     */
+    @GetMapping("/{variantSlug}")
+    public ResponseEntity<AdminProductDto> getPublicProductDetail(@PathVariable String variantSlug) {
+        return ResponseEntity.ok(productAdminService.getPublicProductDetail(variantSlug));
     }
 
     @GetMapping("/featured")
@@ -56,8 +69,8 @@ public class ProductController {
         return ResponseEntity.ok(productAdminService.getHomeBrandSections(brands, limitPerBrand));
     }
 
-    @GetMapping("/{idOrSlug}")
-    public ResponseEntity<AdminProductDto> getPublicProductDetail(@PathVariable String idOrSlug) {
-        return ResponseEntity.ok(productAdminService.getPublicProductDetail(idOrSlug));
+    @GetMapping("/related/{baseName}")
+    public ResponseEntity<List<AdminProductDto>> getRelatedProducts(@PathVariable String baseName) {
+        return ResponseEntity.ok(productAdminService.getRelatedProducts(baseName));
     }
 }

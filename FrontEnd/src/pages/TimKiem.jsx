@@ -60,6 +60,15 @@ export const TimKiem = () => {
       result = result.filter((product) =>
         String(product.name || '').toLowerCase().includes(query)
         || String(product.brand || '').toLowerCase().includes(query)
+        || String(product.baseName || '').toLowerCase().includes(query)
+        || (product.variants || []).some(v =>
+          String(v.storageLabel || '').toLowerCase().includes(query)
+          || String(v.color || '').toLowerCase().includes(query)
+        )
+        || (product.variantItems || []).some(v =>
+          String(v.storageLabel || '').toLowerCase().includes(query)
+          || String(v.color || '').toLowerCase().includes(query)
+        )
       );
     }
 
@@ -134,7 +143,7 @@ export const TimKiem = () => {
               <>
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
                   {displayed.map((product) => (
-                    <ProductCard key={product._id || product.id} product={product} />
+                    <ProductCard key={`${product.id}-${product.variantId}`} product={product} />
                   ))}
                 </div>
 

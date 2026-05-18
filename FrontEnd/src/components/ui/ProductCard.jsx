@@ -13,35 +13,55 @@ export const ProductCard = ({ product, variant = 'default', className }) => {
 
   // === Default mode mappings ===
   const productId = product.id || product._id;
-  const productSlug = product.slug || product.productSlug || productId;
-  const name = product.name || product.productName || 'Sản phẩm';
+
+  // New model: use selectedVariant.slug if available, else fallback
+  // Example: "iphone-17-pro-max-8gb-256gb-black"
+  const selectedVariant = product.selectedVariant && typeof product.selectedVariant === 'object'
+    ? product.selectedVariant
+    : null;
+  const variantSlug = selectedVariant?.slug
+    || product.slug
+    || product.productSlug
+    || productId
+    || '';
+
+  // Product name with variant spec (e.g. "iPhone 17 Pro Max 8GB 256GB")
+  const variantSpec = product.variantName || '';
+  const displayName = product.name || product.productName || 'Sản phẩm';
+  const fullDisplayName = variantSpec ? `${displayName} ${variantSpec}` : displayName;
+
+  // Price: selectedVariant first, then product-level price
+  const price = selectedVariant?.price
+    ?? product.price
+    ?? product.minPrice
+    ?? 0;
+
+  // Build thumbnail - prioritize thumbnailUrl, then first image in array
+  const productImages = Array.isArray(product.images) ? product.images.filter(img => img && typeof img === 'string' && img.trim()) : [];
   const thumbnail =
     product.thumbnail ||
-    product.imageUrl ||
-    (product.images?.length > 0
-      ? typeof product.images[0] === 'string'
-        ? product.images[0]
-        : product.images[0].imageUrl
-      : '/placeholder-product.png');
+    product.thumbnailUrl ||
+    (productImages.length > 0 ? productImages[0] : null) ||
+    '/placeholder-product.png';
+
+  // Sale/discount for flash sale mode (declared early so originalPrice can reference it)
+  const sale = product.sale || product.discount || 0;
 
   // === Flash Sale mode mappings ===
   const flashPrice = product.flashPrice || product.price || 0;
   const originalPrice =
     product.originalPrice ||
-    (product.sale > 0 ? Math.round(product.price * 100 / (100 - product.sale)) : product.price) ||
+    (sale > 0 ? Math.round(price * 100 / (100 - sale)) : price) ||
     0;
   const discountPercent = product.discountPercent || product.sale || product.discount || 0;
   const quantity = product.quantity || 1;
   const soldQuantity = product.soldQuantity || 0;
 
-  const price = product.price || product.minPrice || 0;
-  const sale = product.sale || product.discount || 0;
-
   const brandName = product.brand?.name || product.brandName || 'Mobile';
   const rating = product.rating || 5.0;
 
   const handleCardClick = () => {
-    navigate(`/product/${productSlug}`);
+    navigate(`/products/${variantSlug}`);
   };
 
   const handleFavClick = (e) => {
@@ -101,7 +121,7 @@ export const ProductCard = ({ product, variant = 'default', className }) => {
       >
         <img
           src={thumbnail}
-          alt={name}
+          alt={displayName}
           className={cn(
             'w-full h-full object-contain transition-transform duration-500',
             isFlashSale ? 'group-hover:scale-105' : 'group-hover:scale-110'
@@ -148,7 +168,7 @@ export const ProductCard = ({ product, variant = 'default', className }) => {
               : 'text-slate-900 text-sm md:text-base group-hover:text-blue-600'
           )}
         >
-          {name}
+          {fullDisplayName}
         </h3>
 
         {/* Price */}

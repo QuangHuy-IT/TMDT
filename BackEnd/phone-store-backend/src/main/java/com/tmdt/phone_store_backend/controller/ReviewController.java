@@ -40,7 +40,14 @@ public class ReviewController {
     public ResponseEntity<?> canReview(
             @PathVariable Long productId,
             @RequestParam Long userId) {
-        boolean canReview = reviewService.canUserReviewProduct(userId, productId);
-        return ResponseEntity.ok(java.util.Map.of("canReview", canReview));
+        boolean hasDeliveredOrder = reviewService.hasUserPurchasedProduct(userId, productId);
+        boolean hasPendingReview = reviewService.hasUserPendingReview(userId, productId);
+        boolean canReview = hasDeliveredOrder && !reviewService.existsReviewByUserAndProduct(userId, productId);
+        return ResponseEntity.ok(java.util.Map.of(
+                "canReview", canReview,
+                "hasDeliveredOrder", hasDeliveredOrder,
+                "hasPendingReview", hasPendingReview,
+                "hasExistingReview", reviewService.existsReviewByUserAndProduct(userId, productId)
+        ));
     }
 }

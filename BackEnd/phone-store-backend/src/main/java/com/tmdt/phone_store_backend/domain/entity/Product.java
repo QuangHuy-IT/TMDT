@@ -34,9 +34,13 @@ public class Product {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "brand_id", nullable = false)
     private Brand brand;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "series_id")
+    private ProductSeries series;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "category_id", nullable = false)
@@ -49,13 +53,16 @@ public class Product {
     @Column(nullable = false, length = 255)
     private String name;
 
+    @Column(name = "base_name", nullable = false, length = 255)
+    private String baseName;
+
     @Column(nullable = false, length = 300)
     private String slug;
 
-    @Column(name = "short_description", nullable = false, length = 500)
+    @Column(name = "short_description", nullable = false, columnDefinition = "MEDIUMTEXT")
     private String shortDescription;
 
-    @Column(name = "detail_description", nullable = false, columnDefinition = "TEXT")
+    @Column(name = "detail_description", nullable = false, columnDefinition = "MEDIUMTEXT")
     private String detailDescription;
 
     @Column(name = "thumbnail_url", length = 500)

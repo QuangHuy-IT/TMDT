@@ -45,6 +45,9 @@ public class ProductVariant {
     @Column(name = "ram_gb")
     private Integer ramGb;
 
+    @Column(name = "storage_label", length = 40)
+    private String storageLabel;
+
     @Column(name = "storage_gb")
     private Integer storageGb;
 
@@ -68,6 +71,9 @@ public class ProductVariant {
 
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = Boolean.TRUE;
+
+    @Column(length = 500)
+    private String slug;
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;

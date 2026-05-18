@@ -10,8 +10,15 @@ public class AdminProductVariantDto {
 
     private Long id;
     private String sku;
+
+    /** Slug cho URL: /products/iphone-17-pro-max-8gb-256gb-black */
+    private String slug;
+
     private String color;
+
+    /** VD: "128GB", "256GB", "1TB" */
     private String storageLabel;
+
     private Integer ramGb;
     private Integer storageGb;
     private BigDecimal price;

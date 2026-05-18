@@ -44,7 +44,7 @@ const CartItem = ({ item, checked, onToggle, onQtyChange, onRemove }) => {
 
       {/* ── Product info ── */}
       <div className="flex items-center gap-3 min-w-0">
-        <Link to={`/product/${productSlug}`} className="flex-shrink-0">
+        <Link to={`/products/${productSlug}`} className="flex-shrink-0">
           <img
             src={thumbnail}
             alt={item.name}
@@ -54,7 +54,7 @@ const CartItem = ({ item, checked, onToggle, onQtyChange, onRemove }) => {
           />
         </Link>
         <div className="min-w-0">
-          <Link to={`/product/${productSlug}`}>
+          <Link to={`/products/${productSlug}`}>
             <p className="text-[13.5px] text-gray-800 leading-[1.45] line-clamp-2
                           hover:text-[#ee4d2d] transition-colors font-medium">
               {item.name}

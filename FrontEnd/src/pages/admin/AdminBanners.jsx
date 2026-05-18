@@ -48,7 +48,7 @@ const AdminBanners = () => {
     let brandSlug = '', promotionSlug = '', productSlug = '';
     const url = banner.linkUrl || '';
     if (url.includes('/khuyen-mai') || url.includes('/promo')) { linkType = 'promotion'; promotionSlug = url.split('/').pop(); }
-    else if (url.includes('/product/')) { linkType = 'product'; productSlug = url.split('/').pop(); }
+    else if (url.includes('/products/')) { linkType = 'product'; productSlug = url.split('/').pop(); }
     else if (url && !url.startsWith('http')) { linkType = 'brand'; brandSlug = url; }
 
     setEditingBanner(banner);
@@ -83,7 +83,7 @@ const AdminBanners = () => {
     if (linkType === 'none') return '';
     if (linkType === 'brand' && brandSlug) return `/${brandSlug}`;
     if (linkType === 'promotion' && promotionSlug) return `/khuyen-mai/${promotionSlug}`;
-    if (linkType === 'product' && productSlug) return `/product/${productSlug}`;
+    if (linkType === 'product' && productSlug) return `/products/${productSlug}`;
     return '';
   };
 
@@ -287,7 +287,7 @@ const AdminBanners = () => {
                   <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">ID/Slug sản phẩm</label>
                   <input type="text" value={form.productSlug} onChange={(e) => setForm((p) => ({ ...p, productSlug: e.target.value }))} placeholder="VD: iphone-15-pro"
                     className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-red-500/50" />
-                  <p className="text-[10px] text-gray-600 mt-1">URL sẽ là: /product/{form.productSlug || 'id'}</p>
+                  <p className="text-[10px] text-gray-600 mt-1">URL sẽ là: /products/{form.productSlug || 'id'}</p>
                 </div>
               )}
 

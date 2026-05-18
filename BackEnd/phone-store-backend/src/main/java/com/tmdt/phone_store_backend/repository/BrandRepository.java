@@ -12,4 +12,6 @@ public interface BrandRepository extends JpaRepository<Brand, Long> {
     Optional<Brand> findBySlugIgnoreCase(String slug);
 
     List<Brand> findByIsActiveTrueOrderByNameAsc();
+
+    List<Brand> findAllByOrderBySortOrderAsc();
 }

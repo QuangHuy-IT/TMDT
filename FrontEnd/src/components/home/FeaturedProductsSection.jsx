@@ -30,7 +30,7 @@ const FeaturedProductsSection = ({ products = [], loading = false }) => {
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
         {loading
           ? Array.from({ length: 8 }).map((_, index) => <ProductCardSkeleton key={index} />)
-          : productList.map((product) => <ProductCard key={product.id || product._id} product={product} />)}
+          : productList.map((product) => <ProductCard key={`${product.id}-${product.variantId}`} product={product} />)}
       </div>
     </HomeSectionShell>
   );

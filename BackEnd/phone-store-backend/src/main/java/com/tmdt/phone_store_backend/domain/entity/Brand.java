@@ -43,6 +43,9 @@ public class Brand {
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = Boolean.TRUE;
 
+    @Column(name = "sort_order", nullable = false)
+    private Integer sortOrder = 0;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 

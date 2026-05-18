@@ -49,13 +49,13 @@ const BrandSection = ({ brand }) => {
           ? Array.from({ length: 8 }).map((_, index) => <ProductCardSkeleton key={index} />)
           : displayProducts.map((product, index) => (
               <motion.div
-                key={product.id || product._id}
+                key={`${product.id}-${product.variantId}`}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.05, duration: 0.3, ease: 'easeOut' }}
               >
-                <ProductCard product={product} />
+                <ProductCard key={`${product.id}-${product.variantId}`} product={product} />
               </motion.div>
             ))
         }

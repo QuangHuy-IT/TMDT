@@ -21,6 +21,7 @@ import { Profile } from './pages/Profile';
 import { About } from './pages/About';
 import { FlashSalePage } from './pages/FlashSalePage';
 import { NewsPage } from './pages/NewsPage';
+import { NewsDetail } from './pages/NewsDetail';
 import { WarrantyPolicy } from './pages/WarrantyPolicy';
 import { ReturnPolicy } from './pages/ReturnPolicy';
 import { PrivacyPolicy } from './pages/PrivacyPolicy';
@@ -32,10 +33,14 @@ import { AdminInventory } from './pages/admin/AdminInventory';
 import { AdminOrders } from './pages/admin/AdminOrders';
 import { AdminUsers } from './pages/admin/AdminUsers';
 import AdminBrands from './pages/admin/AdminBrands';
+import AdminSeries from './pages/admin/AdminSeries';
 import AdminBanners from './pages/admin/AdminBanners';
 import AdminPromotions from './pages/admin/AdminPromotions';
 import AdminFlashSale from './pages/admin/AdminFlashSale';
 import AdminVouchers from './pages/admin/AdminVouchers';
+import AdminNews from './pages/admin/AdminNews';
+import { AdminReviews } from './pages/admin/AdminReviews';
+import { AdminQuestions } from './pages/admin/AdminQuestions';
 
 // Context
 import { ShopProvider } from './context/ShopContext';
@@ -119,13 +124,17 @@ function App() {
               <Route index element={<AdminDashboard />} />
               <Route path="products" element={<AdminProducts />} />
               <Route path="brands" element={<AdminBrands />} />
+              <Route path="series" element={<AdminSeries />} />
               <Route path="banners" element={<AdminBanners />} />
               <Route path="promotions" element={<AdminPromotions />} />
               <Route path="flash-sales" element={<AdminFlashSale />} />
               <Route path="vouchers" element={<AdminVouchers />} />
+              <Route path="news" element={<AdminNews />} />
               <Route path="inventory" element={<AdminInventory />} />
               <Route path="orders" element={<AdminOrders />} />
               <Route path="users" element={<AdminUsers />} />
+              <Route path="reviews" element={<AdminReviews />} />
+              <Route path="questions" element={<AdminQuestions />} />
             </Route>
 
             {/* ===== AUTH ROUTES (không có Navbar + Footer) ===== */}
@@ -143,17 +152,18 @@ function App() {
                     <RouteErrorBoundary>
                       <Routes>
                         <Route path="/" element={<Home />} />
+                        <Route path="/products/:slug" element={<ProductDetail />} />
                         <Route path="/products" element={<TimKiem />} />
                         <Route path="/tim-kiem" element={<TimKiem />} />
                         <Route path="/gioi-thieu" element={<About />} />
                         <Route path="/tin-tuc" element={<NewsPage />} />
+                        <Route path="/tin-tuc/:slug" element={<NewsDetail />} />
                         <Route path="/khuyen-mai" element={<FlashSalePage />} />
                         <Route path="/chinh-sach-bao-hanh" element={<WarrantyPolicy />} />
                         <Route path="/chinh-sach-doi-tra" element={<ReturnPolicy />} />
                         <Route path="/chinh-sach-bao-mat" element={<PrivacyPolicy />} />
                         <Route path="/chinh-sach-giao-hang" element={<ShippingPolicy />} />
                         <Route path="/brands/:brandSlug" element={<BrandProducts />} />
-                        <Route path="/product/:slug" element={<ProductDetail />} />
                         <Route path="/cart" element={<ProtectedRoute><Cart /></ProtectedRoute>} />
                         <Route path="/checkout" element={<ProtectedRoute><Checkout /></ProtectedRoute>} />
                         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />

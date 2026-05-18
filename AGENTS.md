@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **TMDT** (753 symbols, 1598 relationships, 47 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **TMDT** (2834 symbols, 6884 relationships, 226 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
@@ -97,15 +97,5 @@ To check whether embeddings exist, inspect `.gitnexus/meta.json` — the `stats.
 | Rename / extract / split / refactor | `.claude/skills/gitnexus/gitnexus-refactoring/SKILL.md` |
 | Tools, resources, schema reference | `.claude/skills/gitnexus/gitnexus-guide/SKILL.md` |
 | Index, status, clean, wiki CLI commands | `.claude/skills/gitnexus/gitnexus-cli/SKILL.md` |
-| Work in the Service area (39 symbols) | `.claude/skills/generated/service/SKILL.md` |
-| Work in the Security area (18 symbols) | `.claude/skills/generated/security/SKILL.md` |
-| Work in the Admin area (11 symbols) | `.claude/skills/generated/admin/SKILL.md` |
-| Work in the Repository area (11 symbols) | `.claude/skills/generated/repository/SKILL.md` |
-| Work in the Pages area (11 symbols) | `.claude/skills/generated/pages/SKILL.md` |
-| Work in the Exception area (10 symbols) | `.claude/skills/generated/exception/SKILL.md` |
-| Work in the Config area (5 symbols) | `.claude/skills/generated/config/SKILL.md` |
-| Work in the Js area (4 symbols) | `.claude/skills/generated/js/SKILL.md` |
-| Work in the Controller area (4 symbols) | `.claude/skills/generated/controller/SKILL.md` |
-| Work in the Data area (3 symbols) | `.claude/skills/generated/data/SKILL.md` |
 
 <!-- gitnexus:end -->
