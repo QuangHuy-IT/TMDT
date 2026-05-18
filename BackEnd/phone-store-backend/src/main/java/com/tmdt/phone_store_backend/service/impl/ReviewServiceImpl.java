@@ -6,6 +6,8 @@ import com.tmdt.phone_store_backend.domain.entity.Review;
 import com.tmdt.phone_store_backend.domain.entity.User;
 import com.tmdt.phone_store_backend.domain.enums.OrderStatus;
 import com.tmdt.phone_store_backend.dto.CreateReviewRequestDto;
+import com.tmdt.phone_store_backend.dto.PagedAdminReviewResponseDto;
+import com.tmdt.phone_store_backend.dto.AdminReviewDto;
 import com.tmdt.phone_store_backend.dto.PagedReviewResponseDto;
 import com.tmdt.phone_store_backend.dto.ProductReviewSummaryDto;
 import com.tmdt.phone_store_backend.dto.ReviewDto;
@@ -131,7 +133,7 @@ public class ReviewServiceImpl implements ReviewService {
                 .rating(requestDto.getRating())
                 .title(requestDto.getTitle())
                 .content(requestDto.getContent())
-                .isApproved(true)
+                .isApproved(false)
                 .helpfulCount(0)
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
@@ -198,6 +200,25 @@ public class ReviewServiceImpl implements ReviewService {
     }
 
     @Override
+    public boolean hasUserPurchasedProduct(Long userId, Long productId) {
+        List<Order> deliveredOrders = reviewOrderRepository.findDeliveredOrdersWithProduct(
+                userId, productId, OrderStatus.DELIVERED);
+        return !deliveredOrders.isEmpty();
+    }
+
+    @Override
+    public boolean hasUserPendingReview(Long userId, Long productId) {
+        return reviewRepository.findByProductIdAndUserId(productId, userId)
+                .map(r -> !Boolean.TRUE.equals(r.getIsApproved()))
+                .orElse(false);
+    }
+
+    @Override
+    public boolean existsReviewByUserAndProduct(Long userId, Long productId) {
+        return reviewRepository.existsByProductIdAndUserId(productId, userId);
+    }
+
+    @Override
     public List<ReviewDto> getUserReviews(Long userId) {
         return reviewRepository.findByUserIdOrderByCreatedAtDesc(userId).stream()
                 .map(this::toDto)
@@ -213,17 +234,24 @@ public class ReviewServiceImpl implements ReviewService {
 
     private ReviewDto toDto(Review review) {
         Long productId = review.getProduct() != null ? review.getProduct().getId() : null;
-        boolean verified = !reviewOrderRepository
-                .findDeliveredOrdersWithProduct(
-                        review.getUser().getId(), productId, OrderStatus.DELIVERED)
-                .isEmpty();
+        boolean verified = false;
+        if (review.getUser() != null && productId != null) {
+            try {
+                verified = !reviewOrderRepository
+                        .findDeliveredOrdersWithProduct(
+                                review.getUser().getId(), productId, OrderStatus.DELIVERED)
+                        .isEmpty();
+            } catch (Exception e) {
+                verified = false;
+            }
+        }
 
         return ReviewDto.builder()
                 .id(review.getId())
                 .productId(productId)
-                .userId(review.getUser().getId())
-                .userFullName(review.getUser().getFullName())
-                .userAvatarUrl(review.getUser().getAvatarUrl())
+                .userId(review.getUser() != null ? review.getUser().getId() : null)
+                .userFullName(review.getUser() != null ? review.getUser().getFullName() : null)
+                .userAvatarUrl(review.getUser() != null ? review.getUser().getAvatarUrl() : null)
                 .rating(review.getRating())
                 .title(review.getTitle())
                 .content(review.getContent())
@@ -232,5 +260,110 @@ public class ReviewServiceImpl implements ReviewService {
                 .updatedAt(review.getUpdatedAt())
                 .isVerifiedPurchase(verified)
                 .build();
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    //  ADMIN METHODS
+    // ══════════════════════════════════════════════════════════════
+
+    @Override
+    @Transactional(readOnly = true)
+    public PagedAdminReviewResponseDto getPendingReviews(int page, int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<Review> reviewPage = reviewRepository.findAllByIsApprovedFalse(pageable);
+        return buildPagedAdminResponse(reviewPage);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PagedAdminReviewResponseDto getAllReviews(int page, int size, Long productId, Boolean approved) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<Review> reviewPage;
+        if (productId != null) {
+            reviewPage = reviewRepository.findByProductId(productId, pageable);
+        } else if (approved != null) {
+            reviewPage = approved
+                    ? reviewRepository.findByIsApprovedTrue(pageable)
+                    : reviewRepository.findAllByIsApprovedFalse(pageable);
+        } else {
+            reviewPage = reviewRepository.findAll(pageable);
+        }
+        return buildPagedAdminResponse(reviewPage);
+    }
+
+    private PagedAdminReviewResponseDto buildPagedAdminResponse(Page<Review> reviewPage) {
+        List<AdminReviewDto> dtos = reviewPage.getContent().stream()
+                .map(this::toAdminDto)
+                .toList();
+        return PagedAdminReviewResponseDto.builder()
+                .reviews(dtos)
+                .totalElements(reviewPage.getTotalElements())
+                .totalPages(reviewPage.getTotalPages())
+                .currentPage(reviewPage.getNumber())
+                .pageSize(reviewPage.getSize())
+                .build();
+    }
+
+    private AdminReviewDto toAdminDto(Review review) {
+        Long productId = review.getProduct() != null ? review.getProduct().getId() : null;
+        String productName = review.getProduct() != null ? review.getProduct().getName() : null;
+        boolean verified = false;
+        if (review.getUser() != null && productId != null) {
+            try {
+                verified = !reviewOrderRepository
+                        .findDeliveredOrdersWithProduct(
+                                review.getUser().getId(), productId, OrderStatus.DELIVERED)
+                        .isEmpty();
+            } catch (Exception e) {
+                verified = false;
+            }
+        }
+        return AdminReviewDto.builder()
+                .id(review.getId())
+                .productId(productId)
+                .productName(productName)
+                .userId(review.getUser() != null ? review.getUser().getId() : null)
+                .userFullName(review.getUser() != null ? review.getUser().getFullName() : null)
+                .userAvatarUrl(review.getUser() != null ? review.getUser().getAvatarUrl() : null)
+                .userEmail(review.getUser() != null ? review.getUser().getEmail() : null)
+                .rating(review.getRating())
+                .title(review.getTitle())
+                .content(review.getContent())
+                .isApproved(review.getIsApproved())
+                .helpfulCount(review.getHelpfulCount())
+                .createdAt(review.getCreatedAt())
+                .updatedAt(review.getUpdatedAt())
+                .isVerifiedPurchase(verified)
+                .build();
+    }
+
+    @Override
+    @Transactional
+    public AdminReviewDto approveReview(Long reviewId) {
+        Review review = reviewRepository.findById(reviewId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đánh giá."));
+        review.setIsApproved(true);
+        review.setUpdatedAt(LocalDateTime.now());
+        Review saved = reviewRepository.save(review);
+        return toAdminDto(saved);
+    }
+
+    @Override
+    @Transactional
+    public AdminReviewDto rejectReview(Long reviewId) {
+        Review review = reviewRepository.findById(reviewId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đánh giá."));
+        review.setIsApproved(false);
+        review.setUpdatedAt(LocalDateTime.now());
+        Review saved = reviewRepository.save(review);
+        return toAdminDto(saved);
+    }
+
+    @Override
+    @Transactional
+    public void deleteReviewAdmin(Long reviewId) {
+        Review review = reviewRepository.findById(reviewId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đánh giá."));
+        reviewRepository.delete(review);
     }
 }

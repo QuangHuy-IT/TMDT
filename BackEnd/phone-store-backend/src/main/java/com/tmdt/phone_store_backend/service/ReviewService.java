@@ -1,6 +1,8 @@
 package com.tmdt.phone_store_backend.service;
 
+import com.tmdt.phone_store_backend.dto.AdminReviewDto;
 import com.tmdt.phone_store_backend.dto.CreateReviewRequestDto;
+import com.tmdt.phone_store_backend.dto.PagedAdminReviewResponseDto;
 import com.tmdt.phone_store_backend.dto.PagedReviewResponseDto;
 import com.tmdt.phone_store_backend.dto.ProductReviewSummaryDto;
 import com.tmdt.phone_store_backend.dto.ReviewDto;
@@ -23,7 +25,24 @@ public interface ReviewService {
 
     boolean canUserReviewProduct(Long userId, Long productId);
 
+    boolean hasUserPurchasedProduct(Long userId, Long productId);
+
+    boolean hasUserPendingReview(Long userId, Long productId);
+
+    boolean existsReviewByUserAndProduct(Long userId, Long productId);
+
     List<ReviewDto> getUserReviews(Long userId);
 
     ReviewDto getReviewById(Long reviewId);
+
+    // Admin methods
+    PagedAdminReviewResponseDto getPendingReviews(int page, int size);
+
+    PagedAdminReviewResponseDto getAllReviews(int page, int size, Long productId, Boolean approved);
+
+    AdminReviewDto approveReview(Long reviewId);
+
+    AdminReviewDto rejectReview(Long reviewId);
+
+    void deleteReviewAdmin(Long reviewId);
 }

@@ -58,6 +58,12 @@ public class AdminProductDto {
     private List<AdminProductVariantDto> variants;
 
     /**
+     * Danh sách variant dùng cho trang Kho (AdminInventory).
+     * Chứa đầy đủ thông tin tồn kho của từng phiên bản.
+     */
+    private List<AdminProductVariantDto> variantItems;
+
+    /**
      * Options gộp: tất cả storages + colors + prices.
      * Dùng cho frontend build variant switcher.
      */

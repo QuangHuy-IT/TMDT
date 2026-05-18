@@ -38,6 +38,8 @@ import AdminPromotions from './pages/admin/AdminPromotions';
 import AdminFlashSale from './pages/admin/AdminFlashSale';
 import AdminVouchers from './pages/admin/AdminVouchers';
 import AdminNews from './pages/admin/AdminNews';
+import { AdminReviews } from './pages/admin/AdminReviews';
+import { AdminQuestions } from './pages/admin/AdminQuestions';
 
 // Context
 import { ShopProvider } from './context/ShopContext';
@@ -129,6 +131,8 @@ function App() {
               <Route path="inventory" element={<AdminInventory />} />
               <Route path="orders" element={<AdminOrders />} />
               <Route path="users" element={<AdminUsers />} />
+              <Route path="reviews" element={<AdminReviews />} />
+              <Route path="questions" element={<AdminQuestions />} />
             </Route>
 
             {/* ===== AUTH ROUTES (không có Navbar + Footer) ===== */}

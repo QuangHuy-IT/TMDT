@@ -101,6 +101,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/payment/payos/success").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/products/*/reviews/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/reviews/*/helpful").permitAll()
+                        .requestMatchers("/api/products/*/questions/**").permitAll()
                         
                         // User endpoints
                         .requestMatchers(HttpMethod.GET, "/api/auth/me").authenticated()

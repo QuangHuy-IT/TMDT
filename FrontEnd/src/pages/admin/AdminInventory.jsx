@@ -89,7 +89,7 @@ export const AdminInventory = () => {
       .filter(Boolean);
 
     if (changes.length === 0) {
-      alert('Bạn chưa thay đổi số lượng biến thể nào.');
+      alert('Bạn chưa thay đổi số lượng phiên bản nào.');
       return;
     }
 
@@ -146,7 +146,7 @@ export const AdminInventory = () => {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-black text-white tracking-tight">Kho</h1>
-        <p className="text-sm text-gray-500 mt-1">Chọn sản phẩm để điều chỉnh tồn kho theo từng biến thể</p>
+        <p className="text-sm text-gray-500 mt-1">Chọn sản phẩm để điều chỉnh tồn kho theo từng phiên bản</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -185,7 +185,7 @@ export const AdminInventory = () => {
                   >
                     <div className="text-left">
                       <p className="text-sm font-bold text-white">{product.name}</p>
-                      <p className="text-xs text-gray-500 mt-0.5">{product.brand} · {variants.length} biến thể</p>
+                      <p className="text-xs text-gray-500 mt-0.5">{product.brand} · {variants.length} phiên bản</p>
                     </div>
                     <div className="text-right">
                       <p className="text-xs text-gray-500">Tổng tồn kho</p>
@@ -195,7 +195,7 @@ export const AdminInventory = () => {
 
                   {expanded && (
                     <div className="border-t border-white/5 p-4 space-y-3">
-                      {variants.length === 0 && <p className="text-xs text-gray-500">Sản phẩm chưa có biến thể.</p>}
+                      {variants.length === 0 && <p className="text-xs text-gray-500">Sản phẩm chưa có phiên bản.</p>}
 
                       {variants.map((variant) => {
                         const variantId = variant.id;

@@ -3,6 +3,7 @@ import { useLocation, useNavigate, useParams, useSearchParams } from 'react-rout
 import { ShopContext } from '../context/ShopContext';
 import ProductService from '../services/productService';
 import ReviewSection from '../components/review/ReviewSection';
+import QuestionSection from '../components/question/QuestionSection';
 
 const inferColorHex = (value) => {
   const normalized = String(value || '')
@@ -551,6 +552,8 @@ export const ProductDetail = () => {
       </div>
 
       <ReviewSection productId={product.id} currentUserId={state.user?.id || null} />
+
+      <QuestionSection productId={product.id} currentUserId={state.user?.id || null} />
 
       {/* Other variants of the same product */}
       {(product.allVariants?.length || 0) > 1 && (

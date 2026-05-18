@@ -398,14 +398,15 @@ public class ProductAdminService {
      */
     private AdminProductDto toSingleDto(Product product) {
         List<ProductVariant> variants = productVariantRepository.findByProductIdAndDeletedAtIsNull(product.getId());
-        ProductVariant firstVariant = variants.isEmpty() ? null : variants.get(0);
 
         int totalStock = 0;
         BigDecimal minPrice = BigDecimal.ZERO;
+        List<AdminProductVariantDto> variantItemDtos = new ArrayList<>();
         for (ProductVariant variant : variants) {
             int variantStock = inventoryRepository.findByVariantId(variant.getId())
                     .map(Inventory::getQuantityOnHand).orElse(0);
             totalStock += variantStock;
+            variantItemDtos.add(toVariantDto(variant));
             BigDecimal vp = variant.getPrice() != null ? variant.getPrice() : BigDecimal.ZERO;
             if (minPrice.compareTo(BigDecimal.ZERO) == 0 || vp.compareTo(minPrice) < 0) {
                 minPrice = vp;
@@ -416,10 +417,10 @@ public class ProductAdminService {
 
         AdminProductDto dto = new AdminProductDto();
         dto.setId(product.getId());
-        dto.setVariantId(firstVariant != null ? firstVariant.getId() : null);
-        dto.setSlug(firstVariant != null && firstVariant.getSlug() != null ? firstVariant.getSlug() : product.getName());
+        dto.setVariantId(!variants.isEmpty() ? variants.get(0).getId() : null);
+        dto.setSlug(!variants.isEmpty() && variants.get(0).getSlug() != null ? variants.get(0).getSlug() : product.getName());
         dto.setName(product.getName());
-        dto.setVariantName(firstVariant != null ? buildVariantDisplayName(firstVariant) : null);
+        dto.setVariantName(!variants.isEmpty() ? buildVariantDisplayName(variants.get(0)) : null);
         dto.setBrand(product.getBrand() != null ? product.getBrand().getName() : "");
         dto.setBrandSlug(product.getBrand() != null ? product.getBrand().getSlug() : "");
         if (product.getSeries() != null) {
@@ -435,7 +436,8 @@ public class ProductAdminService {
         dto.setIsFeatured(product.getIsFeatured());
         dto.setCreatedAt(product.getCreatedAt());
         dto.setReleaseDate(product.getCreatedAt());
-        dto.setSelectedVariant(firstVariant != null ? toVariantDto(firstVariant) : null);
+        dto.setSelectedVariant(!variants.isEmpty() ? toVariantDto(variants.get(0)) : null);
+        dto.setVariantItems(variantItemDtos);
         return dto;
     }
 

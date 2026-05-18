@@ -23,6 +23,9 @@ const ReviewSection = ({ productId, currentUserId }) => {
   const [userHasReviewed, setUserHasReviewed] = useState(false);
   const [userReview, setUserReview] = useState(null);
   const [canReview, setCanReview] = useState(false);
+  const [hasDeliveredOrder, setHasDeliveredOrder] = useState(false);
+  const [hasPendingReview, setHasPendingReview] = useState(false);
+  const [hasExistingReview, setHasExistingReview] = useState(false);
 
   const fetchReviews = useCallback(async (page = 0, sort = sortBy, filter = filterRating) => {
     setLoading(true);
@@ -62,7 +65,11 @@ const ReviewSection = ({ productId, currentUserId }) => {
     if (!currentUserId) return;
     try {
       const response = await ReviewService.canUserReview(productId, currentUserId);
-      setCanReview(response.data.canReview);
+      const data = response.data;
+      setCanReview(!!data.canReview);
+      setHasDeliveredOrder(!!data.hasDeliveredOrder);
+      setHasPendingReview(!!data.hasPendingReview);
+      setHasExistingReview(!!data.hasExistingReview);
 
       const userReviewsRes = await ReviewService.getUserReviews(currentUserId);
       const found = (userReviewsRes.data || []).find((r) => r.productId === productId);
@@ -76,6 +83,8 @@ const ReviewSection = ({ productId, currentUserId }) => {
     } catch {
       setCanReview(false);
       setUserHasReviewed(false);
+      setHasPendingReview(false);
+      setHasExistingReview(false);
     }
   }, [productId, currentUserId]);
 
@@ -167,13 +176,18 @@ const ReviewSection = ({ productId, currentUserId }) => {
         {/* Header */}
         <div className="mb-6 flex items-center justify-between">
           <h2 className="text-xl font-black text-gray-900">Đánh giá sản phẩm</h2>
-          {currentUserId && !userHasReviewed && (
+          {currentUserId && !userHasReviewed && !hasPendingReview && (
             <button
               onClick={() => setShowForm((v) => !v)}
               className="rounded-xl bg-red-600 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-red-700"
             >
               Viết đánh giá
             </button>
+          )}
+          {currentUserId && hasPendingReview && (
+            <span className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-bold text-amber-600">
+              Đánh giá đang chờ duyệt
+            </span>
           )}
           {currentUserId && userHasReviewed && (
             <button
