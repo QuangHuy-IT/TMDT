@@ -31,4 +31,5 @@ public class AdminProductDto {
     private BigDecimal flashSalePrice;
     private Long flashSaleId;
     private Boolean isFlashSale;
+    private BigDecimal originalPrice;
 }

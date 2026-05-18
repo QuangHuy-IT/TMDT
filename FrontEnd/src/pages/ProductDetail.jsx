@@ -118,7 +118,6 @@ export const ProductDetail = () => {
   const images = product?.images || [];
   const currentPrice = useMemo(() => {
     if (!product) return 0;
-    // Ưu tiên giá flash sale
     if (product.isFlashSale && product.flashSalePrice != null) {
       return Number(product.flashSalePrice);
     }
@@ -127,6 +126,12 @@ export const ProductDetail = () => {
     }
     return Number(product.price || 0);
   }, [product, selectedStorage]);
+
+  // Giá gốc (list price — luôn lấy product.price gốc)
+  const originalPrice = useMemo(() => {
+    if (!product) return 0;
+    return Number(product.originalPrice || product.price || 0);
+  }, [product]);
 
   const maxQuantity = Math.max(1, Number(product?.stock || 0));
 
@@ -141,11 +146,17 @@ export const ProductDetail = () => {
     if ((product.stock || 0) <= 0) return;
 
     // Tìm variantItem phù hợp với storage + color đã chọn
+    // selectedStorage format: "128GB" / "256GB" (từ backend via getStorageLabel)
+    // variantItems[i].storageGb format: số nguyên 128 / 256
+    // → chuẩn hóa cả hai về số để so sánh
     const variantItems = product.variantItems || [];
     const selectedVariant = variantItems.find(
-      (v) =>
-        String(v.storageGb || '') === String(selectedStorage) &&
-        (v.color || '').toLowerCase() === (selectedColor?.name || '').toLowerCase()
+      (v) => {
+        const vStorageNum = Number(v.storageGb) || 0;
+        const selectedNum = Number(selectedStorage?.replace(/[^0-9]/g, '')) || 0;
+        return vStorageNum === selectedNum &&
+          (v.color || '').toLowerCase() === (selectedColor?.name || '').toLowerCase();
+      }
     );
 
     dispatch({
@@ -156,6 +167,7 @@ export const ProductDetail = () => {
         id: String(product.id),
         quantity,
         price: currentPrice,
+        originalPrice,
         ram: selectedVariant?.ramGb ? `${selectedVariant.ramGb}GB` : '',
         storage: selectedVariant?.storageGb ? `${selectedVariant.storageGb}GB` : String(selectedStorage || ''),
         color: selectedColor?.name || '',
@@ -301,6 +313,11 @@ export const ProductDetail = () => {
             <h1 className="text-3xl font-black text-gray-900">{product.name}</h1>
 
             <p className="text-3xl font-black text-red-600">{Number(currentPrice || 0).toLocaleString('vi-VN')}₫</p>
+            {originalPrice > 0 && originalPrice !== currentPrice && (
+              <p className="text-base text-gray-400 line-through decoration-gray-400/60">
+                {originalPrice.toLocaleString('vi-VN')}₫
+              </p>
+            )}
 
             {product.variants?.storages?.length > 0 && (
               <div>

@@ -120,17 +120,26 @@
         private AdminProductDto toDtoFromFlashSaleProduct(com.tmdt.phone_store_backend.domain.entity.FlashSaleProduct fp) {
             AdminProductDto dto = toDto(fp.getVariant().getProduct());
             ProductVariant variant = fp.getVariant();
-            BigDecimal originalPrice = variant.getPrice() != null ? variant.getPrice() : BigDecimal.ZERO;
-            BigDecimal flashPrice = fp.getFlashPrice() != null ? fp.getFlashPrice() : originalPrice;
+            BigDecimal compareAtPrice = variant.getCompareAtPrice();
+            BigDecimal flashPrice = fp.getFlashPrice() != null ? fp.getFlashPrice() : variant.getPrice();
+
+            // Dùng compareAtPrice làm giá gốc nếu có, fallback về variant.price
+            BigDecimal originalPrice =
+                    (compareAtPrice != null && compareAtPrice.compareTo(BigDecimal.ZERO) > 0)
+                            ? compareAtPrice
+                            : (variant.getPrice() != null ? variant.getPrice() : BigDecimal.ZERO);
+
             int salePercent = 0;
             if (originalPrice.compareTo(BigDecimal.ZERO) > 0) {
                 salePercent = originalPrice.subtract(flashPrice)
                         .multiply(BigDecimal.valueOf(100))
                         .divide(originalPrice, 0, RoundingMode.HALF_UP).intValue();
             }
+
             dto.setPrice(flashPrice);
             dto.setSale(salePercent);
             dto.setStock(fp.getQuantity() != null ? fp.getQuantity() : dto.getStock());
+            dto.setOriginalPrice(originalPrice);
             return dto;
         }
 
@@ -199,6 +208,18 @@
                 dto.setFlashSaleId(flashSaleId);
                 dto.setIsFlashSale(true);
                 dto.getVariants().setBasePrices(updatedBasePrices);
+
+                // Recalculate sale % from compareAtPrice (originalPrice) and flash price
+                BigDecimal origPrice = dto.getOriginalPrice();
+                if (origPrice != null
+                        && origPrice.compareTo(BigDecimal.ZERO) > 0
+                        && minFlashPrice.compareTo(BigDecimal.ZERO) > 0
+                        && minFlashPrice.compareTo(origPrice) < 0) {
+                    int flashSalePercent = origPrice.subtract(minFlashPrice)
+                            .multiply(BigDecimal.valueOf(100))
+                            .divide(origPrice, 0, RoundingMode.HALF_UP).intValue();
+                    dto.setSale(flashSalePercent);
+                }
             }
 
             return dto;
@@ -277,6 +298,7 @@
             List<ProductVariant> variants = productVariantRepository.findByProductId(product.getId());
             int stock = 0;
             BigDecimal price = BigDecimal.ZERO;
+            BigDecimal originalPrice = null;
             List<AdminProductVariantDto> variantItems = new ArrayList<>();
             Map<String, BigDecimal> basePrices = new LinkedHashMap<>();
             Map<String, ProductVariantColorDto> colorOptions = new LinkedHashMap<>();
@@ -286,10 +308,18 @@
                         .map(Inventory::getQuantityOnHand)
                         .orElse(0);
                 BigDecimal variantPrice = variant.getPrice() == null ? BigDecimal.ZERO : variant.getPrice();
+                BigDecimal variantCompareAtPrice = variant.getCompareAtPrice();
 
                 stock += variantStock;
                 if (price.compareTo(BigDecimal.ZERO) == 0 || variantPrice.compareTo(price) < 0) {
                     price = variantPrice;
+                }
+
+                // Track minimum compareAtPrice across variants
+                if (variantCompareAtPrice != null
+                        && variantCompareAtPrice.compareTo(BigDecimal.ZERO) > 0
+                        && (originalPrice == null || variantCompareAtPrice.compareTo(originalPrice) < 0)) {
+                    originalPrice = variantCompareAtPrice;
                 }
 
                 String storageLabel = getStorageLabel(variant);
@@ -311,6 +341,7 @@
                 variantDto.setStorageGb(variant.getStorageGb());
                 variantDto.setPrice(variantPrice);
                 variantDto.setStock(variantStock);
+                variantDto.setCompareAtPrice(variantCompareAtPrice);
                 variantItems.add(variantDto);
             }
 
@@ -335,7 +366,19 @@
             dto.setBrandSlug(product.getBrand().getSlug());
             dto.setPrice(price);
             dto.setStock(stock);
-            dto.setSale(product.getSale() != null ? product.getSale() : 0);
+
+            // Tính % từ compareAtPrice và price (đúng: giá gốc = compareAtPrice, giá bán = price)
+            int computedSale = 0;
+            if (originalPrice != null
+                    && originalPrice.compareTo(BigDecimal.ZERO) > 0
+                    && price.compareTo(BigDecimal.ZERO) > 0
+                    && price.compareTo(originalPrice) < 0) {
+                computedSale = originalPrice.subtract(price)
+                        .multiply(BigDecimal.valueOf(100))
+                        .divide(originalPrice, 0, RoundingMode.HALF_UP).intValue();
+            }
+            dto.setSale(computedSale > 0 ? computedSale : (product.getSale() != null ? product.getSale() : 0));
+
             dto.setDescription(product.getDetailDescription());
             dto.setThumbnailUrl(product.getThumbnailUrl());
             dto.setImages(images.stream().map(ProductImage::getImageUrl).toList());
@@ -345,6 +388,7 @@
             dto.setIsFeatured(product.getIsFeatured());
             dto.setCreatedAt(product.getCreatedAt());
             dto.setReleaseDate(product.getCreatedAt());
+            dto.setOriginalPrice(originalPrice);
             return dto;
         }
 

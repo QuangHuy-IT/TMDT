@@ -29,10 +29,10 @@ const CartSummary = ({
     className="
       sticky bottom-0 z-30
       bg-white border-t border-gray-200
-      shadow-[0_-2px_12px_rgba(0,0,0,0.08)]
+      shadow-[0_-4px_20px_rgba(0,0,0,0.1)]
     "
   >
-    <div className="max-w-[980px] mx-auto px-4 py-3.5 flex items-center justify-between flex-wrap gap-3">
+    <div className="max-w-[1020px] mx-auto px-4 py-3.5 flex items-center justify-between flex-wrap gap-3">
 
       {/* ── Left ── */}
       <div className="flex items-center gap-5 flex-wrap">
@@ -42,7 +42,7 @@ const CartSummary = ({
             type="checkbox"
             checked={allChecked}
             onChange={(e) => onToggleAll(e.target.checked)}
-            className="w-[17px] h-[17px] rounded accent-[#ee4d2d] cursor-pointer"
+            className="w-[17px] h-[17px] rounded accent-red-600 cursor-pointer"
           />
           <span className="text-[13.5px] text-gray-700">
             Chọn tất cả
@@ -54,10 +54,10 @@ const CartSummary = ({
         <button
           type="button"
           onClick={onDeleteSelected}
-          className="text-[13.5px] text-gray-500 hover:text-[#ee4d2d]
+          className="text-[13.5px] text-gray-500 hover:text-red-600
                      transition-colors bg-transparent border-none cursor-pointer p-0"
         >
-          Xóa
+          Xóa đã chọn
         </button>
       </div>
 
@@ -72,7 +72,7 @@ const CartSummary = ({
             )}
             :
           </p>
-          <p className="text-[22px] font-semibold text-[#ee4d2d] leading-none">
+          <p className="text-[22px] font-semibold text-red-600 leading-none">
             {fmt(finalTotal)}
           </p>
         </div>
@@ -83,8 +83,8 @@ const CartSummary = ({
           onClick={onCheckout}
           className="
             h-[44px] px-9
-            bg-[#ee4d2d] text-white text-[15px] font-medium
-            rounded hover:bg-[#d73211] active:bg-[#c02b0e]
+            bg-red-600 text-white text-[15px] font-medium
+            rounded hover:bg-red-700 active:bg-red-800
             active:scale-[0.98] transition-all
             whitespace-nowrap cursor-pointer border-none
             disabled:opacity-50 disabled:cursor-not-allowed
