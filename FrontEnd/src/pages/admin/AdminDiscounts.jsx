@@ -264,39 +264,47 @@ export const AdminDiscounts = () => {
                             <div className="col-span-12 lg:col-span-5">
                               <p className="text-xs font-bold text-white">{buildVariantLabel(product.name, variant)}</p>
                               <p className="text-[11px] text-gray-500 mt-1">
-                                {variant.sku} · {Number(variant.price).toLocaleString()}đ
+                                {variant.sku}
                               </p>
                             </div>
 
                             <div className="col-span-6 lg:col-span-3 flex items-center">
                               {discount ? (
                                 <div className="flex flex-col">
-                                  <span className="text-sm font-black text-red-400">
-                                    {discount.discountType === 'FIXED'
-                                      ? `Giảm ${Number(discount.discountAmount).toLocaleString()}đ`
-                                      : `-${discount.discountPercent}%`}
+                                  <span className="text-[11px] text-gray-500">
+                                    Giá gốc
                                   </span>
-                                  <span className="text-[10px] text-gray-500">
-                                    Còn {Number(discount.discountPrice).toLocaleString()}đ
+                                  <span className="text-sm font-bold text-gray-300 line-through">
+                                    {Number(discount.originalPrice).toLocaleString()}đ
                                   </span>
                                 </div>
                               ) : (
-                                <span className="text-xs text-gray-600">Chưa giảm giá</span>
+                                <div className="flex flex-col">
+                                  <span className="text-[11px] text-gray-500">
+                                    Giá gốc
+                                  </span>
+                                  <span className="text-sm font-bold text-gray-300">
+                                    {Number(variant.price).toLocaleString()}đ
+                                  </span>
+                                </div>
                               )}
                             </div>
 
                             <div className="col-span-6 lg:col-span-4 flex items-center">
                               {discount ? (
                                 <div className="flex items-center gap-2 w-full">
-                                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${statusColor(discount.status)}`}>
-                                    {statusLabel(discount.status)}
-                                  </span>
+                                  <div className="flex flex-col">
+                                    <span className="text-[11px] text-gray-500">Còn lại</span>
+                                    <span className="text-sm font-bold text-red-400">
+                                      {Number(discount.discountPrice).toLocaleString()}đ
+                                    </span>
+                                  </div>
                                   {isSelected && (
                                     <span className="ml-auto text-red-400 text-xs font-bold">Đang chọn</span>
                                   )}
                                 </div>
                               ) : (
-                                <span className="text-[11px] text-gray-600">Nhấn để thiết lập giảm giá</span>
+                                <span className="text-[11px] text-gray-600">Nhấn để thiết lập</span>
                               )}
                             </div>
                           </div>
@@ -338,7 +346,7 @@ export const AdminDiscounts = () => {
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-gray-200 focus:outline-none focus:border-red-500/50"
                 >
                   <option value="PERCENT">Phần trăm (%)</option>
-                  <option value="FIXED">Số tiền cố định (VNĐ)</option>
+                  <option value="FIXED">Số tiền muốn giảm (VNĐ)</option>
                 </select>
               </div>
 
