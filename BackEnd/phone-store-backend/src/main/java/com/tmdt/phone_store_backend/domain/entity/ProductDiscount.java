@@ -22,7 +22,7 @@ public class ProductDiscount {
     @JoinColumn(name = "variant_id", nullable = false)
     private ProductVariant variant;
 
-    @Column(name = "discount_percent", nullable = false)
+    @Column(name = "discount_percent")
     private Integer discountPercent;
 
     @Column(name = "discount_amount", precision = 18, scale = 0)

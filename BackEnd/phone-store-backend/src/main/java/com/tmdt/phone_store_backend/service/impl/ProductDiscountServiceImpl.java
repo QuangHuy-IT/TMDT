@@ -80,9 +80,11 @@ public class ProductDiscountServiceImpl implements ProductDiscountService {
 
         if (request.getDiscountPercent() != null) {
             discount.setDiscountPercent(request.getDiscountPercent());
+            discount.setDiscountAmount(null);
         }
         if (request.getDiscountAmount() != null) {
             discount.setDiscountAmount(request.getDiscountAmount());
+            discount.setDiscountPercent(null);
         }
         if (request.getStartAt() != null) {
             discount.setStartAt(request.getStartAt());
@@ -129,16 +131,20 @@ public class ProductDiscountServiceImpl implements ProductDiscountService {
         ProductVariant variant = discount.getVariant();
         BigDecimal originalPrice = variant.getPrice();
         BigDecimal discountPrice = originalPrice;
+        BigDecimal discountSavedAmount = BigDecimal.ZERO;
 
-        // discountAmount = GIÁ SAU GIẢM
+        // discountAmount = SỐ TIỀN GIẢM TRỰC TIẾP (admin nhập bao nhiêu thì giảm bấy nhiêu)
         if (discount.getDiscountAmount() != null && discount.getDiscountAmount().compareTo(BigDecimal.ZERO) > 0) {
-            discountPrice = discount.getDiscountAmount().min(originalPrice);
+            discountSavedAmount = discount.getDiscountAmount().min(originalPrice);
+            discountPrice = originalPrice.subtract(discountSavedAmount);
+            if (discountPrice.compareTo(BigDecimal.ZERO) < 0) discountPrice = BigDecimal.ZERO;
         } else if (discount.getDiscountPercent() != null && discount.getDiscountPercent() > 0) {
-            discountPrice = originalPrice.multiply(
-                    BigDecimal.valueOf(100 - discount.getDiscountPercent())
+            discountSavedAmount = originalPrice.multiply(
+                    BigDecimal.valueOf(discount.getDiscountPercent())
             ).divide(BigDecimal.valueOf(100), 0, RoundingMode.DOWN);
+            discountPrice = originalPrice.subtract(discountSavedAmount);
+            if (discountPrice.compareTo(BigDecimal.ZERO) < 0) discountPrice = BigDecimal.ZERO;
         }
-        if (discountPrice.compareTo(BigDecimal.ZERO) < 0) discountPrice = BigDecimal.ZERO;
 
         String ramLabel = variant.getRamGb() != null ? variant.getRamGb() + "GB RAM" : null;
 
@@ -154,7 +160,7 @@ public class ProductDiscountServiceImpl implements ProductDiscountService {
                 .storageLabel(variant.getStorageLabel() != null ? variant.getStorageLabel() : (variant.getStorageGb() != null ? variant.getStorageGb() + "GB" : null))
                 .originalPrice(originalPrice)
                 .discountPercent(discount.getDiscountPercent())
-                .discountAmount(discount.getDiscountAmount())
+                .discountAmount(discountSavedAmount)
                 .discountPrice(discountPrice)
                 .startAt(discount.getStartAt())
                 .endAt(discount.getEndAt())

@@ -112,7 +112,8 @@ export const AdminDiscounts = () => {
     const base = selectedVariant.variant.price;
     if (formData.discountType === 'FIXED' && formData.discountAmount) {
       const amt = Number(formData.discountAmount);
-      return base - amt;
+      // discountAmount NHẬP VÀO = SỐ TIỀN GIẢM → giá sau giảm = base - amt
+      return Math.max(0, base - amt);
     }
     if (formData.discountType === 'PERCENT' && formData.discountPercent) {
       const pct = Number(formData.discountPercent);
@@ -268,7 +269,7 @@ export const AdminDiscounts = () => {
                                 <div className="flex flex-col">
                                   <span className="text-sm font-black text-red-400">
                                     {discount.discountAmount && discount.discountAmount > 0
-                                      ? `-${Number(discount.discountAmount).toLocaleString()}đ`
+                                      ? `Giảm ${Number(discount.discountAmount).toLocaleString()}đ`
                                       : `-${discount.discountPercent}%`}
                                   </span>
                                   <span className="text-[10px] text-gray-500">
@@ -317,7 +318,10 @@ export const AdminDiscounts = () => {
                 <p className="text-xs text-gray-500 mb-1">Phiên bản đã chọn:</p>
                 <p className="text-sm font-bold text-white">{buildVariantLabel(selectedVariant.product.name, selectedVariant.variant)}</p>
                 <p className="text-[11px] text-gray-500 mt-1">
-                  SKU: {selectedVariant.variant.sku} · Giá gốc: {Number(selectedVariant.variant.price).toLocaleString()}đ
+                  SKU: {selectedVariant.variant.sku}
+                </p>
+                <p className="text-[11px] font-bold text-gray-300 mt-1">
+                  Giá gốc: <span className="text-white">{Number(selectedVariant.variant.price).toLocaleString()}đ</span>
                 </p>
               </div>
 
@@ -366,7 +370,7 @@ export const AdminDiscounts = () => {
                   />
                   {formData.discountAmount && (
                     <p className="text-[10px] text-emerald-400 mt-1">
-                      Giá sau giảm: {calcDiscountPrice()?.toLocaleString()}đ
+                      Giảm {Number(formData.discountAmount).toLocaleString()}đ → Còn {calcDiscountPrice()?.toLocaleString()}đ
                     </p>
                   )}
                 </div>
@@ -455,8 +459,8 @@ export const AdminDiscounts = () => {
                           <p className="text-[11px] font-bold text-gray-200 leading-tight">{fullLabel}</p>
                           <p className="text-[10px] text-gray-500 mt-0.5">
                             {d.discountAmount && d.discountAmount > 0
-                              ? `-${Number(d.discountAmount).toLocaleString()}đ → ${Number(d.discountPrice).toLocaleString()}đ`
-                              : `-${d.discountPercent}% → ${Number(d.discountPrice).toLocaleString()}đ`}
+                              ? `Giảm ${Number(d.discountAmount).toLocaleString()}đ → Còn ${Number(d.discountPrice).toLocaleString()}đ`
+                              : `Giảm ${d.discountPercent}% → Còn ${Number(d.discountPrice).toLocaleString()}đ`}
                           </p>
                         </div>
                         <button

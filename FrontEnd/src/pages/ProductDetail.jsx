@@ -161,6 +161,20 @@ export const ProductDetail = () => {
     return Number(product.price || 0);
   }, [product, selectedVariant]);
 
+  // Số tiền đã giảm (từ backend) + giá gốc
+  const saleAmount = useMemo(() => {
+    if (!selectedVariant) return 0;
+    return Number(selectedVariant.saleAmount || 0);
+  }, [selectedVariant]);
+
+  // Giá gốc (trước khi giảm)
+  const originalPrice = useMemo(() => {
+    if (!selectedVariant) return 0;
+    if (selectedVariant.compareAtPrice != null) return Number(selectedVariant.compareAtPrice);
+    if (saleAmount > 0) return currentPrice + saleAmount;
+    return 0;
+  }, [selectedVariant, saleAmount, currentPrice]);
+
   // Stock from selected variant
   const maxQuantity = useMemo(() => {
     if (selectedVariant?.stock != null) return Math.max(1, Number(selectedVariant.stock));
@@ -385,10 +399,10 @@ export const ProductDetail = () => {
 
             {/* Price */}
             <div>
-              {/* Hiển thị giá gốc khi có flash sale hoặc giảm giá sản phẩm */}
-              {(product.isFlashSale || (product.sale > 0 && !product.isFlashSale)) && product.originalPrice && (
+              {/* Hiển thị giá gốc khi có giảm giá sản phẩm */}
+              {saleAmount > 0 && originalPrice > 0 && (
                 <p className="text-sm text-gray-400 line-through mb-0.5">
-                  {Number(product.originalPrice || 0).toLocaleString('vi-VN')}₫
+                  {originalPrice.toLocaleString('vi-VN')}₫
                 </p>
               )}
               <p className="text-3xl font-black text-red-600">
@@ -396,12 +410,6 @@ export const ProductDetail = () => {
               </p>
               {product.isFlashSale && product.sale > 0 && (
                 <span className="mt-1 inline-block rounded bg-red-600 px-2 py-0.5 text-[11px] font-bold text-white">
-                  -{product.sale}%
-                </span>
-              )}
-              {/* Badge giảm giá sản phẩm (không phải flash sale) */}
-              {product.sale > 0 && !product.isFlashSale && (
-                <span className="mt-1 ml-2 inline-block rounded bg-red-500 px-2 py-0.5 text-[11px] font-bold text-white">
                   -{product.sale}%
                 </span>
               )}
