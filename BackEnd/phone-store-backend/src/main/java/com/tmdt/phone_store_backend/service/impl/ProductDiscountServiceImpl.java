@@ -57,10 +57,28 @@ public class ProductDiscountServiceImpl implements ProductDiscountService {
             throw new IllegalArgumentException("Thời gian kết thúc phải sau thời gian bắt đầu.");
         }
 
+        BigDecimal originalPrice = variant.getPrice();
+        Integer savedPercent = request.getDiscountPercent();
+        BigDecimal savedAmount = request.getDiscountAmount();
+
+        // Nếu chỉ nhập số tiền (giá sau giảm) → tự tính percent tương ứng
+        if (savedAmount != null && savedAmount.compareTo(BigDecimal.ZERO) > 0
+                && (savedPercent == null || savedPercent <= 0)) {
+            // savedAmount = giá SAU GIẢM → tính số tiền đã giảm
+            BigDecimal diff = originalPrice.subtract(savedAmount);
+            if (diff.compareTo(BigDecimal.ZERO) > 0) {
+                // tính % làm tròn từ số tiền đã giảm
+                savedPercent = diff.multiply(BigDecimal.valueOf(100))
+                        .divide(originalPrice, 0, RoundingMode.HALF_UP).intValue();
+                // lưu số tiền đã giảm (không phải giá sau giảm)
+                savedAmount = diff;
+            }
+        }
+
         ProductDiscount discount = ProductDiscount.builder()
                 .variant(variant)
-                .discountPercent(request.getDiscountPercent())
-                .discountAmount(request.getDiscountAmount())
+                .discountPercent(savedPercent)
+                .discountAmount(savedAmount)
                 .startAt(request.getStartAt())
                 .endAt(request.getEndAt())
                 .isActive(request.getIsActive() != null ? request.getIsActive() : true)
@@ -78,13 +96,26 @@ public class ProductDiscountServiceImpl implements ProductDiscountService {
         ProductDiscount discount = discountRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy mục giảm giá: " + id));
 
+        ProductVariant variant = discount.getVariant();
+        BigDecimal originalPrice = variant.getPrice();
+
         if (request.getDiscountPercent() != null) {
             discount.setDiscountPercent(request.getDiscountPercent());
             discount.setDiscountAmount(null);
         }
         if (request.getDiscountAmount() != null) {
-            discount.setDiscountAmount(request.getDiscountAmount());
-            discount.setDiscountPercent(null);
+            // request.discountAmount = giá SAU GIẢM → tính số tiền đã giảm
+            BigDecimal afterPrice = request.getDiscountAmount();
+            BigDecimal diff = originalPrice.subtract(afterPrice);
+            if (diff.compareTo(BigDecimal.ZERO) > 0) {
+                discount.setDiscountAmount(diff);
+                discount.setDiscountPercent(
+                    diff.multiply(BigDecimal.valueOf(100))
+                       .divide(originalPrice, 0, RoundingMode.HALF_UP).intValue()
+                );
+            } else {
+                discount.setDiscountAmount(null);
+            }
         }
         if (request.getStartAt() != null) {
             discount.setStartAt(request.getStartAt());

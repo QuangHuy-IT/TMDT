@@ -518,7 +518,7 @@ public class ProductAdminService {
             BigDecimal displayPrice = applyDiscount(basePrice, discount);
             dto.setPrice(displayPrice);
             dto.setOriginalPrice(basePrice);
-            dto.setSale(getDiscountPercent(discount));
+            dto.setSale(getDiscountPercent(basePrice, discount));
 
             dto.setThumbnailUrl(thumbnailUrl);
             dto.setImages(imageUrls);
@@ -629,7 +629,11 @@ public class ProductAdminService {
         dto.setPrice(minPrice);
         dto.setOriginalPrice(selectedVariant != null ? selectedVariant.getPrice() : null);
         dto.setStock(totalStock);
-        dto.setSale(product.getSale() != null ? product.getSale() : 0);
+        // Dùng discount để lấy % (tính từ discountAmount nếu discountPercent null)
+        ProductDiscount selectedDiscount = selectedVariant != null
+                ? getActiveDiscount(selectedVariant.getId(), activeDiscounts) : null;
+        dto.setSale(selectedDiscount != null && selectedVariant != null
+                ? getDiscountPercent(selectedVariant.getPrice(), selectedDiscount) : 0);
         dto.setDescription(product.getDetailDescription());
         dto.setThumbnailUrl(product.getThumbnailUrl());
         dto.setImages(images.stream().map(ProductImage::getImageUrl).toList());
@@ -1067,7 +1071,26 @@ public class ProductAdminService {
                 || discount.getStartAt().isAfter(now)) {
             return 0;
         }
-        return discount.getDiscountPercent() != null ? discount.getDiscountPercent() : 0;
+        if (discount.getDiscountPercent() != null) return discount.getDiscountPercent();
+        return 0; // discountPercent sẽ được tính từ discountAmount tại call site nếu cần
+    }
+
+    /** Tính % từ discountAmount khi discountPercent null */
+    private int getDiscountPercent(BigDecimal originalPrice, ProductDiscount discount) {
+        if (discount == null || originalPrice == null) return 0;
+        LocalDateTime now = LocalDateTime.now();
+        if (!Boolean.TRUE.equals(discount.getIsActive())
+                || discount.getEndAt().isBefore(now)
+                || discount.getStartAt().isAfter(now)) {
+            return 0;
+        }
+        if (discount.getDiscountPercent() != null) return discount.getDiscountPercent();
+        if (discount.getDiscountAmount() != null && discount.getDiscountAmount().compareTo(BigDecimal.ZERO) > 0) {
+            return discount.getDiscountAmount()
+                    .multiply(BigDecimal.valueOf(100))
+                    .divide(originalPrice, 0, RoundingMode.HALF_UP).intValue();
+        }
+        return 0;
     }
 
     private BigDecimal getDiscountSavedAmount(BigDecimal originalPrice, ProductDiscount discount) {

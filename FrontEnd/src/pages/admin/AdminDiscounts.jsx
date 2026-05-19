@@ -93,10 +93,12 @@ export const AdminDiscounts = () => {
 
     const existing = getDiscountForVariant(vid);
     if (existing) {
+      // Kiểm tra discountPercent trước (dùng %) hay không (dùng số tiền)
+      const isPercent = existing.discountPercent && existing.discountPercent > 0;
       setFormData({
-        discountType: existing.discountAmount && existing.discountAmount > 0 ? 'FIXED' : 'PERCENT',
-        discountPercent: existing.discountPercent ? String(existing.discountPercent) : '',
-        discountAmount: existing.discountAmount ? String(existing.discountAmount) : '',
+        discountType: isPercent ? 'PERCENT' : 'FIXED',
+        discountPercent: isPercent ? String(existing.discountPercent) : '',
+        discountAmount: !isPercent && existing.discountPrice ? String(existing.discountPrice) : '',
         startAt: existing.startAt ? toDatetimeLocal(existing.startAt) : '',
         endAt: existing.endAt ? toDatetimeLocal(existing.endAt) : '',
       });
@@ -112,7 +114,7 @@ export const AdminDiscounts = () => {
     const base = selectedVariant.variant.price;
     if (formData.discountType === 'FIXED' && formData.discountAmount) {
       const amt = Number(formData.discountAmount);
-      // discountAmount NHẬP VÀO = SỐ TIỀN GIẢM → giá sau giảm = base - amt
+      // formData.discountAmount = GIÁ SAU GIẢM → số tiền giảm = base - amt
       return Math.max(0, base - amt);
     }
     if (formData.discountType === 'PERCENT' && formData.discountPercent) {
@@ -132,7 +134,10 @@ export const AdminDiscounts = () => {
       }
     } else {
       if (!formData.discountAmount || amt <= 0) {
-        alert('Số tiền giảm phải lớn hơn 0.'); return;
+        alert('Giá sau giảm phải lớn hơn 0.'); return;
+      }
+      if (amt >= selectedVariant.variant.price) {
+        alert('Giá sau giảm phải nhỏ hơn giá gốc.'); return;
       }
     }
     if (!formData.startAt || !formData.endAt) { alert('Vui lòng chọn thời gian bắt đầu và kết thúc.'); return; }
@@ -359,18 +364,18 @@ export const AdminDiscounts = () => {
                 </div>
               ) : (
                 <div>
-                  <label className="text-[10px] text-gray-500 block mb-1.5">Số tiền giảm (VNĐ) *</label>
+                  <label className="text-[10px] text-gray-500 block mb-1.5">Giá sau giảm (VNĐ) *</label>
                   <input
                     type="number"
                     min="1"
                     value={formData.discountAmount}
                     onChange={(e) => setFormData((p) => ({ ...p, discountAmount: e.target.value }))}
-                    placeholder="VD: 500000"
+                    placeholder="VD: 10000000"
                     className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-red-500/50"
                   />
                   {formData.discountAmount && (
                     <p className="text-[10px] text-emerald-400 mt-1">
-                      Giảm {Number(formData.discountAmount).toLocaleString()}đ → Còn {calcDiscountPrice()?.toLocaleString()}đ
+                      Giảm {calcDiscountPrice()?.toLocaleString()}đ → Còn {Number(formData.discountAmount).toLocaleString()}đ
                     </p>
                   )}
                 </div>
