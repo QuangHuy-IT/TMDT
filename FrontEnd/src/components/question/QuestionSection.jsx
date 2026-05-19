@@ -10,11 +10,16 @@ const formatDate = (dateStr) => {
   return d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
 };
 
-const QuestionItem = ({ question, onReply }) => {
+const QuestionItem = ({ question, onReply, currentUserId, onEdit, onDelete }) => {
   const [showReplyForm, setShowReplyForm] = useState(false);
   const [replyContent, setReplyContent] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [editing, setEditing] = useState(false);
+  const [editContent, setEditContent] = useState(question.content);
+  const [editSubmitting, setEditSubmitting] = useState(false);
+
+  const isOwner = currentUserId && question.userId === currentUserId;
 
   const handleSubmitReply = async (e) => {
     e.preventDefault();
@@ -32,6 +37,23 @@ const QuestionItem = ({ question, onReply }) => {
     }
   };
 
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    if (!editContent.trim() || editContent.trim() === question.content) {
+      setEditing(false);
+      return;
+    }
+    setEditSubmitting(true);
+    try {
+      await onEdit(question.id, editContent.trim());
+      setEditing(false);
+    } catch {
+      setError('Sửa câu hỏi thất bại.');
+    } finally {
+      setEditSubmitting(false);
+    }
+  };
+
   return (
     <div className="border-b border-gray-100 pb-4 mb-4 last:border-0 last:mb-0 last:pb-0">
       {/* Question */}
@@ -46,7 +68,58 @@ const QuestionItem = ({ question, onReply }) => {
             <span className="text-sm font-bold text-gray-900">{question.userFullName || 'Người dùng'}</span>
             <span className="text-[11px] text-gray-400">{formatDate(question.createdAt)}</span>
           </div>
-          <p className="text-sm text-gray-700 leading-relaxed">{question.content}</p>
+
+          {/* Question content / edit form */}
+          {editing ? (
+            <form onSubmit={handleEditSubmit} className="mt-1">
+              <textarea
+                value={editContent}
+                onChange={(e) => setEditContent(e.target.value)}
+                rows={3}
+                autoFocus
+                className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm placeholder-gray-400 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-200 resize-none"
+              />
+              {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
+              <div className="flex gap-2 mt-2">
+                <button
+                  type="button"
+                  onClick={() => { setEditing(false); setEditContent(question.content); }}
+                  className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-500 hover:bg-gray-50"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  disabled={editSubmitting || !editContent.trim()}
+                  className="px-4 py-1.5 rounded-lg bg-red-600 text-xs font-bold text-white hover:bg-red-700 disabled:opacity-50"
+                >
+                  {editSubmitting ? 'Đang lưu...' : 'Lưu'}
+                </button>
+              </div>
+            </form>
+          ) : (
+            <p className="text-sm text-gray-700 leading-relaxed">{question.content}</p>
+          )}
+
+          {/* Actions for owner */}
+          {isOwner && !editing && (
+            <div className="flex items-center gap-3 mt-1">
+              <button
+                onClick={() => setEditing(true)}
+                className="text-[11px] text-gray-400 hover:text-gray-600 font-semibold"
+              >
+                Sửa
+              </button>
+              <button
+                onClick={() => {
+                  if (window.confirm('Xóa câu hỏi này?')) onDelete(question.id);
+                }}
+                className="text-[11px] text-gray-400 hover:text-red-500 font-semibold"
+              >
+                Xóa
+              </button>
+            </div>
+          )}
 
           {/* Answers */}
           {question.answers && question.answers.length > 0 && (
@@ -65,7 +138,9 @@ const QuestionItem = ({ question, onReply }) => {
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
                       <span className="text-sm font-bold text-gray-900">
-                        {answer.isAdminAnswer ? 'Quản trị viên' : answer.userFullName || 'Người dùng'}
+                        {answer.isAdminAnswer
+                          ? `${answer.userFullName || 'Quản trị viên'} - HH Store`
+                          : answer.userFullName || 'Người dùng'}
                       </span>
                       {answer.isAdminAnswer && (
                         <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-600 font-bold">Admin</span>
@@ -196,6 +271,16 @@ const QuestionSection = ({ productId, currentUserId }) => {
     fetchQuestions(currentPage - 1);
   };
 
+  const handleEdit = async (questionId, newContent) => {
+    await QuestionService.updateQuestion(questionId, currentUserId, newContent);
+    fetchQuestions(currentPage - 1);
+  };
+
+  const handleDelete = async (questionId) => {
+    await QuestionService.deleteQuestion(questionId, currentUserId);
+    fetchQuestions(currentPage - 1);
+  };
+
   return (
     <section className="mt-10" id="questions">
       <div className="mx-auto max-w-6xl px-4">
@@ -292,7 +377,10 @@ const QuestionSection = ({ productId, currentUserId }) => {
                 <QuestionItem
                   key={question.id}
                   question={question}
+                  currentUserId={currentUserId}
                   onReply={currentUserId ? handleReply : null}
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
                 />
               ))}
             </div>

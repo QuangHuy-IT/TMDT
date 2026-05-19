@@ -79,8 +79,12 @@ public class AIRecommendController {
         } else {
             criteria = new ProductContextBuilder.SearchCriteria();
             criteria.setBrand(request.getBrand());
-            criteria.setMinBudget(request.getMinPrice());
-            criteria.setMaxBudget(request.getMaxPrice());
+            criteria.setMinBudget(request.getMinPrice() != null
+                    ? request.getMinPrice().multiply(BigDecimal.valueOf(1_000_000))
+                    : null);
+            criteria.setMaxBudget(request.getMaxPrice() != null
+                    ? request.getMaxPrice().multiply(BigDecimal.valueOf(1_000_000))
+                    : null);
             criteria.setMinRam(request.getMinRam());
             if (request.getUsagePurpose() != null) {
                 criteria.setFeatures(List.of(request.getUsagePurpose()));

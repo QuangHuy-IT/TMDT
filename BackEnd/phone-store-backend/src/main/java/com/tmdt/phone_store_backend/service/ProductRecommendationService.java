@@ -1,6 +1,5 @@
 package com.tmdt.phone_store_backend.service;
 
-import com.tmdt.phone_store_backend.domain.entity.Brand;
 import com.tmdt.phone_store_backend.domain.entity.Product;
 import com.tmdt.phone_store_backend.domain.entity.ProductVariant;
 import com.tmdt.phone_store_backend.domain.enums.ProductStatus;
@@ -181,7 +180,7 @@ public class ProductRecommendationService {
         if (containsAny(text, "gaming", "chơi game", "game", "hiệu năng cao", "chip mạnh")) {
             cats.add("gaming");
         }
-        if (containsAny(text, "pin trâu", "pin khủng", "dung lượng pin", "pin lớn", "pin trâu", "thời lượng pin")) {
+        if (containsAny(text, "pin trâu", "pin khủng", "dung lượng pin", "pin lớn", "thời lượng pin")) {
             cats.add("pin");
         }
         if (containsAny(text, "camera", "chụp ảnh", "chụp hình", "ảnh đẹp", "selfie", "quay video")) {

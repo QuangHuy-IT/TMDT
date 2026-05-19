@@ -18,6 +18,12 @@ const QuestionService = {
 
   getQuestion: (questionId) =>
     api.get(`/products/questions/${questionId}`),
+
+  deleteQuestion: (questionId, userId) =>
+    api.delete(`/products/questions/${questionId}`, { params: { userId } }),
+
+  updateQuestion: (questionId, userId, content) =>
+    api.put(`/products/questions/${questionId}`, { content }, { params: { userId } }),
 };
 
 export default QuestionService;

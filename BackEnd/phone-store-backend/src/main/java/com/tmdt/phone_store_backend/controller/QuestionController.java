@@ -58,4 +58,20 @@ public class QuestionController {
     public ResponseEntity<List<AnswerDto>> getAnswers(@PathVariable Long questionId) {
         return ResponseEntity.ok(questionService.getQuestionAnswers(questionId));
     }
+
+    @DeleteMapping("/questions/{questionId}")
+    public ResponseEntity<?> deleteQuestion(
+            @PathVariable Long questionId,
+            @RequestParam Long userId) {
+        questionService.deleteQuestionByUser(questionId, userId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/questions/{questionId}")
+    public ResponseEntity<QuestionDto> updateQuestion(
+            @PathVariable Long questionId,
+            @RequestParam Long userId,
+            @Valid @RequestBody CreateQuestionRequestDto requestDto) {
+        return ResponseEntity.ok(questionService.updateQuestion(questionId, userId, requestDto.getContent()));
+    }
 }

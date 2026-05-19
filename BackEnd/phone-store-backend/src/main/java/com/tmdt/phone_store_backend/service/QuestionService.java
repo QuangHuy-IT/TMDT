@@ -19,10 +19,18 @@ public interface QuestionService {
 
     List<AnswerDto> getQuestionAnswers(Long questionId);
 
+    void deleteQuestionByUser(Long questionId, Long userId);
+
+    QuestionDto updateQuestion(Long questionId, Long userId, String newContent);
+
     // Admin methods
     PagedQuestionResponseDto getAllQuestions(int page, int size);
 
     PagedQuestionResponseDto getPendingQuestions(int page, int size);
+
+    long countAllQuestions();
+
+    long countPendingQuestions();
 
     PagedQuestionResponseDto searchQuestions(String query, int page, int size);
 
