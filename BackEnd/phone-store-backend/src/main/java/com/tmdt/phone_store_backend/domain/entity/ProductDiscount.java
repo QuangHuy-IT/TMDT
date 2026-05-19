@@ -28,6 +28,9 @@ public class ProductDiscount {
     @Column(name = "discount_amount", precision = 18, scale = 0)
     private BigDecimal discountAmount;
 
+    @Column(name = "discount_type")
+    private String discountType; // PERCENT | FIXED
+
     @Column(name = "start_at", nullable = false)
     private LocalDateTime startAt;
 

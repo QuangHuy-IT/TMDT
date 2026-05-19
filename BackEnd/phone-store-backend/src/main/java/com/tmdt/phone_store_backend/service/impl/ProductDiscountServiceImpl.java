@@ -79,6 +79,7 @@ public class ProductDiscountServiceImpl implements ProductDiscountService {
                 .variant(variant)
                 .discountPercent(savedPercent)
                 .discountAmount(savedAmount)
+                .discountType(request.getDiscountType())
                 .startAt(request.getStartAt())
                 .endAt(request.getEndAt())
                 .isActive(request.getIsActive() != null ? request.getIsActive() : true)
@@ -102,6 +103,7 @@ public class ProductDiscountServiceImpl implements ProductDiscountService {
         if (request.getDiscountPercent() != null) {
             discount.setDiscountPercent(request.getDiscountPercent());
             discount.setDiscountAmount(null);
+            discount.setDiscountType("PERCENT");
         }
         if (request.getDiscountAmount() != null) {
             // request.discountAmount = giá SAU GIẢM → tính số tiền đã giảm
@@ -113,6 +115,7 @@ public class ProductDiscountServiceImpl implements ProductDiscountService {
                     diff.multiply(BigDecimal.valueOf(100))
                        .divide(originalPrice, 0, RoundingMode.HALF_UP).intValue()
                 );
+                discount.setDiscountType("FIXED");
             } else {
                 discount.setDiscountAmount(null);
             }
@@ -193,6 +196,7 @@ public class ProductDiscountServiceImpl implements ProductDiscountService {
                 .discountPercent(discount.getDiscountPercent())
                 .discountAmount(discountSavedAmount)
                 .discountPrice(discountPrice)
+                .discountType(discount.getDiscountType())
                 .startAt(discount.getStartAt())
                 .endAt(discount.getEndAt())
                 .isActive(discount.getIsActive())

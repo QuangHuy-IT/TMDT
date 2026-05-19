@@ -93,10 +93,9 @@ export const AdminDiscounts = () => {
 
     const existing = getDiscountForVariant(vid);
     if (existing) {
-      // Kiểm tra discountPercent trước (dùng %) hay không (dùng số tiền)
-      const isPercent = existing.discountPercent && existing.discountPercent > 0;
+      const isPercent = existing.discountType === 'PERCENT';
       setFormData({
-        discountType: isPercent ? 'PERCENT' : 'FIXED',
+        discountType: existing.discountType || (isPercent ? 'PERCENT' : 'FIXED'),
         discountPercent: isPercent ? String(existing.discountPercent) : '',
         discountAmount: !isPercent && existing.discountPrice ? String(existing.discountPrice) : '',
         startAt: existing.startAt ? toDatetimeLocal(existing.startAt) : '',
@@ -273,7 +272,7 @@ export const AdminDiscounts = () => {
                               {discount ? (
                                 <div className="flex flex-col">
                                   <span className="text-sm font-black text-red-400">
-                                    {discount.discountAmount && discount.discountAmount > 0
+                                    {discount.discountType === 'FIXED'
                                       ? `Giảm ${Number(discount.discountAmount).toLocaleString()}đ`
                                       : `-${discount.discountPercent}%`}
                                   </span>
@@ -463,7 +462,7 @@ export const AdminDiscounts = () => {
                         <div className="min-w-0 flex-1">
                           <p className="text-[11px] font-bold text-gray-200 leading-tight">{fullLabel}</p>
                           <p className="text-[10px] text-gray-500 mt-0.5">
-                            {d.discountAmount && d.discountAmount > 0
+                            {d.discountType === 'FIXED'
                               ? `Giảm ${Number(d.discountAmount).toLocaleString()}đ → Còn ${Number(d.discountPrice).toLocaleString()}đ`
                               : `Giảm ${d.discountPercent}% → Còn ${Number(d.discountPrice).toLocaleString()}đ`}
                           </p>
