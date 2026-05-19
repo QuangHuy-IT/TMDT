@@ -11,11 +11,8 @@ export const ProductCard = ({ product, variant = 'default', className }) => {
 
   const isFlashSale = variant === 'flash-sale';
 
-  // === Default mode mappings ===
+  // === Shared mappings ===
   const productId = product.id || product._id;
-
-  // New model: use selectedVariant.slug if available, else fallback
-  // Example: "iphone-17-pro-max-8gb-256gb-black"
   const selectedVariant = product.selectedVariant && typeof product.selectedVariant === 'object'
     ? product.selectedVariant
     : null;
@@ -25,40 +22,44 @@ export const ProductCard = ({ product, variant = 'default', className }) => {
     || productId
     || '';
 
-  // Product name with variant spec (e.g. "iPhone 17 Pro Max 8GB 256GB")
   const variantSpec = product.variantName || '';
   const displayName = product.name || product.productName || 'Sản phẩm';
   const fullDisplayName = variantSpec ? `${displayName} ${variantSpec}` : displayName;
 
-  // Price: selectedVariant first, then product-level price
-  const price = selectedVariant?.price
-    ?? product.price
-    ?? product.minPrice
-    ?? 0;
+  // sale/discount percent — declared FIRST so originalPrice can reference it
+  const sale = product.sale || product.discount || 0;
 
-  // Build thumbnail - prioritize thumbnailUrl, then first image in array
-  const productImages = Array.isArray(product.images) ? product.images.filter(img => img && typeof img === 'string' && img.trim()) : [];
+  // Price: backend sets product.price to DISCOUNTED price in toListDto.
+  // selectedVariant.price = original (base) price always.
+  // So we read product.price first (discounted), fall back only when no discount.
+  const price = product.price
+    ?? (selectedVariant?.price ?? 0);
+
+  // Original price (before discount) — from backend OR computed
+  const originalPrice = product.originalPrice
+    ?? (sale > 0 && price > 0 ? Math.round(price * 100 / (100 - sale)) : price);
+
+  // Thumbnail
+  const productImages = Array.isArray(product.images)
+    ? product.images.filter(img => img && typeof img === 'string' && img.trim())
+    : [];
   const thumbnail =
     product.thumbnail ||
     product.thumbnailUrl ||
     (productImages.length > 0 ? productImages[0] : null) ||
     '/placeholder-product.png';
 
-  // Sale/discount for flash sale mode (declared early so originalPrice can reference it)
-  const sale = product.sale || product.discount || 0;
-
-  // === Flash Sale mode mappings ===
+  // Flash sale specific
   const flashPrice = product.flashPrice || product.price || 0;
-  const originalPrice =
-    product.originalPrice ||
-    (sale > 0 ? Math.round(price * 100 / (100 - sale)) : price) ||
-    0;
   const discountPercent = product.discountPercent || product.sale || product.discount || 0;
   const quantity = product.quantity || 1;
   const soldQuantity = product.soldQuantity || 0;
 
   const brandName = product.brand?.name || product.brandName || 'Mobile';
   const rating = product.rating || 5.0;
+
+  // Has any discount (product discount, not flash sale)
+  const hasDiscount = sale > 0;
 
   const handleCardClick = () => {
     navigate(`/products/${variantSlug}`);
@@ -81,7 +82,7 @@ export const ProductCard = ({ product, variant = 'default', className }) => {
         'hover:shadow-xl flex flex-col',
         isFlashSale
           ? 'shadow-lg shadow-black/10 hover:shadow-xl hover:shadow-red-200/40'
-          : 'rounded-[2rem] p-5 border border-slate-100 hover:shadow-[0_20px_50px_rgba(0,0,0,0,0.06)]',
+          : 'rounded-[2rem] p-5 border border-slate-100 hover:shadow-[0_20px_50px_rgba(0,0,0,0.06)]',
         className
       )}
     >
@@ -92,7 +93,7 @@ export const ProductCard = ({ product, variant = 'default', className }) => {
             <Zap size={10} className="fill-white" />
             -{discountPercent}%
           </span>
-        ) : sale > 0 ? (
+        ) : hasDiscount ? (
           <span className="bg-red-500 text-white text-[10px] font-black px-2 py-1 rounded-lg shadow-lg shadow-red-200 uppercase tracking-wider">
             -{sale}%
           </span>
@@ -192,12 +193,9 @@ export const ProductCard = ({ product, variant = 'default', className }) => {
                 </span>
               )
             ) : (
-              sale > 0 && (
+              hasDiscount && (
                 <span className="text-xs font-bold text-slate-400 line-through mt-1">
-                  {Number(
-                    originalPrice ||
-                      Math.round(price * 100 / (100 - sale))
-                  ).toLocaleString('vi-VN')}₫
+                  {Number(originalPrice).toLocaleString('vi-VN')}₫
                 </span>
               )
             )}

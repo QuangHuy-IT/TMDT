@@ -385,9 +385,10 @@ export const ProductDetail = () => {
 
             {/* Price */}
             <div>
-              {product.isFlashSale && product.flashSalePrice != null && (
+              {/* Hiển thị giá gốc khi có flash sale hoặc giảm giá sản phẩm */}
+              {(product.isFlashSale || (product.sale > 0 && !product.isFlashSale)) && product.originalPrice && (
                 <p className="text-sm text-gray-400 line-through mb-0.5">
-                  {Number(product.price || 0).toLocaleString('vi-VN')}₫
+                  {Number(product.originalPrice || 0).toLocaleString('vi-VN')}₫
                 </p>
               )}
               <p className="text-3xl font-black text-red-600">
@@ -395,6 +396,12 @@ export const ProductDetail = () => {
               </p>
               {product.isFlashSale && product.sale > 0 && (
                 <span className="mt-1 inline-block rounded bg-red-600 px-2 py-0.5 text-[11px] font-bold text-white">
+                  -{product.sale}%
+                </span>
+              )}
+              {/* Badge giảm giá sản phẩm (không phải flash sale) */}
+              {product.sale > 0 && !product.isFlashSale && (
+                <span className="mt-1 ml-2 inline-block rounded bg-red-500 px-2 py-0.5 text-[11px] font-bold text-white">
                   -{product.sale}%
                 </span>
               )}

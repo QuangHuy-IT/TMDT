@@ -61,6 +61,15 @@ const AdminService = {
   deleteVoucher: (id) => api.delete(`/admin/vouchers/${id}`),
   toggleVoucherActive: (id, isActive) =>
     api.patch(`/admin/vouchers/${id}/toggle`, { isActive }),
+
+  // ── Product Discounts ──────────────────────────────────────────────────
+  getDiscounts: () => api.get('/admin/discounts'),
+  getActiveDiscounts: () => api.get('/admin/discounts/active'),
+  getDiscount: (id) => api.get(`/admin/discounts/${id}`),
+  createDiscount: (payload) => api.post('/admin/discounts', payload),
+  updateDiscount: (id, payload) => api.put(`/admin/discounts/${id}`, payload),
+  deleteDiscount: (id) => api.delete(`/admin/discounts/${id}`),
+  toggleDiscount: (id) => api.post(`/admin/discounts/${id}/toggle`),
 };
 
 export default AdminService;
