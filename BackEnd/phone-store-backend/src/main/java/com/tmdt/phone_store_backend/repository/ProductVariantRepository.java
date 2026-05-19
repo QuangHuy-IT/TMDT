@@ -14,4 +14,6 @@ public interface ProductVariantRepository extends JpaRepository<ProductVariant, 
     Optional<ProductVariant> findBySlug(String slug);
 
     List<ProductVariant> findByProductIdAndDeletedAtIsNull(Long productId);
+
+    List<ProductVariant> findByProductIdAndDeletedAtIsNullOrderByPriceAsc(Long productId);
 }

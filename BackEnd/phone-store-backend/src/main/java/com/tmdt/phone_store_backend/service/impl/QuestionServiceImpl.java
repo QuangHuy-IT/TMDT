@@ -39,8 +39,7 @@ public class QuestionServiceImpl implements QuestionService {
     @Override
     public PagedQuestionResponseDto getProductQuestions(Long productId, int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
-        Page<Question> questionPage = questionRepository
-                .findByProductIdAndIsVisibleTrueOrderByCreatedAtDesc(productId, pageable);
+        Page<Question> questionPage = questionRepository.findByProductIdWithDetails(productId, pageable);
         return buildPagedResponse(questionPage);
     }
 
@@ -82,7 +81,7 @@ public class QuestionServiceImpl implements QuestionService {
                 .question(question)
                 .user(user)
                 .content(requestDto.getContent())
-                .isAdminAnswer(UserRole.ADMIN.name().equals(user.getRole().name()))
+                .isAdminAnswer(user.getRole() == UserRole.ADMIN)
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();
@@ -111,6 +110,34 @@ public class QuestionServiceImpl implements QuestionService {
         return toDto(question, true);
     }
 
+    @Override
+    @Transactional
+    public void deleteQuestionByUser(Long questionId, Long userId) {
+        Question question = questionRepository.findById(questionId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy câu hỏi."));
+        if (!question.getUser().getId().equals(userId)) {
+            throw new SecurityException("Bạn không có quyền xóa câu hỏi này.");
+        }
+        if (question.getAnswers() != null && !question.getAnswers().isEmpty()) {
+            answerRepository.deleteAll(question.getAnswers());
+        }
+        questionRepository.delete(question);
+    }
+
+    @Override
+    @Transactional
+    public QuestionDto updateQuestion(Long questionId, Long userId, String newContent) {
+        Question question = questionRepository.findById(questionId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy câu hỏi."));
+        if (!question.getUser().getId().equals(userId)) {
+            throw new SecurityException("Bạn không có quyền sửa câu hỏi này.");
+        }
+        question.setContent(newContent);
+        question.setUpdatedAt(LocalDateTime.now());
+        Question saved = questionRepository.save(question);
+        return toDto(saved, true);
+    }
+
     // ══════════════════════════════════════════════════════════════
     //  ADMIN METHODS
     // ══════════════════════════════════════════════════════════════
@@ -119,7 +146,7 @@ public class QuestionServiceImpl implements QuestionService {
     @Transactional(readOnly = true)
     public PagedQuestionResponseDto getAllQuestions(int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
-        Page<Question> questionPage = questionRepository.findByIsVisibleTrueOrderByCreatedAtDesc(pageable);
+        Page<Question> questionPage = questionRepository.findAllWithDetails(pageable);
         return buildPagedResponse(questionPage);
     }
 
@@ -127,8 +154,20 @@ public class QuestionServiceImpl implements QuestionService {
     @Transactional(readOnly = true)
     public PagedQuestionResponseDto getPendingQuestions(int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
-        Page<Question> questionPage = questionRepository.findByIsVisibleFalseOrderByCreatedAtDesc(pageable);
+        Page<Question> questionPage = questionRepository.findPendingWithDetails(pageable);
         return buildPagedResponse(questionPage);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public long countAllQuestions() {
+        return questionRepository.count();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public long countPendingQuestions() {
+        return questionRepository.countByIsAnsweredFalse();
     }
 
     @Override
@@ -162,6 +201,9 @@ public class QuestionServiceImpl implements QuestionService {
     public void deleteQuestion(Long questionId) {
         Question question = questionRepository.findById(questionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy câu hỏi."));
+        if (question.getAnswers() != null && !question.getAnswers().isEmpty()) {
+            answerRepository.deleteAll(question.getAnswers());
+        }
         questionRepository.delete(question);
     }
 
@@ -197,7 +239,7 @@ public class QuestionServiceImpl implements QuestionService {
                 .question(question)
                 .user(user)
                 .content(content)
-                .isAdminAnswer(UserRole.ADMIN.name().equals(user.getRole().name()))
+                .isAdminAnswer(user.getRole() == UserRole.ADMIN)
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();
@@ -216,7 +258,7 @@ public class QuestionServiceImpl implements QuestionService {
 
     private PagedQuestionResponseDto buildPagedResponse(Page<Question> questionPage) {
         List<QuestionDto> dtos = questionPage.getContent().stream()
-                .map(q -> toDto(q, false))
+                .map(q -> toDto(q, true))
                 .toList();
         return PagedQuestionResponseDto.builder()
                 .questions(dtos)
@@ -234,13 +276,15 @@ public class QuestionServiceImpl implements QuestionService {
                     .map(this::toAnswerDto)
                     .toList();
         }
+        Product p = question.getProduct();
+        User u = question.getUser();
         return QuestionDto.builder()
                 .id(question.getId())
-                .productId(question.getProduct() != null ? question.getProduct().getId() : null)
-                .productName(question.getProduct() != null ? question.getProduct().getName() : null)
-                .userId(question.getUser() != null ? question.getUser().getId() : null)
-                .userFullName(question.getUser() != null ? question.getUser().getFullName() : null)
-                .userAvatarUrl(question.getUser() != null ? question.getUser().getAvatarUrl() : null)
+                .productId(p != null ? p.getId() : null)
+                .productName(p != null ? p.getName() : "Sản phẩm đã bị xóa")
+                .userId(u != null ? u.getId() : null)
+                .userFullName(u != null ? u.getFullName() : "Người dùng đã bị xóa")
+                .userAvatarUrl(u != null ? u.getAvatarUrl() : null)
                 .content(question.getContent())
                 .isAnswered(question.getIsAnswered())
                 .isVisible(question.getIsVisible())

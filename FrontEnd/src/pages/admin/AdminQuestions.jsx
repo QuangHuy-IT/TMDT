@@ -295,7 +295,9 @@ export const AdminQuestions = () => {
                             <div>
                               <div className="flex items-center gap-2 mb-1">
                                 <span className="text-sm font-bold text-white">
-                                  {answer.isAdminAnswer ? 'Quản trị viên' : answer.userFullName || 'Người dùng'}
+                                  {answer.isAdminAnswer
+                                    ? `${answer.userFullName || 'Quản trị viên'} - HH Store`
+                                    : answer.userFullName || 'Người dùng'}
                                 </span>
                                 {answer.isAdminAnswer && (
                                   <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-600/10 text-blue-400 font-bold">Admin</span>

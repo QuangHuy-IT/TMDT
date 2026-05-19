@@ -679,7 +679,7 @@ const AdminFlashSale = () => {
       {/* Header */}
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-white tracking-tight">Flash Sale</h1>
+          <h1 className="text-2xl font-black text-white tracking-tight">Sale</h1>
           <p className="text-sm text-gray-500 mt-1">
             {campaigns.length} chiến dịch | {sessions.length} phiên | {products.length} sản phẩm
           </p>

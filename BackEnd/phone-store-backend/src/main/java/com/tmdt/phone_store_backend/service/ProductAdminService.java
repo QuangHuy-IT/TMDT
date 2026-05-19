@@ -8,6 +8,7 @@ import com.tmdt.phone_store_backend.domain.entity.Product;
 import com.tmdt.phone_store_backend.domain.entity.ProductImage;
 import com.tmdt.phone_store_backend.domain.entity.FlashSaleCampaign;
 import com.tmdt.phone_store_backend.domain.entity.FlashSaleProduct;
+import com.tmdt.phone_store_backend.domain.entity.ProductDiscount;
 import com.tmdt.phone_store_backend.domain.entity.ProductSpecification;
 import com.tmdt.phone_store_backend.domain.entity.ProductVariant;
 import com.tmdt.phone_store_backend.domain.entity.ProductSeries;
@@ -34,6 +35,7 @@ import com.tmdt.phone_store_backend.repository.ProductSpecificationRepository;
 import com.tmdt.phone_store_backend.repository.ProductVariantRepository;
 import com.tmdt.phone_store_backend.repository.FlashSaleCampaignRepository;
 import com.tmdt.phone_store_backend.repository.FlashSaleProductRepository;
+import com.tmdt.phone_store_backend.repository.ProductDiscountRepository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
@@ -67,6 +69,7 @@ public class ProductAdminService {
     private final ProductSpecificationRepository productSpecificationRepository;
     private final FlashSaleCampaignRepository flashSaleCampaignRepository;
     private final FlashSaleProductRepository flashSaleProductRepository;
+    private final ProductDiscountRepository discountRepository;
 
     // ══════════════════════════════════════════════════════════════
     //  READ
@@ -162,7 +165,33 @@ public class ProductAdminService {
         Long flashSaleSessionId = null;
         List<ProductVariant> allVariants = productVariantRepository.findByProductIdAndDeletedAtIsNull(product.getId());
 
+        // Load active product discounts for all variants
+        List<ProductDiscount> activeDiscounts = discountRepository.findAllActiveNow(LocalDateTime.now());
+
         for (ProductVariant v : allVariants) {
+            // Apply product discount first
+            ProductDiscount discount = getActiveDiscount(v.getId(), activeDiscounts);
+            BigDecimal basePrice = v.getPrice();
+            BigDecimal discountedPrice = applyDiscount(basePrice, discount);
+            BigDecimal saleAmount = getDiscountSavedAmount(basePrice, discount);
+
+            // Update variant DTO price
+            if (dto.getVariants() != null) {
+                for (AdminProductVariantDto vdto : dto.getVariants()) {
+                    if (vdto.getId().equals(v.getId())) {
+                        vdto.setPrice(discountedPrice);
+                        vdto.setSaleAmount(saleAmount);
+                        break;
+                    }
+                }
+            }
+            // Update selected variant if it matches
+            if (dto.getSelectedVariant() != null && dto.getSelectedVariant().getId().equals(v.getId())) {
+                dto.getSelectedVariant().setPrice(discountedPrice);
+                dto.getSelectedVariant().setSaleAmount(saleAmount);
+            }
+
+            // Then check flash sale (flash sale overrides product discount)
             List<FlashSaleProduct> activeFlashSales = flashSaleProductRepository.findActiveByVariantId(v.getId());
             if (activeFlashSales != null && !activeFlashSales.isEmpty()) {
                 FlashSaleProduct fp = activeFlashSales.get(0);
@@ -464,6 +493,9 @@ public class ProductAdminService {
         List<String> imageUrls = images.stream().map(ProductImage::getImageUrl).toList();
         String thumbnailUrl = product.getThumbnailUrl();
 
+        // Load active product discounts
+        List<ProductDiscount> activeDiscounts = discountRepository.findAllActiveNow(LocalDateTime.now());
+
         return variants.stream().map(variant -> {
             AdminProductDto dto = new AdminProductDto();
             dto.setId(product.getId());
@@ -480,8 +512,14 @@ public class ProductAdminService {
             int variantStock = inventoryRepository.findByVariantId(variant.getId())
                     .map(Inventory::getQuantityOnHand).orElse(0);
             dto.setStock(variantStock);
-            dto.setPrice(variant.getPrice() != null ? variant.getPrice() : BigDecimal.ZERO);
-            dto.setSale(0);  // Sale is managed by Flash Sale, not product-level
+
+            BigDecimal basePrice = variant.getPrice() != null ? variant.getPrice() : BigDecimal.ZERO;
+            ProductDiscount discount = getActiveDiscount(variant.getId(), activeDiscounts);
+            BigDecimal displayPrice = applyDiscount(basePrice, discount);
+            dto.setPrice(displayPrice);
+            dto.setOriginalPrice(basePrice);
+            dto.setSale(getDiscountPercent(discount));
+
             dto.setThumbnailUrl(thumbnailUrl);
             dto.setImages(imageUrls);
             dto.setIsFeatured(isFeatured);
@@ -505,18 +543,22 @@ public class ProductAdminService {
         Map<String, ProductVariantColorDto> colorMap = new LinkedHashMap<>();
         List<AdminProductVariantDto> variantDtos = new ArrayList<>();
 
+        // Load active product discounts
+        List<ProductDiscount> activeDiscounts = discountRepository.findAllActiveNow(LocalDateTime.now());
+
         for (ProductVariant variant : allVariants) {
             int variantStock = inventoryRepository.findByVariantId(variant.getId())
                     .map(Inventory::getQuantityOnHand).orElse(0);
             totalStock += variantStock;
             BigDecimal vp = variant.getPrice() != null ? variant.getPrice() : BigDecimal.ZERO;
-            if (minPrice.compareTo(BigDecimal.ZERO) == 0 || vp.compareTo(minPrice) < 0) {
-                minPrice = vp;
+            BigDecimal discountedVp = applyDiscount(vp, getActiveDiscount(variant.getId(), activeDiscounts));
+            if (minPrice.compareTo(BigDecimal.ZERO) == 0 || discountedVp.compareTo(minPrice) < 0) {
+                minPrice = discountedVp;
             }
 
             String storageLabel = getStorageLabel(variant);
             if (!storageLabel.isBlank() && !storagePrices.containsKey(storageLabel)) {
-                storagePrices.put(storageLabel, vp);
+                storagePrices.put(storageLabel, discountedVp);
             }
 
             String color = normalizeColor(variant.getColor());
@@ -535,6 +577,10 @@ public class ProductAdminService {
             }
 
             variantDtos.add(toVariantDto(variant));
+            // Set saleAmount for this variant
+            AdminProductVariantDto vdto = variantDtos.get(variantDtos.size() - 1);
+            ProductDiscount vd = getActiveDiscount(variant.getId(), activeDiscounts);
+            vdto.setSaleAmount(getDiscountSavedAmount(vp, vd));
         }
 
         // Sort storages numerically
@@ -559,6 +605,15 @@ public class ProductAdminService {
                 ? toVariantDto(selectedVariant)
                 : (variantDtos.isEmpty() ? null : variantDtos.get(0));
 
+        // Override selectedDto price with discounted price if applicable
+        if (selectedDto != null && selectedVariant != null) {
+            ProductDiscount selectedDiscount = getActiveDiscount(selectedVariant.getId(), activeDiscounts);
+            BigDecimal discountedPrice = applyDiscount(selectedVariant.getPrice(), selectedDiscount);
+            selectedDto.setPrice(discountedPrice);
+            selectedDto.setCompareAtPrice(selectedVariant.getPrice());
+            selectedDto.setSaleAmount(getDiscountSavedAmount(selectedVariant.getPrice(), selectedDiscount));
+        }
+
         AdminProductDto dto = new AdminProductDto();
         dto.setId(product.getId());
         dto.setVariantId(selectedVariant != null ? selectedVariant.getId() : null);
@@ -572,6 +627,7 @@ public class ProductAdminService {
             dto.setSeriesSlug(product.getSeries().getSlug());
         }
         dto.setPrice(minPrice);
+        dto.setOriginalPrice(selectedVariant != null ? selectedVariant.getPrice() : null);
         dto.setStock(totalStock);
         dto.setSale(product.getSale() != null ? product.getSale() : 0);
         dto.setDescription(product.getDetailDescription());
@@ -970,6 +1026,77 @@ public class ProductAdminService {
         if (normalized.contains("red") || normalized.contains("đỏ")) return "#dc2626";
         if (normalized.contains("gold") || normalized.contains("vàng")) return "#ca8a04";
         return "#6b7280";
+    }
+
+    private String getStatus(ProductDiscount discount) {
+        LocalDateTime now = LocalDateTime.now();
+        if (discount.getEndAt().isBefore(now)) return "ENDED";
+        if (discount.getStartAt().isAfter(now)) return "UPCOMING";
+        return "ACTIVE";
+    }
+
+    private BigDecimal applyDiscount(BigDecimal originalPrice, ProductDiscount discount) {
+        if (discount == null) return originalPrice;
+        LocalDateTime now = LocalDateTime.now();
+        if (!Boolean.TRUE.equals(discount.getIsActive())
+                || discount.getEndAt().isBefore(now)
+                || discount.getStartAt().isAfter(now)) {
+            return originalPrice;
+        }
+        // discountAmount = SỐ TIỀN GIẢM TRỰC TIẾP (admin nhập bao nhiêu thì giảm bấy nhiêu)
+        if (discount.getDiscountAmount() != null && discount.getDiscountAmount().compareTo(BigDecimal.ZERO) > 0) {
+            BigDecimal saved = discount.getDiscountAmount().min(originalPrice);
+            BigDecimal result = originalPrice.subtract(saved);
+            return result.compareTo(BigDecimal.ZERO) < 0 ? BigDecimal.ZERO : result;
+        }
+        if (discount.getDiscountPercent() != null && discount.getDiscountPercent() > 0) {
+            BigDecimal saved = originalPrice.multiply(
+                    BigDecimal.valueOf(discount.getDiscountPercent())
+            ).divide(BigDecimal.valueOf(100), 0, RoundingMode.DOWN);
+            BigDecimal result = originalPrice.subtract(saved);
+            return result.compareTo(BigDecimal.ZERO) < 0 ? BigDecimal.ZERO : result;
+        }
+        return originalPrice;
+    }
+
+    private int getDiscountPercent(ProductDiscount discount) {
+        if (discount == null) return 0;
+        LocalDateTime now = LocalDateTime.now();
+        if (!Boolean.TRUE.equals(discount.getIsActive())
+                || discount.getEndAt().isBefore(now)
+                || discount.getStartAt().isAfter(now)) {
+            return 0;
+        }
+        return discount.getDiscountPercent() != null ? discount.getDiscountPercent() : 0;
+    }
+
+    private BigDecimal getDiscountSavedAmount(BigDecimal originalPrice, ProductDiscount discount) {
+        if (discount == null || originalPrice == null) return null;
+        LocalDateTime now = LocalDateTime.now();
+        if (!Boolean.TRUE.equals(discount.getIsActive())
+                || discount.getEndAt().isBefore(now)
+                || discount.getStartAt().isAfter(now)) {
+            return null;
+        }
+        if (discount.getDiscountAmount() != null && discount.getDiscountAmount().compareTo(BigDecimal.ZERO) > 0) {
+            return discount.getDiscountAmount().min(originalPrice);
+        }
+        if (discount.getDiscountPercent() != null && discount.getDiscountPercent() > 0) {
+            return originalPrice.multiply(BigDecimal.valueOf(discount.getDiscountPercent()))
+                    .divide(BigDecimal.valueOf(100), 0, RoundingMode.DOWN);
+        }
+        return null;
+    }
+
+    private ProductDiscount getActiveDiscount(Long variantId, LocalDateTime now, List<ProductDiscount> activeDiscounts) {
+        return activeDiscounts.stream()
+                .filter(d -> d.getVariant().getId().equals(variantId))
+                .findFirst()
+                .orElse(null);
+    }
+
+    private ProductDiscount getActiveDiscount(Long variantId, List<ProductDiscount> activeDiscounts) {
+        return getActiveDiscount(variantId, LocalDateTime.now(), activeDiscounts);
     }
 
     private int parseStorageNumeric(String label) {

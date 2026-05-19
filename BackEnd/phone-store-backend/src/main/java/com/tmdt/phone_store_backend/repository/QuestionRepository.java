@@ -20,5 +20,16 @@ public interface QuestionRepository extends JpaRepository<Question, Long> {
     @Query("SELECT q FROM Question q JOIN FETCH q.user JOIN FETCH q.product LEFT JOIN FETCH q.answers WHERE q.id = :id")
     java.util.Optional<Question> findByIdWithUserAndAnswers(@Param("id") Long id);
 
+    @Query("SELECT DISTINCT q FROM Question q JOIN FETCH q.user LEFT JOIN FETCH q.product LEFT JOIN FETCH q.answers ORDER BY q.createdAt DESC")
+    Page<Question> findAllWithDetails(Pageable pageable);
+
+    @Query("SELECT DISTINCT q FROM Question q JOIN FETCH q.user LEFT JOIN FETCH q.product LEFT JOIN FETCH q.answers WHERE q.isAnswered = false ORDER BY q.createdAt DESC")
+    Page<Question> findPendingWithDetails(Pageable pageable);
+
+    long countByIsAnsweredFalse();
+
+    @Query("SELECT DISTINCT q FROM Question q JOIN FETCH q.user LEFT JOIN FETCH q.product LEFT JOIN FETCH q.answers WHERE q.product.id = :productId AND q.isVisible = true ORDER BY q.createdAt DESC")
+    Page<Question> findByProductIdWithDetails(@Param("productId") Long productId, Pageable pageable);
+
     Page<Question> findByIsVisibleFalseOrderByCreatedAtDesc(Pageable pageable);
 }

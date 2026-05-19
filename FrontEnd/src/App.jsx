@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { Navbar } from './components/layout/Navbar';
 import { Footer } from './components/layout/Footer';
@@ -38,6 +38,7 @@ import AdminBanners from './pages/admin/AdminBanners';
 import AdminPromotions from './pages/admin/AdminPromotions';
 import AdminFlashSale from './pages/admin/AdminFlashSale';
 import AdminVouchers from './pages/admin/AdminVouchers';
+import AdminDiscounts from './pages/admin/AdminDiscounts';
 import AdminNews from './pages/admin/AdminNews';
 import { AdminReviews } from './pages/admin/AdminReviews';
 import { AdminQuestions } from './pages/admin/AdminQuestions';
@@ -46,7 +47,8 @@ import { AdminQuestions } from './pages/admin/AdminQuestions';
 import { ShopProvider } from './context/ShopContext';
 import { ThemeProvider } from './context/ThemeContext';
 import './App.css';
-import ZaloButton from './components/ui/ZaloButton';
+import { FloatingContactButton } from './components/contact/FloatingContactButton';
+import { ChatbotPopup } from './components/contact/ChatbotPopup';
 import ScrollToTop from './components/home/ScrollToTop';
 
 class RouteErrorBoundary extends React.Component {
@@ -105,12 +107,21 @@ const ScrollToRouteTop = () => {
 };
 
 function App() {
+  const [chatbotOpen, setChatbotOpen] = useState(false);
+
   useEffect(() => {
     const loader = document.querySelector('.loader-div');
     if (loader) {
       loader.style.opacity = '0';
       setTimeout(() => { loader.style.display = 'none'; }, 500);
     }
+  }, []);
+
+  // Listen for chatbot open event dispatched from ContactMenu
+  useEffect(() => {
+    const handler = () => setChatbotOpen(true);
+    window.addEventListener('openChatbot', handler);
+    return () => window.removeEventListener('openChatbot', handler);
   }, []);
 
   return (
@@ -129,6 +140,7 @@ function App() {
               <Route path="promotions" element={<AdminPromotions />} />
               <Route path="flash-sales" element={<AdminFlashSale />} />
               <Route path="vouchers" element={<AdminVouchers />} />
+              <Route path="discounts" element={<AdminDiscounts />} />
               <Route path="news" element={<AdminNews />} />
               <Route path="inventory" element={<AdminInventory />} />
               <Route path="orders" element={<AdminOrders />} />
@@ -186,7 +198,8 @@ function App() {
                       </Routes>
                     </RouteErrorBoundary>
                   </main>
-                  <ZaloButton />
+                  <FloatingContactButton />
+                  <ChatbotPopup isOpen={chatbotOpen} onClose={() => setChatbotOpen(false)} />
                   <ScrollToTop />
                   <Footer />
                 </div>

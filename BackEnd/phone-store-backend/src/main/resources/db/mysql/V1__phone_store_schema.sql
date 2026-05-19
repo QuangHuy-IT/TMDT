@@ -542,6 +542,22 @@ ADD CONSTRAINT fk_order_items_flash_sale_product
     ON DELETE SET NULL
     ON UPDATE CASCADE;
 
+CREATE TABLE chat_sessions (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    session_id VARCHAR(255) UNIQUE,
+    user_id BIGINT NULL,
+    is_guest BOOLEAN DEFAULT TRUE,
+    started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE chat_messages (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    session_id VARCHAR(255),
+    sender ENUM('USER','BOT'),
+    message TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 
 -- CREATE TABLE IF NOT EXISTS flash_sales (
 --     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,

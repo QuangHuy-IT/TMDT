@@ -29,6 +29,14 @@ public class AdminQuestionController {
         return ResponseEntity.ok(questionService.getPendingQuestions(page, size));
     }
 
+    @GetMapping("/stats")
+    public ResponseEntity<?> getStats() {
+        return ResponseEntity.ok(java.util.Map.of(
+                "total", questionService.countAllQuestions(),
+                "pending", questionService.countPendingQuestions()
+        ));
+    }
+
     @GetMapping("/search")
     public ResponseEntity<PagedQuestionResponseDto> searchQuestions(
             @RequestParam String q,

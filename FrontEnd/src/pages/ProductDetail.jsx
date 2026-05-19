@@ -161,6 +161,20 @@ export const ProductDetail = () => {
     return Number(product.price || 0);
   }, [product, selectedVariant]);
 
+  // Số tiền đã giảm (từ backend) + giá gốc
+  const saleAmount = useMemo(() => {
+    if (!selectedVariant) return 0;
+    return Number(selectedVariant.saleAmount || 0);
+  }, [selectedVariant]);
+
+  // Giá gốc (trước khi giảm)
+  const originalPrice = useMemo(() => {
+    if (!selectedVariant) return 0;
+    if (selectedVariant.compareAtPrice != null) return Number(selectedVariant.compareAtPrice);
+    if (saleAmount > 0) return currentPrice + saleAmount;
+    return 0;
+  }, [selectedVariant, saleAmount, currentPrice]);
+
   // Stock from selected variant
   const maxQuantity = useMemo(() => {
     if (selectedVariant?.stock != null) return Math.max(1, Number(selectedVariant.stock));
@@ -251,6 +265,7 @@ export const ProductDetail = () => {
         id: String(product.id),
         quantity,
         price: currentPrice,
+        originalPrice,
         ram: selectedVariant?.ramGb ? `${selectedVariant.ramGb}GB` : '',
         storage: selectedVariant?.storageLabel || '',
         color: selectedColor?.name || selectedVariant?.color || '',
@@ -384,9 +399,10 @@ export const ProductDetail = () => {
 
             {/* Price */}
             <div>
-              {product.isFlashSale && product.flashSalePrice != null && (
+              {/* Hiển thị giá gốc khi có giảm giá sản phẩm */}
+              {saleAmount > 0 && originalPrice > 0 && (
                 <p className="text-sm text-gray-400 line-through mb-0.5">
-                  {Number(product.price || 0).toLocaleString('vi-VN')}₫
+                  {originalPrice.toLocaleString('vi-VN')}₫
                 </p>
               )}
               <p className="text-3xl font-black text-red-600">

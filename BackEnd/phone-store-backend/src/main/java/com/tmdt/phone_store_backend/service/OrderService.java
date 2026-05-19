@@ -45,7 +45,10 @@ public class OrderService {
     }
 
     public OrderDto getOrderByOrderCode(String orderCode) {
-        Order order = orderRepository.findByOrderCodeWithItems(orderCode)
+        log.info("Looking up order with orderCode: {}", orderCode);
+        Optional<Order> orderOpt = orderRepository.findByOrderCodeWithItems(orderCode);
+        log.info("Query result: {}", orderOpt.isPresent() ? "FOUND" : "NOT FOUND");
+        Order order = orderOpt
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn hàng: " + orderCode));
         return toDto(order);
     }
