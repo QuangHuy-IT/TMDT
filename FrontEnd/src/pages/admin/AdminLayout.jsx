@@ -14,31 +14,41 @@ const navItems = [
     label: 'Dashboard',
   },
   {
-    to: '/admin/products',
+    group: 'Sản phẩm',
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
       </svg>
     ),
-    label: 'Sản phẩm',
-  },
-  {
-    to: '/admin/brands',
-    icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-      </svg>
-    ),
-    label: 'Thương hiệu',
-  },
-  {
-    to: '/admin/series',
-    icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-      </svg>
-    ),
-    label: 'Dòng sản phẩm',
+    items: [
+      {
+        to: '/admin/products',
+        label: 'Sản phẩm',
+        icon: (
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+          </svg>
+        ),
+      },
+      {
+        to: '/admin/series',
+        label: 'Dòng sản phẩm',
+        icon: (
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+          </svg>
+        ),
+      },
+      {
+        to: '/admin/brands',
+        label: 'Thương hiệu',
+        icon: (
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+          </svg>
+        ),
+      },
+    ],
   },
   {
     to: '/admin/banners',
@@ -103,7 +113,7 @@ const navItems = [
     ),
     label: 'Đơn hàng',
   },
-    {
+  {
     to: '/admin/reviews',
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -137,6 +147,22 @@ export const AdminLayout = () => {
   const { user } = state;
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [expandedGroups, setExpandedGroups] = useState({ Sản_phẩm: true });
+
+  const toggleGroup = (groupName) => {
+    setExpandedGroups((prev) => ({
+      ...prev,
+      [groupName]: !prev[groupName],
+    }));
+  };
+
+  const isItemActive = (item) => {
+    return window.location.pathname === item.to;
+  };
+
+  const isGroupActive = (group) => {
+    return group.items.some((item) => window.location.pathname === item.to);
+  };
 
   const handleLogout = () => {
     dispatch({ type: 'LOGOUT' });
@@ -163,32 +189,108 @@ export const AdminLayout = () => {
 
         {/* Nav */}
         <nav className="flex-1 py-4 px-2 space-y-1 overflow-y-auto">
-          {navItems.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.end}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group
-                ${isActive
-                  ? 'bg-red-600/15 text-red-400 border border-red-600/20'
-                  : 'text-gray-400 hover:bg-white/5 hover:text-white border border-transparent'
-                }`
-              }
-            >
-              {({ isActive }) => (
-                <>
-                  <span className={`flex-shrink-0 ${isActive ? 'text-red-400' : 'text-gray-500 group-hover:text-white'}`}>
-                    {item.icon}
-                  </span>
-                  {sidebarOpen && <span>{item.label}</span>}
-                  {sidebarOpen && isActive && (
-                    <span className="ml-auto w-1.5 h-1.5 rounded-full bg-red-500"></span>
+          {navItems.map((item) => {
+            // Group item (collapsible)
+            if (item.group) {
+              const key = item.group.replace(/\s+/g, '_');
+              const isOpen = expandedGroups[key] ?? false;
+              const active = isGroupActive(item);
+              return (
+                <div key={key}>
+                  {/* Group header */}
+                  <button
+                    onClick={() => sidebarOpen && toggleGroup(key)}
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group
+                      ${active
+                        ? 'bg-red-600/15 text-red-400 border border-red-600/20'
+                        : 'text-gray-400 hover:bg-white/5 hover:text-white border border-transparent'
+                      }
+                      ${!sidebarOpen ? 'justify-center' : ''}
+                    `}
+                    title={!sidebarOpen ? item.group : undefined}
+                  >
+                    <span className={`flex-shrink-0 ${active ? 'text-red-400' : 'text-gray-500 group-hover:text-white'}`}>
+                      {item.icon}
+                    </span>
+                    {sidebarOpen && (
+                      <>
+                        <span className="flex-1 text-left">{item.group}</span>
+                        <svg
+                          className={`w-4 h-4 flex-shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-90' : ''}`}
+                          fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </>
+                    )}
+                  </button>
+
+                  {/* Group sub-items */}
+                  {sidebarOpen && (
+                    <div
+                      className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                        isOpen ? 'max-h-48 opacity-100 mt-1' : 'max-h-0 opacity-0'
+                      }`}
+                    >
+                      <div className="ml-4 pl-3 border-l border-white/10 space-y-0.5">
+                        {item.items.map((subItem) => {
+                          return (
+                            <NavLink
+                              key={subItem.to}
+                              to={subItem.to}
+                              className={({ isActive }) =>
+                                `flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-150
+                                ${isActive
+                                  ? 'bg-red-600/15 text-red-400'
+                                  : 'text-gray-500 hover:bg-white/5 hover:text-gray-300'
+                                }`
+                              }
+                            >
+                              <span className={`flex-shrink-0 ${isItemActive(subItem) ? 'text-red-400' : 'text-gray-600'}`}>
+                                {subItem.icon}
+                              </span>
+                              <span>{subItem.label}</span>
+                              {isItemActive(subItem) && (
+                                <span className="ml-auto w-1.5 h-1.5 rounded-full bg-red-500"></span>
+                              )}
+                            </NavLink>
+                          );
+                        })}
+                      </div>
+                    </div>
                   )}
-                </>
-              )}
-            </NavLink>
-          ))}
+                </div>
+              );
+            }
+
+            // Single item
+            return (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.end}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group
+                  ${isActive
+                    ? 'bg-red-600/15 text-red-400 border border-red-600/20'
+                    : 'text-gray-400 hover:bg-white/5 hover:text-white border border-transparent'
+                  }`
+                }
+              >
+                {({ isActive }) => (
+                  <>
+                    <span className={`flex-shrink-0 ${isActive ? 'text-red-400' : 'text-gray-500 group-hover:text-white'}`}>
+                      {item.icon}
+                    </span>
+                    {sidebarOpen && <span>{item.label}</span>}
+                    {sidebarOpen && isActive && (
+                      <span className="ml-auto w-1.5 h-1.5 rounded-full bg-red-500"></span>
+                    )}
+                  </>
+                )}
+              </NavLink>
+            );
+          })}
         </nav>
 
         {/* User Info + Logout */}
@@ -227,7 +329,6 @@ export const AdminLayout = () => {
 
       {/* MAIN */}
       <div className="flex-1 flex flex-col overflow-hidden">
-
         {/* Topbar */}
         <header className="h-16 flex items-center justify-between px-6 border-b border-white/5 bg-[#13151e] flex-shrink-0">
           <button
