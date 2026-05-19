@@ -92,6 +92,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/brands/**").permitAll()
                         .requestMatchers("/api/banners/**").permitAll()
                         .requestMatchers("/api/flash-sales/**").permitAll()
+                        .requestMatchers("/api/chat/**").permitAll()
+                        .requestMatchers("/api/ai/**").permitAll()
                         .requestMatchers("/api/orders/**").permitAll()
                         .requestMatchers("/api/payment/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/payment/payos/create").permitAll()

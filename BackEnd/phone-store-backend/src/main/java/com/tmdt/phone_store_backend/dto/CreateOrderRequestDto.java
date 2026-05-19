@@ -3,6 +3,7 @@ package com.tmdt.phone_store_backend.dto;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.PositiveOrZero;
 import java.math.BigDecimal;
 import java.util.List;
 import lombok.AllArgsConstructor;
@@ -30,7 +31,7 @@ public class CreateOrderRequestDto {
 
     private String note;
 
-    @Positive(message = "Subtotal must be positive")
+    @PositiveOrZero(message = "Subtotal must be zero or positive")
     private BigDecimal subtotalAmount;
 
     private BigDecimal discountAmount;
@@ -38,13 +39,17 @@ public class CreateOrderRequestDto {
     @NotNull(message = "Shipping fee is required")
     private BigDecimal shippingFee;
 
-    @Positive(message = "Total amount must be positive")
+    @PositiveOrZero(message = "Total amount must be zero or positive")
     private BigDecimal totalAmount;
 
     @NotBlank(message = "Payment method is required")
     private String paymentMethod; // "COD" or "PAYTOS"
 
     private Long voucherId;
+
+    private String voucherCode;
+
+    private String orderCode;
 
     @NotNull(message = "Items are required")
     private List<OrderItemRequestDto> items;
@@ -60,7 +65,6 @@ public class CreateOrderRequestDto {
         @NotBlank
         private String productName;
 
-        @NotBlank
         private String sku;
 
         private String color;
@@ -68,7 +72,7 @@ public class CreateOrderRequestDto {
         private String storage;
 
         @NotNull
-        @Positive
+        @PositiveOrZero
         private BigDecimal unitPrice;
 
         @NotNull

@@ -251,6 +251,7 @@ export const ProductDetail = () => {
         id: String(product.id),
         quantity,
         price: currentPrice,
+        originalPrice,
         ram: selectedVariant?.ramGb ? `${selectedVariant.ramGb}GB` : '',
         storage: selectedVariant?.storageLabel || '',
         color: selectedColor?.name || selectedVariant?.color || '',

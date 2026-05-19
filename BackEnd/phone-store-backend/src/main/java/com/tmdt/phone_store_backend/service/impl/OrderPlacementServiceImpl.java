@@ -48,7 +48,9 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
         User user = userRepository.findById(request.getUserId())
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người dùng"));
 
-        String orderCode = "ORD" + System.currentTimeMillis();
+        String orderCode = request.getOrderCode() != null && !request.getOrderCode().isBlank()
+                ? request.getOrderCode()
+                : "ORD" + System.currentTimeMillis();
 
         Voucher voucher = null;
         if (request.getVoucherId() != null) {
@@ -112,7 +114,7 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
         }
 
         Order finalOrder = orderRepository.save(savedOrder);
-        log.info("Created order {} with {} items", finalOrder.getOrderCode(), orderItems.size());
+        log.info("Created and saved order with orderCode: {} (id={})", finalOrder.getOrderCode(), finalOrder.getId());
 
         return toDto(finalOrder);
     }

@@ -18,12 +18,12 @@ const RETURN_WINDOW_DAYS = 7;
 export const OrderDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { state } = useContext(ShopContext);
+  const { state, dispatch } = useContext(ShopContext);
   const [orderInfo, setOrderInfo] = useState(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [showModal, setShowModal] = useState(null);
-  const [reorderStock, setReorderStock] = useState({});
+  const [reordering, setReordering] = useState(false);
 
   const userId = state?.user?.id;
 
@@ -40,15 +40,6 @@ export const OrderDetail = () => {
     };
     if (id) fetchOrder();
   }, [id]);
-
-  useEffect(() => {
-    if (!orderInfo || !userId) return;
-    const canReorder = ['DELIVERED', 'CANCELED', 'RETURNED'].includes(orderInfo.orderStatus);
-    if (!canReorder) return;
-    api.get(`/orders/${orderInfo.orderCode}/reorder-stock`)
-      .then(res => setReorderStock(res.data))
-      .catch(() => setReorderStock({}));
-  }, [orderInfo, userId]);
 
   const refreshOrder = async () => {
     const res = await api.get(`/orders/${id}`);
@@ -81,18 +72,65 @@ export const OrderDetail = () => {
     }
   };
 
-  const handleReorder = () => {
-    const outOfStock = [];
-    orderInfo.items.forEach(item => {
-      if (!reorderStock[item.variantId]) {
-        outOfStock.push(item.productNameSnapshot);
+  const handleReorder = async () => {
+    if (!userId) return;
+    setReordering(true);
+    try {
+      // Kiểm tra tồn kho từng sản phẩm trước
+      const stockData = await api.get(`/orders/${orderInfo.orderCode}/reorder-stock`);
+      const stockMap = stockData.data;
+
+      const outOfStock = [];
+      const availableItems = [];
+
+      for (const item of orderInfo.items) {
+        const inStock = stockMap[item.variantId];
+        if (!inStock) {
+          outOfStock.push(item.productNameSnapshot);
+        } else {
+          availableItems.push(item);
+        }
       }
-    });
-    if (outOfStock.length > 0) {
-      alert(`Các sản phẩm sau đã hết hàng: ${outOfStock.join(', ')}`);
-      return;
+
+      if (outOfStock.length > 0) {
+        alert(`Các sản phẩm sau đã hết hàng và không thể mua lại: ${outOfStock.join(', ')}`);
+        if (availableItems.length === 0) {
+          setReordering(false);
+          return;
+        }
+      }
+
+      // Thêm các sản phẩm còn hàng vào giỏ hàng
+      for (const item of availableItems) {
+        dispatch({
+          type: 'ADD_TO_CART',
+          payload: {
+            variantId: item.variantId,
+            id: String(item.variantId),
+            name: item.productNameSnapshot,
+            sku: item.skuSnapshot || '',
+            color: item.colorSnapshot || '',
+            ram: item.ramSnapshot ? `${item.ramSnapshot}GB` : '',
+            storage: item.storageSnapshot ? `${item.storageSnapshot}GB` : '',
+            unitPrice: item.unitPrice,
+            price: item.unitPrice,
+            quantity: item.quantity,
+            imageUrl: item.imageUrl || '',
+            images: item.imageUrl ? [item.imageUrl] : [],
+          },
+        });
+      }
+
+      // Chuyển sang checkout
+      const ids = availableItems.map(item => String(item.variantId));
+      const params = new URLSearchParams({ items: JSON.stringify(ids) });
+      navigate(`/checkout?${params.toString()}`);
+    } catch (err) {
+      console.error('Lỗi kiểm tra tồn kho:', err);
+      alert('Không thể kiểm tra tồn kho. Vui lòng thử lại.');
+    } finally {
+      setReordering(false);
     }
-    navigate('/');
   };
 
   if (loading) {
@@ -130,7 +168,6 @@ export const OrderDetail = () => {
   const canCancel = orderInfo.orderStatus === 'PENDING';
   const canReturn = orderInfo.orderStatus === 'DELIVERED';
   const canReorder = ['DELIVERED', 'CANCELED', 'RETURNED'].includes(orderInfo.orderStatus);
-  const hasReorderStock = canReorder && Object.values(reorderStock).some(Boolean);
 
   let returnDeadline = null;
   if (canReturn && orderInfo.updatedAt) {
@@ -198,15 +235,10 @@ export const OrderDetail = () => {
             {canReorder && (
               <button
                 onClick={handleReorder}
-                disabled={Object.keys(reorderStock).length > 0 && !hasReorderStock}
-                className={`px-6 py-3 font-bold rounded-2xl transition-all active:scale-95 disabled:opacity-50 ${
-                  hasReorderStock
-                    ? 'bg-green-600 text-white hover:bg-green-700'
-                    : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                }`}
-                title={!hasReorderStock && Object.keys(reorderStock).length > 0 ? 'Sản phẩm đã hết hàng' : 'Mua lại đơn hàng này'}
+                disabled={reordering}
+                className="px-6 py-3 bg-green-600 text-white font-bold rounded-2xl transition-all active:scale-95 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                🔄 MUA LẠI ĐƠN HÀNG
+                {reordering ? 'ĐANG KIỂM TRA...' : '🔄 MUA LẠI ĐƠN HÀNG'}
               </button>
             )}
           </div>

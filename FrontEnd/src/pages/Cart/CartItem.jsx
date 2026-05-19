@@ -13,7 +13,6 @@ import { Link } from 'react-router-dom';
 const CartItem = ({ item, checked, onToggle, onQtyChange, onRemove }) => {
   const thumbnail = item.images?.[0] || item.image || 'https://picsum.photos/80';
   const subtotal  = item.price * item.quantity;
-  // Ưu tiên slug, fallback về _id hoặc id
   const productSlug = item.slug || item._id || item.id;
 
   const handleQty = (delta) => {
@@ -27,8 +26,7 @@ const CartItem = ({ item, checked, onToggle, onQtyChange, onRemove }) => {
       className={`
         grid items-center gap-3 px-5 py-4 border-b border-gray-100
         last:border-b-0 transition-colors duration-150
-        hover:bg-orange-50/40
-        ${checked ? 'bg-orange-50/30' : 'bg-white'}
+        ${checked ? 'bg-red-50/40' : 'hover:bg-gray-50'}
       `}
       style={{ gridTemplateColumns: '44px 1fr 130px 138px 120px 80px' }}
     >
@@ -38,7 +36,7 @@ const CartItem = ({ item, checked, onToggle, onQtyChange, onRemove }) => {
           type="checkbox"
           checked={checked}
           onChange={(e) => onToggle(e.target.checked)}
-          className="w-[17px] h-[17px] rounded accent-[#ee4d2d] cursor-pointer flex-shrink-0"
+          className="w-[17px] h-[17px] rounded accent-red-600 cursor-pointer flex-shrink-0"
         />
       </div>
 
@@ -48,15 +46,15 @@ const CartItem = ({ item, checked, onToggle, onQtyChange, onRemove }) => {
           <img
             src={thumbnail}
             alt={item.name}
-            className="w-[76px] h-[76px] object-contain rounded-lg border border-gray-200 bg-gray-50 p-1
-                       hover:border-orange-300 transition-colors"
+            className="w-[76px] h-[76px] object-contain rounded-lg border border-gray-200
+                       bg-gray-50 p-1 hover:border-red-300 transition-colors"
             onError={(e) => { e.target.src = 'https://picsum.photos/80'; }}
           />
         </Link>
         <div className="min-w-0">
           <Link to={`/products/${productSlug}`}>
             <p className="text-[13.5px] text-gray-800 leading-[1.45] line-clamp-2
-                          hover:text-[#ee4d2d] transition-colors font-medium">
+                          hover:text-red-500 transition-colors font-medium">
               {item.name}
             </p>
           </Link>
@@ -74,7 +72,12 @@ const CartItem = ({ item, checked, onToggle, onQtyChange, onRemove }) => {
       </div>
 
       {/* ── Unit price ── */}
-      <div className="text-center">
+      <div className="text-center flex flex-col items-center">
+        {item.originalPrice > 0 && item.originalPrice !== item.price && (
+          <span className="text-[12px] text-gray-400 line-through">
+            {item.originalPrice.toLocaleString('vi-VN')}₫
+          </span>
+        )}
         <span className="text-[14px] text-gray-600">
           {item.price.toLocaleString('vi-VN')}₫
         </span>
@@ -88,7 +91,7 @@ const CartItem = ({ item, checked, onToggle, onQtyChange, onRemove }) => {
             onClick={() => handleQty(-1)}
             disabled={item.quantity <= 1}
             className="w-8 h-8 flex items-center justify-center text-gray-500 bg-white
-                       hover:bg-gray-100 hover:text-[#ee4d2d] transition-colors
+                       hover:bg-gray-100 hover:text-red-500 transition-colors
                        disabled:opacity-30 disabled:cursor-not-allowed text-lg select-none"
           >
             −
@@ -113,7 +116,7 @@ const CartItem = ({ item, checked, onToggle, onQtyChange, onRemove }) => {
             onClick={() => handleQty(1)}
             disabled={item.quantity >= 99}
             className="w-8 h-8 flex items-center justify-center text-gray-500 bg-white
-                       hover:bg-gray-100 hover:text-[#ee4d2d] transition-colors
+                       hover:bg-gray-100 hover:text-red-500 transition-colors
                        disabled:opacity-30 disabled:cursor-not-allowed text-lg select-none"
           >
             +
@@ -123,7 +126,7 @@ const CartItem = ({ item, checked, onToggle, onQtyChange, onRemove }) => {
 
       {/* ── Subtotal ── */}
       <div className="text-center">
-        <span className="text-[14px] font-semibold text-[#ee4d2d]">
+        <span className="text-[14px] font-semibold text-red-600">
           {subtotal.toLocaleString('vi-VN')}₫
         </span>
       </div>
@@ -133,7 +136,7 @@ const CartItem = ({ item, checked, onToggle, onQtyChange, onRemove }) => {
         <button
           type="button"
           onClick={onRemove}
-          className="text-[13px] text-gray-400 hover:text-[#ee4d2d]
+          className="text-[13px] text-gray-400 hover:text-red-500
                      transition-colors bg-transparent border-none cursor-pointer p-1"
         >
           Xóa

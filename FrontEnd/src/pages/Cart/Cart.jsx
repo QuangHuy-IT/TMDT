@@ -26,7 +26,7 @@ const fmt = (n) => n.toLocaleString('vi-VN') + '₫';
 // ─── Column header ─────────────────────────────────────────────────────────────
 const ColHeader = ({ allChecked, onToggleAll, totalItems }) => (
   <div
-    className="grid items-center gap-3 px-5 py-3 bg-white border-b border-gray-100"
+    className="grid items-center gap-3 px-5 py-3 bg-gray-50 border-b border-gray-100"
     style={{ gridTemplateColumns: '44px 1fr 130px 138px 120px 80px' }}
   >
     <div className="flex justify-center">
@@ -50,19 +50,21 @@ const ColHeader = ({ allChecked, onToggleAll, totalItems }) => (
 
 // ─── Empty state ───────────────────────────────────────────────────────────────
 const EmptyCart = () => (
-  <div className="flex flex-col items-center justify-center py-24 bg-white">
-    <svg className="w-24 h-24 text-gray-200 mb-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1}
-        d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.3
-           2.3c-.6.6-.2 1.7.7 1.7H17m0 0a2 2 0 100 4 2 2 0
-           000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-    </svg>
-    <p className="text-[15px] font-medium text-gray-500 mb-1">Giỏ hàng của bạn còn trống</p>
-    <p className="text-[13px] text-gray-400 mb-7">Hãy khám phá và thêm sản phẩm bạn yêu thích!</p>
+  <div className="flex flex-col items-center justify-center py-20">
+    <div className="w-28 h-28 rounded-full flex items-center justify-center mb-6 bg-gray-100">
+      <svg className="w-14 h-14 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.2}
+          d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.3
+             2.3c-.6.6-.2 1.7.7 1.7H17m0 0a2 2 0 100 4 2 2 0
+             000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+      </svg>
+    </div>
+    <p className="text-[16px] font-semibold text-gray-600 mb-1">Giỏ hàng của bạn còn trống</p>
+    <p className="text-[13px] text-gray-400 mb-8">Hãy khám phá và thêm sản phẩm bạn yêu thích!</p>
     <Link
       to="/"
-      className="px-8 py-2.5 bg-red-600 text-white text-[14px] font-medium
-                 rounded hover:bg-red-700 active:scale-[0.98] transition-all"
+      className="px-10 py-3 bg-red-600 text-white text-[14px] font-bold rounded-xl shadow-lg
+                 hover:bg-red-700 active:scale-[0.97] transition-all"
     >
       Mua ngay
     </Link>
@@ -154,6 +156,7 @@ export const Cart = () => {
       return;
     }
     const params = new URLSearchParams();
+    params.set('items', JSON.stringify([...selectedIds]));
     if (appliedVoucher) {
       params.set('voucherCode', appliedVoucher.code);
       params.set('discountType', appliedVoucher.discountType || '');
@@ -161,7 +164,7 @@ export const Cart = () => {
       params.set('maxDiscountAmount', appliedVoucher.maxDiscountAmount || '');
     }
     const query = params.toString();
-    navigate(`/checkout${query ? '?' + query : ''}`);
+    navigate(`/checkout?${query}`);
   };
 
   // ── Voucher discount calculation ─────────────────────────────────────────────
@@ -182,28 +185,26 @@ export const Cart = () => {
 
   // ── Render ───────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-gray-50 pb-28">
-      <div className="max-w-6xl mx-auto px-4 py-8 space-y-3">
+    <div className="min-h-screen bg-white pb-28">
+      <div className="max-w-7xl mx-auto px-4 pt-10 space-y-4">
 
         {/* ── Page title ── */}
-        <div className="flex items-center gap-2 text-[13px] text-gray-500 mb-2">
-          <Link to="/" className="hover:text-red-600 transition-colors">Trang chủ</Link>
-          <span>/</span>
-          <span className="text-gray-700 font-medium">Giỏ hàng</span>
+        <div className="flex items-center gap-3 mb-1">
+          <h1 className="text-2xl font-black text-gray-900 uppercase tracking-tight leading-tight">Giỏ hàng</h1>
           {cart.length > 0 && (
-            <span className="text-gray-400">({cart.length} sản phẩm)</span>
+            <span className="text-[13px] text-gray-400">({cart.length} sản phẩm)</span>
           )}
         </div>
 
         {cart.length === 0 ? (
           /* ── Empty state ── */
-          <div className="rounded-2xl border border-gray-100 overflow-hidden shadow-sm bg-white">
+          <div className="rounded-3xl overflow-hidden shadow-xl bg-white border border-gray-100">
             <EmptyCart />
           </div>
         ) : (
           <>
             {/* ── Cart table ── */}
-            <div className="rounded-[28px] border border-gray-100 overflow-hidden bg-white shadow-sm">
+            <div className="rounded-3xl overflow-hidden shadow-xl bg-white border border-gray-100">
               {/* Column header */}
               <ColHeader
                 allChecked={allChecked}
@@ -219,19 +220,18 @@ export const Cart = () => {
                 return (
                   <div key={brand}>
                     {/* Shop / brand sub-header */}
-                    <div className="flex items-center gap-2.5 px-5 py-2.5 bg-red-50 border-b border-gray-100">
+                    <div className="flex items-center gap-2.5 px-5 py-3 bg-gray-50 border-b border-gray-100">
                       <input
                         type="checkbox"
                         checked={brandChecked}
                         onChange={(e) => handleToggleBrand(brand, e.target.checked)}
                         className="w-[17px] h-[17px] rounded accent-red-600 cursor-pointer"
                       />
-                      <div className="flex items-center gap-1.5 text-[13px] font-semibold text-red-600">
+                      <div className="flex items-center gap-1.5 text-[13px] font-semibold text-gray-700">
                         {/* Store icon */}
-                        <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none"
-                             stroke="currentColor" strokeWidth="2">
-                          <circle cx="9" cy="21" r="1" />
-                          <circle cx="20" cy="21" r="1" />
+                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none"
+                             stroke="currentColor" strokeWidth="2.5">
+                          <circle cx="9" cy="21" r="1" /><circle cx="20" cy="21" r="1" />
                           <path d="M1 1h4l2.68 13.39a2 2 0 001.98 1.61h9.72a2 2 0 001.98-1.61L23 6H6" />
                         </svg>
                         {brand}
@@ -266,22 +266,24 @@ export const Cart = () => {
             />
 
             {/* ── Order summary card (above sticky bar) ── */}
-            <div className="bg-white rounded-[28px] border border-gray-100 px-6 py-5 shadow-sm">
+            <div className="bg-white rounded-3xl border border-gray-100 shadow-xl px-6 py-5">
               <div className="flex items-center justify-between text-[13.5px] text-gray-500 mb-2">
-                <span>Tạm tính ({selectedQty} sản phẩm)</span>
+                <span>Tạm tính <span className="text-gray-400">({selectedQty} sản phẩm)</span></span>
                 <span className="font-medium text-gray-700">{fmt(grandTotal)}</span>
               </div>
               <div className="flex items-center justify-between text-[13.5px] text-gray-500 mb-2">
                 <span>Phí vận chuyển</span>
                 <span className="text-green-600 font-medium">Miễn phí</span>
               </div>
-              <div className="flex items-center justify-between text-[13.5px] text-gray-500 mb-3">
-                <span>Giảm giá voucher</span>
-                <span className="text-red-600 font-medium">−{fmt(voucherDiscount)}</span>
-              </div>
+              {voucherDiscount > 0 && (
+                <div className="flex items-center justify-between text-[13.5px] text-gray-500 mb-3">
+                  <span>Giảm giá voucher</span>
+                  <span className="text-red-600 font-medium">−{fmt(voucherDiscount)}</span>
+                </div>
+              )}
               <div className="border-t border-dashed border-gray-200 pt-3 flex items-center justify-between">
-                <span className="text-[14px] font-semibold text-gray-800">Tổng cộng</span>
-                <span className="text-[20px] font-bold text-red-600">{fmt(finalTotal)}</span>
+                <span className="text-[14px] font-semibold text-gray-800">Thành tiền</span>
+                <span className="text-[22px] font-black text-red-600">{fmt(finalTotal)}</span>
               </div>
             </div>
           </>
