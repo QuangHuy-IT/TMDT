@@ -75,10 +75,33 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
   const [newBrandName, setNewBrandName] = useState('');
   const [savingBrand, setSavingBrand] = useState(false);
 
+  // Brand search dropdown
+  const [brandSearch, setBrandSearch] = useState('');
+  const [showBrandDropdown, setShowBrandDropdown] = useState(false);
+  const [loadingBrands, setLoadingBrands] = useState(false);
+
   const [seriesList, setSeriesList] = useState([]);
   const [showSeriesInput, setShowSeriesInput] = useState(false);
   const [newSeriesName, setNewSeriesName] = useState('');
   const [savingSeries, setSavingSeries] = useState(false);
+
+  // Debounced brand search
+  useEffect(() => {
+    if (brandSearch.trim().length < 1) {
+      setShowBrandDropdown(false);
+      return;
+    }
+    setShowBrandDropdown(true);
+    setLoadingBrands(true);
+    const timer = setTimeout(() => {
+      setLoadingBrands(false);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [brandSearch]);
+
+  const filteredBrands = brands.filter((b) =>
+    b.name?.toLowerCase().includes(brandSearch.toLowerCase())
+  );
 
   const fileInputRef = useRef(null);
   const thumbnailInputRef = useRef(null);
@@ -449,20 +472,56 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
                 <div>
                   <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">Thương hiệu *</label>
                   {!showBrandInput ? (
-                    <div className="flex gap-2">
-                      <select value={form.brand} onChange={(e) => updateForm({ brand: e.target.value })}
-                        className="flex-1 bg-[#1e2030] border border-white/20 rounded-xl px-4 py-3 text-sm text-gray-200 focus:outline-none focus:border-red-500"
-                        style={{ color: '#e5e7eb' }}>
-                        <option value="">-- Chọn thương hiệu --</option>
-                        {brands.map(b => <option key={b.id} value={b.name}>{b.name}</option>)}
-                      </select>
-                      <button type="button" onClick={() => setShowBrandInput(true)}
-                        className="px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-gray-400 hover:text-green-400 hover:border-green-500/30 transition-all"
-                        title="Thêm thương hiệu mới">
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                        </svg>
-                      </button>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={brandSearch || form.brand}
+                        onChange={(e) => {
+                          setBrandSearch(e.target.value);
+                          updateForm({ brand: e.target.value });
+                        }}
+                        onFocus={() => {
+                          setBrandSearch(form.brand || '');
+                          setShowBrandDropdown(true);
+                        }}
+                        placeholder="Gõ tên thương hiệu để tìm..."
+                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-red-500/50 transition-all"
+                      />
+                      {showBrandDropdown && (
+                        <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl max-h-60 overflow-y-auto shadow-xl">
+                          {loadingBrands ? (
+                            <div className="px-4 py-3 text-sm text-gray-500">Đang tìm...</div>
+                          ) : filteredBrands.length === 0 && brandSearch ? (
+                            <div className="px-4 py-3 text-sm text-gray-500">
+                              Không tìm thấy thương hiệu nào.{' '}
+                              <button onClick={() => { setShowBrandDropdown(false); setShowBrandInput(true); setNewBrandName(brandSearch); }}
+                                className="text-blue-600 hover:underline font-medium">
+                                Thêm mới?
+                              </button>
+                            </div>
+                          ) : filteredBrands.length === 0 ? (
+                            <div className="px-4 py-3 text-sm text-gray-500">Đang tải thương hiệu...</div>
+                          ) : (
+                            filteredBrands.map((b) => (
+                              <button
+                                key={b.id}
+                                onClick={() => {
+                                  updateForm({ brand: b.name });
+                                  setBrandSearch(b.name);
+                                  setShowBrandDropdown(false);
+                                }}
+                                className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-100 text-left transition-colors border-b border-gray-100 last:border-b-0"
+                              >
+                                <span className="text-sm font-medium text-gray-900">{b.name}</span>
+                                <span className="text-[11px] text-gray-500">{b.slug}</span>
+                              </button>
+                            ))
+                          )}
+                        </div>
+                      )}
+                      {form.brand && (
+                        <p className="text-[10px] text-green-400 mt-1">✓ Đã chọn: {form.brand}</p>
+                      )}
                     </div>
                   ) : (
                     <div className="flex gap-2">

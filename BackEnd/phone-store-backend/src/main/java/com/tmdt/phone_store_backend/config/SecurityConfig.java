@@ -116,6 +116,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/auth/logout").authenticated()
                         
                         // Admin endpoints
+                        .requestMatchers("/api/admin/auth/**").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         
                         // All other requests require authentication

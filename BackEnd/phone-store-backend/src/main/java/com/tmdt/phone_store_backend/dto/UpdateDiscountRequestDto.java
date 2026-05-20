@@ -18,6 +18,8 @@ public class UpdateDiscountRequestDto {
 
     private BigDecimal discountAmount;
 
+    private String discountType; // PERCENT | FIXED
+
     private LocalDateTime startAt;
     private LocalDateTime endAt;
     private Boolean isActive;

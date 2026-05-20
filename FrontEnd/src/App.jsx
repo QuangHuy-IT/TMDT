@@ -28,6 +28,7 @@ import { PrivacyPolicy } from './pages/PrivacyPolicy';
 import { ShippingPolicy } from './pages/ShippingPolicy';
 import { AdminLayout } from './pages/admin/AdminLayout';
 import { AdminDashboard } from './pages/admin/AdminDashboard';
+import AdminLogin from './pages/admin/AdminLogin';
 import { AdminProducts } from './pages/admin/AdminProducts';
 import { AdminInventory } from './pages/admin/AdminInventory';
 import { AdminOrders } from './pages/admin/AdminOrders';
@@ -45,6 +46,7 @@ import { AdminQuestions } from './pages/admin/AdminQuestions';
 
 // Context
 import { ShopProvider } from './context/ShopContext';
+import { AdminAuthProvider } from './context/AdminAuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import './App.css';
 import { FloatingContactButton } from './components/contact/FloatingContactButton';
@@ -129,9 +131,17 @@ function App() {
       <ShopProvider>
         <Router>
           <ScrollToRouteTop />
+          <AdminAuthProvider>
           <Routes>
-            {/* ===== ADMIN ROUTES (layout riêng, không có Navbar/Footer) ===== */}
-            <Route path="/admin" element={<ProtectedRoute isAdmin><AdminLayout /></ProtectedRoute>}>
+            {/* ===== ADMIN ROUTES ===== */}
+            {/* Admin login - standalone page, no layout */}
+            <Route path="/admin/login" element={<AdminLogin />} />
+
+            {/* Admin layout routes - share same AdminAuthProvider context */}
+            <Route
+              path="/admin"
+              element={<AdminLayout />}
+            >
               <Route index element={<AdminDashboard />} />
               <Route path="products" element={<AdminProducts />} />
               <Route path="brands" element={<AdminBrands />} />
@@ -206,6 +216,7 @@ function App() {
               )}
             />
           </Routes>
+          </AdminAuthProvider>
         </Router>
       </ShopProvider>
     </ThemeProvider>

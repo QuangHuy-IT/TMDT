@@ -1,6 +1,6 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useState, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { ShopContext } from '../../context/ShopContext';
+import { AdminAuthContext } from '../../context/AdminAuthContext';
 
 const navItems = [
   {
@@ -153,11 +153,18 @@ const navItems = [
 ];
 
 export const AdminLayout = () => {
-  const { state, dispatch } = useContext(ShopContext);
-  const { user } = state;
+  const { state, dispatch } = useContext(AdminAuthContext);
+  const { admin } = state;
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [expandedGroups, setExpandedGroups] = useState({ Sản_phẩm: true, Khuyến_mãi: true });
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!state.isAuthenticated) {
+      navigate('/admin/login', { replace: true });
+    }
+  }, [state.isAuthenticated, navigate]);
 
   const toggleGroup = (groupName) => {
     setExpandedGroups((prev) => ({
@@ -175,8 +182,8 @@ export const AdminLayout = () => {
   };
 
   const handleLogout = () => {
-    dispatch({ type: 'LOGOUT' });
-    navigate('/');
+    dispatch({ type: 'ADMIN_LOGOUT' });
+    navigate('/admin/login');
   };
 
   return (
@@ -308,10 +315,10 @@ export const AdminLayout = () => {
           {sidebarOpen && (
             <div className="flex items-center gap-3 px-2 py-2">
               <div className="w-8 h-8 rounded-full bg-red-600 flex items-center justify-center font-bold text-xs uppercase flex-shrink-0">
-                {user?.name?.charAt(0) || 'A'}
+                {admin?.fullName?.charAt(0) || 'A'}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-bold text-white truncate">{user?.name || 'Admin'}</p>
+                <p className="text-xs font-bold text-white truncate">{admin?.fullName || 'Admin'}</p>
                 <p className="text-[10px] text-gray-500 uppercase tracking-wider">Administrator</p>
               </div>
             </div>

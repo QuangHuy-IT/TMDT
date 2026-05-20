@@ -21,6 +21,8 @@ public class CreateDiscountRequestDto {
 
     private BigDecimal discountAmount;
 
+    private String discountType; // PERCENT | FIXED
+
     @NotNull(message = "Thời gian bắt đầu không được để trống")
     private LocalDateTime startAt;
 

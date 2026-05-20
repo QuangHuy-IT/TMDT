@@ -93,10 +93,11 @@ export const AdminDiscounts = () => {
 
     const existing = getDiscountForVariant(vid);
     if (existing) {
+      const isPercent = existing.discountType === 'PERCENT';
       setFormData({
-        discountType: existing.discountAmount && existing.discountAmount > 0 ? 'FIXED' : 'PERCENT',
-        discountPercent: existing.discountPercent ? String(existing.discountPercent) : '',
-        discountAmount: existing.discountAmount ? String(existing.discountAmount) : '',
+        discountType: existing.discountType || (isPercent ? 'PERCENT' : 'FIXED'),
+        discountPercent: isPercent ? String(existing.discountPercent) : '',
+        discountAmount: !isPercent && existing.discountPrice ? String(existing.discountPrice) : '',
         startAt: existing.startAt ? toDatetimeLocal(existing.startAt) : '',
         endAt: existing.endAt ? toDatetimeLocal(existing.endAt) : '',
       });
@@ -112,7 +113,7 @@ export const AdminDiscounts = () => {
     const base = selectedVariant.variant.price;
     if (formData.discountType === 'FIXED' && formData.discountAmount) {
       const amt = Number(formData.discountAmount);
-      // discountAmount NHẬP VÀO = SỐ TIỀN GIẢM → giá sau giảm = base - amt
+      // formData.discountAmount = GIÁ SAU GIẢM → số tiền giảm = base - amt
       return Math.max(0, base - amt);
     }
     if (formData.discountType === 'PERCENT' && formData.discountPercent) {
@@ -132,7 +133,10 @@ export const AdminDiscounts = () => {
       }
     } else {
       if (!formData.discountAmount || amt <= 0) {
-        alert('Số tiền giảm phải lớn hơn 0.'); return;
+        alert('Giá sau giảm phải lớn hơn 0.'); return;
+      }
+      if (amt >= selectedVariant.variant.price) {
+        alert('Giá sau giảm phải nhỏ hơn giá gốc.'); return;
       }
     }
     if (!formData.startAt || !formData.endAt) { alert('Vui lòng chọn thời gian bắt đầu và kết thúc.'); return; }
@@ -260,39 +264,47 @@ export const AdminDiscounts = () => {
                             <div className="col-span-12 lg:col-span-5">
                               <p className="text-xs font-bold text-white">{buildVariantLabel(product.name, variant)}</p>
                               <p className="text-[11px] text-gray-500 mt-1">
-                                {variant.sku} · {Number(variant.price).toLocaleString()}đ
+                                {variant.sku}
                               </p>
                             </div>
 
                             <div className="col-span-6 lg:col-span-3 flex items-center">
                               {discount ? (
                                 <div className="flex flex-col">
-                                  <span className="text-sm font-black text-red-400">
-                                    {discount.discountAmount && discount.discountAmount > 0
-                                      ? `Giảm ${Number(discount.discountAmount).toLocaleString()}đ`
-                                      : `-${discount.discountPercent}%`}
+                                  <span className="text-[11px] text-gray-500">
+                                    Giá gốc
                                   </span>
-                                  <span className="text-[10px] text-gray-500">
-                                    Còn {Number(discount.discountPrice).toLocaleString()}đ
+                                  <span className="text-sm font-bold text-gray-300 line-through">
+                                    {Number(discount.originalPrice).toLocaleString()}đ
                                   </span>
                                 </div>
                               ) : (
-                                <span className="text-xs text-gray-600">Chưa giảm giá</span>
+                                <div className="flex flex-col">
+                                  <span className="text-[11px] text-gray-500">
+                                    Giá gốc
+                                  </span>
+                                  <span className="text-sm font-bold text-gray-300">
+                                    {Number(variant.price).toLocaleString()}đ
+                                  </span>
+                                </div>
                               )}
                             </div>
 
                             <div className="col-span-6 lg:col-span-4 flex items-center">
                               {discount ? (
                                 <div className="flex items-center gap-2 w-full">
-                                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${statusColor(discount.status)}`}>
-                                    {statusLabel(discount.status)}
-                                  </span>
+                                  <div className="flex flex-col">
+                                    <span className="text-[11px] text-gray-500">Còn lại</span>
+                                    <span className="text-sm font-bold text-red-400">
+                                      {Number(discount.discountPrice).toLocaleString()}đ
+                                    </span>
+                                  </div>
                                   {isSelected && (
                                     <span className="ml-auto text-red-400 text-xs font-bold">Đang chọn</span>
                                   )}
                                 </div>
                               ) : (
-                                <span className="text-[11px] text-gray-600">Nhấn để thiết lập giảm giá</span>
+                                <span className="text-[11px] text-gray-600">Nhấn để thiết lập</span>
                               )}
                             </div>
                           </div>
@@ -334,7 +346,7 @@ export const AdminDiscounts = () => {
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-gray-200 focus:outline-none focus:border-red-500/50"
                 >
                   <option value="PERCENT">Phần trăm (%)</option>
-                  <option value="FIXED">Số tiền cố định (VNĐ)</option>
+                  <option value="FIXED">Số tiền muốn giảm (VNĐ)</option>
                 </select>
               </div>
 
@@ -359,18 +371,18 @@ export const AdminDiscounts = () => {
                 </div>
               ) : (
                 <div>
-                  <label className="text-[10px] text-gray-500 block mb-1.5">Số tiền giảm (VNĐ) *</label>
+                  <label className="text-[10px] text-gray-500 block mb-1.5">Giá sau giảm (VNĐ) *</label>
                   <input
                     type="number"
                     min="1"
                     value={formData.discountAmount}
                     onChange={(e) => setFormData((p) => ({ ...p, discountAmount: e.target.value }))}
-                    placeholder="VD: 500000"
+                    placeholder="VD: 10000000"
                     className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-red-500/50"
                   />
                   {formData.discountAmount && (
                     <p className="text-[10px] text-emerald-400 mt-1">
-                      Giảm {Number(formData.discountAmount).toLocaleString()}đ → Còn {calcDiscountPrice()?.toLocaleString()}đ
+                      Giảm {calcDiscountPrice()?.toLocaleString()}đ → Còn {Number(formData.discountAmount).toLocaleString()}đ
                     </p>
                   )}
                 </div>
@@ -458,7 +470,7 @@ export const AdminDiscounts = () => {
                         <div className="min-w-0 flex-1">
                           <p className="text-[11px] font-bold text-gray-200 leading-tight">{fullLabel}</p>
                           <p className="text-[10px] text-gray-500 mt-0.5">
-                            {d.discountAmount && d.discountAmount > 0
+                            {d.discountType === 'FIXED'
                               ? `Giảm ${Number(d.discountAmount).toLocaleString()}đ → Còn ${Number(d.discountPrice).toLocaleString()}đ`
                               : `Giảm ${d.discountPercent}% → Còn ${Number(d.discountPrice).toLocaleString()}đ`}
                           </p>

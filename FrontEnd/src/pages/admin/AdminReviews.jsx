@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import api from '../../api/axiosInstance';
+import adminApi from '../../api/adminAxiosInstance';
 import Pagination from '../../components/ui/Pagination';
 
 const ITEMS_PER_PAGE = 10;
@@ -47,10 +47,10 @@ export const AdminReviews = () => {
     try {
       let response;
       if (tab === 'pending') {
-        response = await api.get('/admin/reviews/pending', { params: { page, size: ITEMS_PER_PAGE } });
+        response = await adminApi.get('/admin/reviews/pending', { params: { page, size: ITEMS_PER_PAGE } });
       } else {
         const approved = tab === 'approved' ? true : tab === 'rejected' ? false : null;
-        response = await api.get('/admin/reviews', { params: { page, size: ITEMS_PER_PAGE, approved } });
+        response = await adminApi.get('/admin/reviews', { params: { page, size: ITEMS_PER_PAGE, approved } });
       }
       const data = response.data;
       setReviews(data.reviews || []);
@@ -67,7 +67,7 @@ export const AdminReviews = () => {
 
   const fetchPendingCount = async () => {
     try {
-      const response = await api.get('/admin/reviews/pending', { params: { page: 0, size: 1 } });
+      const response = await adminApi.get('/admin/reviews/pending', { params: { page: 0, size: 1 } });
       setPendingCount(response.data.totalElements || 0);
     } catch {
       setPendingCount(0);
@@ -91,7 +91,7 @@ export const AdminReviews = () => {
   const handleApprove = async (reviewId) => {
     setActionLoading(reviewId);
     try {
-      await api.post(`/admin/reviews/${reviewId}/approve`);
+      await adminApi.post(`/admin/reviews/${reviewId}/approve`);
       setReviews((prev) => prev.filter((r) => r.id !== reviewId));
       setTotalElements((prev) => prev - 1);
       fetchPendingCount();
@@ -106,7 +106,7 @@ export const AdminReviews = () => {
     if (!window.confirm('Bạn có chắc muốn từ chối đánh giá này?')) return;
     setActionLoading(reviewId);
     try {
-      await api.post(`/admin/reviews/${reviewId}/reject`);
+      await adminApi.post(`/admin/reviews/${reviewId}/reject`);
       setReviews((prev) => prev.filter((r) => r.id !== reviewId));
       setTotalElements((prev) => prev - 1);
       fetchPendingCount();
@@ -121,7 +121,7 @@ export const AdminReviews = () => {
     if (!window.confirm('Bạn có chắc muốn xóa đánh giá này? Hành động không thể hoàn tác.')) return;
     setActionLoading(reviewId);
     try {
-      await api.delete(`/admin/reviews/${reviewId}`);
+      await adminApi.delete(`/admin/reviews/${reviewId}`);
       setReviews((prev) => prev.filter((r) => r.id !== reviewId));
       setTotalElements((prev) => prev - 1);
       fetchPendingCount();
