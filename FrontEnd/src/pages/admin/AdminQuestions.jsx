@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import api from '../../api/axiosInstance';
+import adminApi from '../../api/adminAxiosInstance';
 import Pagination from '../../components/ui/Pagination';
 
 const ITEMS_PER_PAGE = 10;
@@ -36,9 +36,9 @@ export const AdminQuestions = () => {
     try {
       let response;
       if (tab === 'pending') {
-        response = await api.get('/admin/questions/pending', { params: { page, size: ITEMS_PER_PAGE } });
+        response = await adminApi.get('/admin/questions/pending', { params: { page, size: ITEMS_PER_PAGE } });
       } else {
-        response = await api.get('/admin/questions', { params: { page, size: ITEMS_PER_PAGE } });
+        response = await adminApi.get('/admin/questions', { params: { page, size: ITEMS_PER_PAGE } });
       }
       const data = response.data;
       setQuestions(data.questions || []);
@@ -55,7 +55,7 @@ export const AdminQuestions = () => {
 
   const fetchPendingCount = async () => {
     try {
-      const response = await api.get('/admin/questions/pending', { params: { page: 0, size: 1 } });
+      const response = await adminApi.get('/admin/questions/pending', { params: { page: 0, size: 1 } });
       setPendingCount(response.data.totalElements || 0);
     } catch {
       setPendingCount(0);
@@ -83,7 +83,7 @@ export const AdminQuestions = () => {
     setSearch(searchInput.trim());
     setActiveTab('search');
     setLoading(true);
-    api.get('/admin/questions/search', { params: { q: searchInput.trim(), page: 0, size: ITEMS_PER_PAGE } })
+    adminApi.get('/admin/questions/search', { params: { q: searchInput.trim(), page: 0, size: ITEMS_PER_PAGE } })
       .then((res) => {
         setQuestions(res.data.questions || []);
         setTotalPages(res.data.totalPages || 1);
@@ -105,10 +105,10 @@ export const AdminQuestions = () => {
     setReplyLoading(true);
     setReplyError('');
     try {
-      const meRes = await api.get('/auth/me');
+      const meRes = await adminApi.get('/auth/me');
       const adminId = meRes.data?.id || 1;
 
-      await api.post(`/admin/questions/${replyModal.id}/answer`, replyContent.trim(), {
+      await adminApi.post(`/admin/questions/${replyModal.id}/answer`, replyContent.trim(), {
         params: { adminUserId: adminId },
         headers: { 'Content-Type': 'text/plain' },
       });
@@ -127,7 +127,7 @@ export const AdminQuestions = () => {
     if (!window.confirm('Ẩn câu hỏi này?')) return;
     setActionLoading(questionId);
     try {
-      await api.post(`/admin/questions/${questionId}/hide`);
+      await adminApi.post(`/admin/questions/${questionId}/hide`);
       fetchQuestions(currentPage - 1, activeTab);
     } catch {
       alert('Thao tác thất bại.');
@@ -139,7 +139,7 @@ export const AdminQuestions = () => {
   const handleShow = async (questionId) => {
     setActionLoading(questionId);
     try {
-      await api.post(`/admin/questions/${questionId}/show`);
+      await adminApi.post(`/admin/questions/${questionId}/show`);
       fetchQuestions(currentPage - 1, activeTab);
     } catch {
       alert('Thao tác thất bại.');
@@ -152,7 +152,7 @@ export const AdminQuestions = () => {
     if (!window.confirm('Xóa câu hỏi này? Hành động không thể hoàn tác.')) return;
     setActionLoading(questionId);
     try {
-      await api.delete(`/admin/questions/${questionId}`);
+      await adminApi.delete(`/admin/questions/${questionId}`);
       setQuestions((prev) => prev.filter((q) => q.id !== questionId));
       setTotalElements((prev) => Math.max(0, prev - 1));
       fetchPendingCount();
