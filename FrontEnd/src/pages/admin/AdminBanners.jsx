@@ -16,60 +16,63 @@ const AdminBanners = () => {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
 
-  // Dynamic selector data
+  // Brand selector
   const [brands, setBrands] = useState([]);
-  const [products, setProducts] = useState([]);
   const [loadingBrands, setLoadingBrands] = useState(false);
-  const [loadingProducts, setLoadingProducts] = useState(false);
+
+  // Product search (flash-sale style)
   const [productSearch, setProductSearch] = useState('');
+  const [productDropdown, setProductDropdown] = useState(false);
+  const [productList, setProductList] = useState([]);
+  const [loadingProducts, setLoadingProducts] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [selectedVariant, setSelectedVariant] = useState(null);
+
+  // Promotion search (flash-sale style)
+  const [promotionSearch, setPromotionSearch] = useState('');
+  const [promotionDropdown, setPromotionDropdown] = useState(false);
+  const [promotionList, setPromotionList] = useState([]);
+  const [loadingPromotions, setLoadingPromotions] = useState(false);
 
   const [form, setForm] = useState({
     title: '', imageUrl: '', linkUrl: '', position: 'home_hero',
     isActive: true, sortOrder: 0, startAt: '', endAt: '',
     linkType: 'none',
-    // brand
     brandId: '',
-    // product
     productId: '',
-    // promotion
     promotionSlug: '',
   });
   const imageInputRef = React.useRef(null);
 
   useEffect(() => { fetchBanners(); }, []);
 
-  // Load brands when linkType changes to brand
+  // Load brands when needed
   useEffect(() => {
     if (form.linkType === 'brand' && brands.length === 0) {
       setLoadingBrands(true);
-      AdminService.getBrands().then((r) => {
-        setBrands(r.data || []);
-      }).catch(console.error).finally(() => setLoadingBrands(false));
+      AdminService.getBrands().then((r) => setBrands(r.data || [])).catch(console.error).finally(() => setLoadingBrands(false));
     }
   }, [form.linkType]);
 
   // Debounced product search
   useEffect(() => {
     if (form.linkType !== 'product') return;
+    const q = productSearch.trim();
     const timer = setTimeout(() => {
-      if (productSearch.trim().length < 1) {
-        setProducts([]);
-        return;
-      }
       setLoadingProducts(true);
       ProductService.getAdminProducts()
         .then((r) => {
           const all = r.data || [];
-          const q = productSearch.toLowerCase();
-          setProducts(
-            all
-              .filter((p) =>
-                p.name?.toLowerCase().includes(q) ||
-                p.brand?.toLowerCase().includes(q) ||
-                p.slug?.toLowerCase().includes(q)
-              )
-              .slice(0, 15)
-          );
+          if (q.length < 1) {
+            setProductList(all.slice(0, 15));
+          } else {
+            const lower = q.toLowerCase();
+            setProductList(all.filter((p) =>
+              p.name?.toLowerCase().includes(lower) ||
+              p.brand?.toLowerCase().includes(lower) ||
+              p.slug?.toLowerCase().includes(lower)
+            ).slice(0, 15));
+          }
         })
         .catch(console.error)
         .finally(() => setLoadingProducts(false));
@@ -77,29 +80,56 @@ const AdminBanners = () => {
     return () => clearTimeout(timer);
   }, [productSearch, form.linkType]);
 
+  // Debounced promotion search
+  useEffect(() => {
+    if (form.linkType !== 'promotion') return;
+    const q = promotionSearch.trim();
+    const timer = setTimeout(() => {
+      setLoadingPromotions(true);
+      AdminService.getPromotions()
+        .then((r) => {
+          const data = r.data?.data ?? r.data ?? [];
+          if (q.length < 1) {
+            setPromotionList(data.slice(0, 15));
+          } else {
+            const lower = q.toLowerCase();
+            setPromotionList(data.filter((p) =>
+              p.name?.toLowerCase().includes(lower) ||
+              p.title?.toLowerCase().includes(lower) ||
+              p.slug?.toLowerCase().includes(lower)
+            ).slice(0, 15));
+          }
+        })
+        .catch(console.error)
+        .finally(() => setLoadingPromotions(false));
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [promotionSearch, form.linkType]);
+
   const fetchBanners = async () => {
     setLoading(true);
     try {
       const res = await AdminService.getBanners();
       setBanners(res.data || []);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
+    } catch (e) { console.error(e); }
+    finally { setLoading(false); }
   };
 
   const resetForm = () => {
     setForm({ title: '', imageUrl: '', linkUrl: '', position: 'home_hero', isActive: true, sortOrder: 0, startAt: '', endAt: '', linkType: 'none', brandId: '', productId: '', promotionSlug: '' });
     setProductSearch('');
-    setProducts([]);
+    setProductList([]);
+    setProductDropdown(false);
+    setSelectedProduct(null);
+    setSelectedVariant(null);
+    setPromotionSearch('');
+    setPromotionList([]);
+    setPromotionDropdown(false);
   };
 
   const openAdd = () => {
     setEditingBanner(null);
     setBrands([]);
-    setProducts([]);
-    setProductSearch('');
     resetForm();
     setShowForm(true);
   };
@@ -113,22 +143,15 @@ const AdminBanners = () => {
     else if (url && !url.startsWith('http')) { linkType = 'brand'; brandId = url.split('/').pop(); }
 
     setEditingBanner(banner);
-    setForm({
-      title: banner.title || '',
-      imageUrl: banner.imageUrl || '',
-      linkUrl: banner.linkUrl || '',
-      position: banner.position || 'home',
-      isActive: banner.isActive !== false,
-      sortOrder: banner.sortOrder || 0,
-      startAt: banner.startAt || '',
-      endAt: banner.endAt || '',
-      linkType,
-      brandId,
-      productId,
-      promotionSlug,
-    });
-    if (linkType === 'brand') setBrands([]);
-    if (linkType === 'product') { setProductSearch(''); setProducts([]); }
+    setForm({ title: banner.title || '', imageUrl: banner.imageUrl || '', linkUrl: banner.linkUrl || '', position: banner.position || 'home_hero', isActive: banner.isActive !== false, sortOrder: banner.sortOrder || 0, startAt: banner.startAt || '', endAt: banner.endAt || '', linkType, brandId, productId, promotionSlug });
+    setProductSearch('');
+    setProductList([]);
+    setProductDropdown(false);
+    setSelectedProduct(null);
+    setSelectedVariant(null);
+    setPromotionSearch(promotionSlug || '');
+    setPromotionList([]);
+    setPromotionDropdown(false);
     setShowForm(true);
   };
 
@@ -151,7 +174,7 @@ const AdminBanners = () => {
       return b ? `/${b.slug}` : '';
     }
     if (linkType === 'promotion' && promotionSlug) return `/khuyen-mai/${promotionSlug}`;
-    if (linkType === 'product' && productId) return `/products/${productId}`;
+    if (linkType === 'product' && selectedVariant) return `/products/${selectedVariant.id}`;
     return '';
   };
 
@@ -171,7 +194,6 @@ const AdminBanners = () => {
         startAt: form.startAt || null,
         endAt: form.endAt || null,
       };
-
       if (editingBanner) {
         const res = await AdminService.updateBanner(editingBanner.id, payload);
         setBanners((p) => p.map((b) => b.id === editingBanner.id ? res.data : b));
@@ -180,11 +202,8 @@ const AdminBanners = () => {
         setBanners((p) => [res.data, ...p]);
       }
       setShowForm(false);
-    } catch (e) {
-      alert(e.response?.data?.message || 'Lưu thất bại');
-    } finally {
-      setSaving(false);
-    }
+    } catch (e) { alert(e.response?.data?.message || 'Lưu thất bại'); }
+    finally { setSaving(false); }
   };
 
   const handleDelete = async (id) => {
@@ -192,9 +211,26 @@ const AdminBanners = () => {
       await AdminService.deleteBanner(id);
       setBanners((p) => p.filter((b) => b.id !== id));
       setDeleteConfirm(null);
-    } catch (e) {
-      alert(e.response?.data?.message || 'Xóa thất bại');
-    }
+    } catch (e) { alert(e.response?.data?.message || 'Xóa thất bại'); }
+  };
+
+  const selectProduct = (p) => {
+    setSelectedProduct(p);
+    setSelectedVariant(null);
+    setForm((prev) => ({ ...prev, productId: p.slug || p.id }));
+    setProductSearch(p.name);
+    setProductDropdown(false);
+  };
+
+  const selectVariant = (v) => {
+    setSelectedVariant(v);
+    setForm((prev) => ({ ...prev, productId: String(v.id) }));
+  };
+
+  const selectPromotion = (p) => {
+    setForm((prev) => ({ ...prev, promotionSlug: p.slug || p.id }));
+    setPromotionSearch(p.name || p.title || p.slug || '');
+    setPromotionDropdown(false);
   };
 
   const posLabel = (pos) => BANNER_POSITIONS.find((p) => p.value === pos)?.label || pos;
@@ -300,35 +336,49 @@ const AdminBanners = () => {
               <div>
                 <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">Tiêu đề *</label>
                 <input type="text" value={form.title} onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))} placeholder="VD: Khuyến mãi mùa hè 2026"
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-red-500/50" />
+                  className="w-full bg-[#1a1d2e] border border-white/10 rounded-xl px-4 py-3 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-red-500/50" />
               </div>
 
               {/* Position */}
               <div>
                 <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">Vị trí hiển thị *</label>
-                <select value={form.position} onChange={(e) => setForm((p) => ({ ...p, position: e.target.value }))}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-gray-200 focus:outline-none focus:border-red-500/50">
-                  {BANNER_POSITIONS.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
-                </select>
+                <div className="relative">
+                  <select value={form.position} onChange={(e) => setForm((p) => ({ ...p, position: e.target.value }))}
+                    className="w-full bg-[#1a1d2e] border border-white/10 rounded-xl px-4 py-3 text-sm text-gray-200 focus:outline-none focus:border-red-500/50 appearance-none cursor-pointer pr-10">
+                    {BANNER_POSITIONS.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
+                  </select>
+                  <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
+                    <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                </div>
               </div>
 
               {/* Sort order */}
               <div>
                 <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">Thứ tự</label>
                 <input type="number" min="0" value={form.sortOrder} onChange={(e) => setForm((p) => ({ ...p, sortOrder: e.target.value }))}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-gray-200 focus:outline-none focus:border-red-500/50" />
+                  className="w-full bg-[#1a1d2e] border border-white/10 rounded-xl px-4 py-3 text-sm text-gray-200 focus:outline-none focus:border-red-500/50" />
               </div>
 
               {/* Link type */}
               <div>
                 <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">Liên kết khi click</label>
-                <select value={form.linkType} onChange={(e) => setForm((p) => ({ ...p, linkType: e.target.value, brandId: '', productId: '', promotionSlug: '' }))}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-gray-200 focus:outline-none focus:border-red-500/50">
-                  <option value="none">Không liên kết</option>
-                  <option value="brand">Trang thương hiệu</option>
-                  <option value="promotion">Trang khuyến mãi</option>
-                  <option value="product">Trang sản phẩm</option>
-                </select>
+                <div className="relative">
+                  <select value={form.linkType} onChange={(e) => setForm((p) => ({ ...p, linkType: e.target.value, brandId: '', productId: '', promotionSlug: '' }))}
+                    className="w-full bg-[#1a1d2e] border border-white/10 rounded-xl px-4 py-3 text-sm text-gray-200 focus:outline-none focus:border-red-500/50 appearance-none cursor-pointer pr-10">
+                    <option value="none">Không liên kết</option>
+                    <option value="brand">Trang thương hiệu</option>
+                    <option value="promotion">Trang khuyến mãi</option>
+                    <option value="product">Trang sản phẩm</option>
+                  </select>
+                  <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
+                    <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                </div>
               </div>
 
               {/* ── Brand selector ── */}
@@ -338,48 +388,52 @@ const AdminBanners = () => {
                   {loadingBrands ? (
                     <div className="py-3 text-sm text-gray-400">Đang tải thương hiệu...</div>
                   ) : (
-                    <select value={form.brandId} onChange={(e) => setForm((p) => ({ ...p, brandId: e.target.value }))}
-                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-gray-200 focus:outline-none focus:border-red-500/50">
-                      <option value="">-- Chọn thương hiệu --</option>
-                      {brands.map((b) => <option key={b.id} value={b.id}>{b.name} ({b.slug})</option>)}
-                    </select>
+                    <div className="relative">
+                      <select value={form.brandId} onChange={(e) => setForm((p) => ({ ...p, brandId: e.target.value }))}
+                        className="w-full bg-[#1a1d2e] border border-white/10 rounded-xl px-4 py-3 text-sm text-gray-200 focus:outline-none focus:border-red-500/50 appearance-none cursor-pointer pr-10">
+                        <option value="">-- Chọn thương hiệu --</option>
+                        {brands.map((b) => <option key={b.id} value={b.id}>{b.name} ({b.slug})</option>)}
+                      </select>
+                      <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
+                        <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </div>
+                    </div>
                   )}
                 </div>
               )}
 
-              {/* ── Product selector ── */}
+              {/* ── Product selector (flash-sale style) ── */}
               {form.linkType === 'product' && (
                 <div>
-                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">Tìm và chọn sản phẩm *</label>
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">Sản phẩm *</label>
                   <div className="relative">
                     <input
                       type="text"
                       value={productSearch}
-                      onChange={(e) => setProductSearch(e.target.value)}
-                      placeholder="Gõ tên sản phẩm để tìm..."
-                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-red-500/50"
+                      onChange={(e) => { setProductSearch(e.target.value); setProductDropdown(true); setSelectedProduct(null); setSelectedVariant(null); }}
+                      onFocus={() => setProductDropdown(true)}
+                      placeholder="Tìm tên sản phẩm..."
+                      className="w-full bg-[#1a1d2e] border border-white/10 rounded-xl px-4 py-3 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-red-500/50"
                     />
-                    {productSearch && (
+                    {productDropdown && (
                       <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-[#1a1d2e] border border-white/10 rounded-xl max-h-60 overflow-y-auto shadow-xl">
                         {loadingProducts ? (
-                          <div className="px-4 py-3 text-sm text-gray-400">Đang tìm...</div>
-                        ) : products.length === 0 ? (
-                          <div className="px-4 py-3 text-sm text-gray-500">Không tìm thấy sản phẩm nào</div>
+                          <div className="px-4 py-3 text-sm text-gray-400">Đang tải...</div>
+                        ) : productList.length === 0 ? (
+                          <div className="px-4 py-3 text-sm text-gray-500">Không tìm thấy sản phẩm</div>
                         ) : (
-                          products.map((p) => (
+                          productList.map((p) => (
                             <button
                               key={p.id}
-                              onClick={() => {
-                                setForm((prev) => ({ ...prev, productId: p.slug || p.id }));
-                                setProductSearch(p.name);
-                                setProducts([]);
-                              }}
-                              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/5 text-left transition-colors"
+                              onClick={() => selectProduct(p)}
+                              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/5 text-left transition-colors border-b border-white/5 last:border-b-0"
                             >
                               {p.thumbnailUrl && <img src={p.thumbnailUrl} alt="" className="w-10 h-10 rounded-lg object-cover bg-white/5 flex-shrink-0" />}
                               <div className="min-w-0">
                                 <p className="text-sm font-medium text-gray-200 truncate">{p.name}</p>
-                                <p className="text-[11px] text-gray-500">{p.brand}</p>
+                                <p className="text-[11px] text-gray-500">{p.brand} · {p.variantItems?.length || 0} phân loại</p>
                               </div>
                             </button>
                           ))
@@ -387,19 +441,100 @@ const AdminBanners = () => {
                       </div>
                     )}
                   </div>
-                  {form.productId && (
-                    <p className="text-[10px] text-green-400 mt-1">✓ Đã chọn: {productSearch}</p>
+
+                  {/* ── Variant picker ── */}
+                  {selectedProduct && (
+                    <div className="mt-3">
+                      <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">
+                        Phân loại (màu / RAM / Bộ nhớ) *
+                      </label>
+                      <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto pr-1">
+                        {(selectedProduct.variantItems || []).map((v) => (
+                          <button
+                            key={v.id}
+                            type="button"
+                            onClick={() => selectVariant(v)}
+                            className={`flex items-center gap-3 p-3 rounded-xl border text-left transition-all ${
+                              selectedVariant?.id === v.id
+                                ? 'border-red-500 bg-red-500/10'
+                                : 'border-white/10 bg-white/5 hover:border-white/20'
+                            }`}
+                          >
+                            {v.colorImageUrl ? (
+                              <img src={v.colorImageUrl} alt="" className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
+                            ) : (
+                              <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0">
+                                <span className="text-xs text-gray-400">{v.color?.charAt(0) || '?'}</span>
+                              </div>
+                            )}
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-medium text-gray-200">
+                                {v.color} {v.storageLabel || `${v.storageGb}GB`} {v.ramGb ? `· ${v.ramGb}GB RAM` : ''}
+                              </p>
+                              <p className="text-[11px] text-gray-400">
+                                SKU: {v.sku} · Giá gốc: {Number(v.price).toLocaleString()}đ · Tồn: {v.stock}
+                              </p>
+                            </div>
+                            {selectedVariant?.id === v.id && (
+                              <span className="text-red-400 font-bold text-sm flex-shrink-0">✓</span>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedVariant && (
+                    <p className="text-[11px] text-green-400 mt-1">✓ Đã chọn: {selectedVariant.color} {selectedVariant.storageLabel || `${selectedVariant.storageGb}GB`}</p>
                   )}
                 </div>
               )}
 
-              {/* ── Promotion slug ── */}
+              {/* ── Promotion selector (flash-sale style) ── */}
               {form.linkType === 'promotion' && (
                 <div>
-                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">Slug khuyến mãi</label>
-                  <input type="text" value={form.promotionSlug} onChange={(e) => setForm((p) => ({ ...p, promotionSlug: e.target.value }))} placeholder="VD: summer-sale"
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-red-500/50" />
-                  <p className="text-[10px] text-gray-600 mt-1">URL sẽ là: /khuyen-mai/{form.promotionSlug || 'slug'}</p>
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">Chọn trang khuyến mãi *</label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={promotionSearch}
+                      onChange={(e) => { setPromotionSearch(e.target.value); setPromotionDropdown(true); }}
+                      onFocus={() => setPromotionDropdown(true)}
+                      placeholder="Gõ tên khuyến mãi để tìm..."
+                      className="w-full bg-[#1a1d2e] border border-white/10 rounded-xl px-4 py-3 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-red-500/50"
+                    />
+                    {promotionDropdown && (
+                      <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-[#1a1d2e] border border-white/10 rounded-xl max-h-60 overflow-y-auto shadow-xl">
+                        {loadingPromotions ? (
+                          <div className="px-4 py-3 text-sm text-gray-400">Đang tải...</div>
+                        ) : promotionList.length === 0 ? (
+                          <div className="px-4 py-3 text-sm text-gray-500">Không tìm thấy khuyến mãi nào</div>
+                        ) : (
+                          promotionList.map((p) => (
+                            <button
+                              key={p.id}
+                              onClick={() => selectPromotion(p)}
+                              className="w-full flex items-center justify-between px-4 py-3 hover:bg-white/5 text-left transition-colors border-b border-white/5 last:border-b-0"
+                            >
+                              <div>
+                                <p className="text-sm font-medium text-gray-200">{p.name || p.title}</p>
+                                <p className="text-[11px] text-gray-500">{p.discount ? `${p.discount}%` : p.slug || ''}</p>
+                              </div>
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                p.isActive ? 'bg-green-500/10 text-green-400' :
+                                'bg-white/10 text-gray-400'
+                              }`}>
+                                {p.isActive ? 'Đang chạy' : 'Không hoạt động'}
+                              </span>
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  {form.promotionSlug && (
+                    <p className="text-[10px] text-gray-600 mt-1">URL: /khuyen-mai/{form.promotionSlug}</p>
+                  )}
                 </div>
               )}
 
@@ -408,12 +543,12 @@ const AdminBanners = () => {
                 <div>
                   <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">Bắt đầu</label>
                   <input type="datetime-local" value={form.startAt} onChange={(e) => setForm((p) => ({ ...p, startAt: e.target.value }))}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-xs text-gray-200 focus:outline-none focus:border-red-500/50" />
+                    className="w-full bg-[#1a1d2e] border border-white/10 rounded-xl px-3 py-2.5 text-xs text-gray-200 focus:outline-none focus:border-red-500/50" />
                 </div>
                 <div>
                   <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">Kết thúc</label>
                   <input type="datetime-local" value={form.endAt} onChange={(e) => setForm((p) => ({ ...p, endAt: e.target.value }))}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-xs text-gray-200 focus:outline-none focus:border-red-500/50" />
+                    className="w-full bg-[#1a1d2e] border border-white/10 rounded-xl px-3 py-2.5 text-xs text-gray-200 focus:outline-none focus:border-red-500/50" />
                 </div>
               </div>
 
