@@ -12,7 +12,7 @@ import productService from '../services/productService';
 
 export const Home = () => {
   useEffect(() => {
-    document.title = 'HHShop - Điện thoại & Phụ kiện chính hãng';
+    document.title = 'HHShop - Điện thoại chính hãng';
     window.scrollTo(0, 0);
   }, []);
 
@@ -132,12 +132,22 @@ export const Home = () => {
             Đội ngũ chuyên gia của chúng tôi luôn sẵn sàng giúp bạn chọn được chiếc điện thoại ưng ý nhất với mức giá tốt nhất.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center relative z-10">
-            <button className="bg-white text-slate-900 px-10 py-4 rounded-2xl font-black hover:bg-orange-500 hover:text-white transition-all shadow-xl">
-              Gọi ngay: 1800.xxxx
-            </button>
-            <button className="bg-slate-800 text-white border border-slate-700 px-10 py-4 rounded-2xl font-black hover:bg-slate-700 transition-all">
+            <a
+              href="https://zalo.me/0866093546"
+              target="_blank"
+              className="bg-white text-slate-900 px-10 py-4 rounded-2xl font-black hover:bg-orange-500 hover:text-white transition-all shadow-xl text-center"
+            >
+              Gọi ngay: 0866093546
+            </a>
+
+            <a
+              href="https://zalo.me/0866093546"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="bg-slate-800 text-white border border-slate-700 px-10 py-4 rounded-2xl font-black hover:bg-slate-700 transition-all text-center"
+            >
               Chat với tư vấn viên
-            </button>
+            </a>
           </div>
         </div>
       </section>

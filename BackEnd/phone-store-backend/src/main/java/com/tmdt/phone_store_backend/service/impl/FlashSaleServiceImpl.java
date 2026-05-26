@@ -22,12 +22,19 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class FlashSaleServiceImpl implements FlashSaleService {
+
+    private static final ZoneId VIETNAM_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
+
+    private LocalDateTime now() {
+        return LocalDateTime.now(VIETNAM_ZONE);
+    }
 
     private final FlashSaleCampaignRepository campaignRepository;
     private final FlashSaleSessionRepository sessionRepository;
@@ -39,7 +46,7 @@ public class FlashSaleServiceImpl implements FlashSaleService {
 
     @Override
     public FlashSaleResponseDto getPublicFlashSaleData() {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = now();
 
         List<FlashSaleCampaign> activeCampaigns = campaignRepository.findAllActiveCampaigns(now);
 
@@ -79,7 +86,7 @@ public class FlashSaleServiceImpl implements FlashSaleService {
 
     @Override
     public List<FlashSaleCampaignDto> getActiveCampaigns() {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = now();
         List<FlashSaleCampaign> campaigns = campaignRepository.findAllActiveCampaigns(now);
         return campaigns.stream()
                 .map(this::toCampaignDtoWithSessions)
@@ -90,7 +97,18 @@ public class FlashSaleServiceImpl implements FlashSaleService {
     public FlashSaleSessionDto getSessionById(Long sessionId) {
         FlashSaleSession session = sessionRepository.findById(sessionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy session: " + sessionId));
-        return toSessionDtoWithProducts(session);
+
+        // Calculate session number based on its position in the campaign
+        List<FlashSaleSession> allSessions = sessionRepository.findByCampaignIdOrderByStartAtAsc(session.getCampaign().getId());
+        int sessionNumber = 1;
+        for (int i = 0; i < allSessions.size(); i++) {
+            if (allSessions.get(i).getId().equals(sessionId)) {
+                sessionNumber = i + 1;
+                break;
+            }
+        }
+
+        return toSessionDtoWithProducts(session, sessionNumber);
     }
 
     // ==================== CAMPAIGN ADMIN APIs ====================
@@ -107,6 +125,9 @@ public class FlashSaleServiceImpl implements FlashSaleService {
     @Transactional
     public FlashSaleCampaignDto createCampaign(CreateCampaignRequestDto request) {
         validateCampaignDates(request.getStartAt(), request.getEndAt());
+
+        log.info("Creating campaign - title: {}, startAt: {}, endAt: {}, now: {}", 
+                request.getTitle(), request.getStartAt(), request.getEndAt(), now());
 
         FlashSaleCampaign campaign = FlashSaleCampaign.builder()
                 .title(request.getTitle())
@@ -177,8 +198,9 @@ public class FlashSaleServiceImpl implements FlashSaleService {
         if (!campaignRepository.existsById(campaignId)) {
             throw new ResourceNotFoundException("Không tìm thấy campaign: " + campaignId);
         }
-        return sessionRepository.findByCampaignIdOrderByStartAtAsc(campaignId).stream()
-                .map(this::toSessionDtoWithProducts)
+        List<FlashSaleSession> sessions = sessionRepository.findByCampaignIdOrderByStartAtAsc(campaignId);
+        return IntStream.range(0, sessions.size())
+                .mapToObj(i -> toSessionDtoWithProducts(sessions.get(i), i + 1))
                 .collect(Collectors.toList());
     }
 
@@ -198,8 +220,13 @@ public class FlashSaleServiceImpl implements FlashSaleService {
                 .build();
 
         FlashSaleSession saved = sessionRepository.save(session);
+
+        // Calculate session number (new session is always the last one)
+        List<FlashSaleSession> allSessions = sessionRepository.findByCampaignIdOrderByStartAtAsc(campaign.getId());
+        int sessionNumber = allSessions.size();
+
         log.info("Created flash sale session for campaign {} (ID: {})", campaign.getTitle(), saved.getId());
-        return toSessionDtoWithProducts(saved);
+        return toSessionDtoWithProducts(saved, sessionNumber);
     }
 
     @Override
@@ -215,8 +242,19 @@ public class FlashSaleServiceImpl implements FlashSaleService {
         session.updateStatus();
 
         FlashSaleSession saved = sessionRepository.save(session);
+
+        // Calculate session number based on current position in campaign
+        List<FlashSaleSession> allSessions = sessionRepository.findByCampaignIdOrderByStartAtAsc(session.getCampaign().getId());
+        int sessionNumber = 1;
+        for (int i = 0; i < allSessions.size(); i++) {
+            if (allSessions.get(i).getId().equals(id)) {
+                sessionNumber = i + 1;
+                break;
+            }
+        }
+
         log.info("Updated flash sale session ID: {}", id);
-        return toSessionDtoWithProducts(saved);
+        return toSessionDtoWithProducts(saved, sessionNumber);
     }
 
     @Override
@@ -232,7 +270,7 @@ public class FlashSaleServiceImpl implements FlashSaleService {
     @Override
     @Transactional
     public void updateSessionStatuses() {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = now();
 
         int updatedRunning = sessionRepository.updateRunningSessions(now, SessionStatus.RUNNING);
         int updatedEnded = sessionRepository.updateEndedSessions(now);
@@ -402,11 +440,16 @@ public class FlashSaleServiceImpl implements FlashSaleService {
     // ==================== MAPPING METHODS ====================
 
     private FlashSaleCampaignDto toCampaignDtoWithSessions(FlashSaleCampaign campaign) {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = now();
+
+        log.debug("Mapping campaign {} - startAt: {}, endAt: {}, now: {}", 
+                campaign.getTitle(), campaign.getStartAt(), campaign.getEndAt(), now);
 
         boolean isRunning = !now.isBefore(campaign.getStartAt()) && !now.isAfter(campaign.getEndAt());
         boolean isEnded = now.isAfter(campaign.getEndAt());
         boolean isUpcoming = now.isBefore(campaign.getStartAt());
+
+        log.debug("Campaign status - isRunning: {}, isEnded: {}, isUpcoming: {}", isRunning, isEnded, isUpcoming);
 
         long remainingSeconds = 0;
         if (isUpcoming) {
@@ -416,9 +459,12 @@ public class FlashSaleServiceImpl implements FlashSaleService {
         }
 
         List<FlashSaleSession> sessions = campaign.getSessions();
-        List<FlashSaleSessionDto> sessionDtos = sessions != null
-                ? sessions.stream().map(this::toSessionDtoWithProducts).collect(Collectors.toList())
-                : new ArrayList<>();
+        List<FlashSaleSessionDto> sessionDtos = new ArrayList<>();
+        if (sessions != null) {
+            for (int i = 0; i < sessions.size(); i++) {
+                sessionDtos.add(toSessionDtoWithProducts(sessions.get(i), i + 1));
+            }
+        }
 
         return FlashSaleCampaignDto.builder()
                 .id(campaign.getId())
@@ -435,8 +481,8 @@ public class FlashSaleServiceImpl implements FlashSaleService {
                 .build();
     }
 
-    private FlashSaleSessionDto toSessionDtoWithProducts(FlashSaleSession session) {
-        LocalDateTime now = LocalDateTime.now();
+    private FlashSaleSessionDto toSessionDtoWithProducts(FlashSaleSession session, int sessionNumber) {
+        LocalDateTime now = now();
 
         boolean isRunning = !now.isBefore(session.getStartAt()) && !now.isAfter(session.getEndAt());
         boolean isEnded = now.isAfter(session.getEndAt());
@@ -457,6 +503,7 @@ public class FlashSaleServiceImpl implements FlashSaleService {
         return FlashSaleSessionDto.builder()
                 .id(session.getId())
                 .campaignId(session.getCampaign().getId())
+                .sessionNumber(sessionNumber)
                 .startAt(session.getStartAt())
                 .endAt(session.getEndAt())
                 .status(session.getStatus().name())
@@ -556,7 +603,7 @@ public class FlashSaleServiceImpl implements FlashSaleService {
     }
 
     private SessionStatus determineSessionStatus(LocalDateTime startAt, LocalDateTime endAt) {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = now();
         if (now.isBefore(startAt)) {
             return SessionStatus.UPCOMING;
         } else if (!now.isAfter(endAt)) {

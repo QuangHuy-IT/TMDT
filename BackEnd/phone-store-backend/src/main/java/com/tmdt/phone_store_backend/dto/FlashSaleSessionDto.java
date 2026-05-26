@@ -13,6 +13,7 @@ public class FlashSaleSessionDto {
 
     private Long id;
     private Long campaignId;
+    private Integer sessionNumber;
     private LocalDateTime startAt;
     private LocalDateTime endAt;
     private String status;

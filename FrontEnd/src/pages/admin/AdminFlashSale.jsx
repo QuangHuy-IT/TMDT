@@ -1,20 +1,61 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import AdminService from '../../services/adminService';
 
+const DATETIME_LOCAL_RE = /^(\d{4})-(\d{2})-(\d{2})[T\s](\d{2}):(\d{2})(?::(\d{2}))?/;
+
+const pad = (n) => String(n).padStart(2, '0');
+
+const parseLocalDateTime = (value) => {
+  if (!value) return null;
+
+  if (value instanceof Date) {
+    return new Date(value.getTime());
+  }
+
+  if (typeof value === 'string') {
+    const match = value.match(DATETIME_LOCAL_RE);
+    if (match) {
+      const [, year, month, day, hour, minute, second = '0'] = match;
+      return new Date(
+        Number(year),
+        Number(month) - 1,
+        Number(day),
+        Number(hour),
+        Number(minute),
+        Number(second),
+        0
+      );
+    }
+  }
+
+  const fallback = new Date(value);
+  return Number.isNaN(fallback.getTime()) ? null : fallback;
+};
+
 const toDatetimeLocal = (dt) => {
   if (!dt) return '';
-  const d = dt instanceof Date ? dt : new Date(dt);
-  const pad = (n) => String(n).padStart(2, '0');
+  if (typeof dt === 'string') {
+    const match = dt.match(DATETIME_LOCAL_RE);
+    if (match) {
+      const [, year, month, day, hour, minute] = match;
+      return `${year}-${month}-${day}T${hour}:${minute}`;
+    }
+  }
+
+  const d = parseLocalDateTime(dt);
+  if (!d) return '';
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
 
 const nowDatetimeLocal = () => {
   const d = new Date();
-  const pad = (n) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
 
-const toISO = (val) => val ? new Date(val).toISOString() : null;
+const toISO = (val) => {
+  const normalized = toDatetimeLocal(val);
+  return normalized ? `${normalized}:00` : null;
+};
 
 const statusColor = (s) => {
   const map = {
@@ -38,6 +79,21 @@ const statusLabel = (s) => {
     HIDDEN:    'Đã ẩn',
   };
   return map[s] || s;
+};
+
+const getCampaignStatus = (campaign) => {
+  const startAt = parseLocalDateTime(campaign?.startAt);
+  const endAt = parseLocalDateTime(campaign?.endAt);
+
+  if (!startAt || !endAt) {
+    return 'ENDED';
+  }
+
+  const now = new Date().getTime();
+
+  if (now < startAt.getTime()) return 'UPCOMING';
+  if (now <= endAt.getTime()) return 'RUNNING';
+  return 'ENDED';
 };
 
 const TABS = [
@@ -669,9 +725,9 @@ const AdminFlashSale = () => {
   };
 
   // ── Render ────────────────────────────────────────────────────────────────
-  const runningCampaigns  = campaigns.filter((c) => c.isRunning);
-  const upcomingCampaigns = campaigns.filter((c) => c.isUpcoming);
-  const endedCampaigns    = campaigns.filter((c) => c.isEnded);
+  const runningCampaigns  = campaigns.filter((c) => getCampaignStatus(c) === 'RUNNING');
+  const upcomingCampaigns = campaigns.filter((c) => getCampaignStatus(c) === 'UPCOMING');
+  const endedCampaigns    = campaigns.filter((c) => getCampaignStatus(c) === 'ENDED');
 
   return (
     <div className="space-y-6">
@@ -775,8 +831,8 @@ const AdminFlashSale = () => {
                         <p className="text-xs text-gray-500">→ {toDatetimeLocal(c.endAt).replace('T', ' ')}</p>
                       </td>
                       <td className="px-6 py-4 text-center">
-                        <span className={`text-[11px] font-bold px-2 py-1 rounded-full ${statusColor(c.isRunning ? 'RUNNING' : c.isUpcoming ? 'UPCOMING' : 'ENDED')}`}>
-                          {c.isRunning ? 'Đang chạy' : c.isUpcoming ? 'Sắp tới' : 'Đã kết thúc'}
+                        <span className={`text-[11px] font-bold px-2 py-1 rounded-full ${statusColor(getCampaignStatus(c))}`}>
+                          {statusLabel(getCampaignStatus(c))}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-center">
@@ -872,7 +928,7 @@ const AdminFlashSale = () => {
                     {sessions.map((s) => (
                       <tr key={s.id} className="border-b border-white/[0.03] hover:bg-white/[0.02] transition-colors">
                         <td className="px-6 py-4">
-                          <p className="text-sm font-medium text-white">Phiên #{s.id}</p>
+                          <p className="text-sm font-medium text-white">Phiên #{s.sessionNumber || s.id}</p>
                         </td>
                         <td className="px-6 py-4 hidden md:table-cell">
                           <p className="text-xs text-gray-400">{toDatetimeLocal(s.startAt).replace('T', ' ')}</p>
@@ -957,7 +1013,7 @@ const AdminFlashSale = () => {
                     <option value="">-- Chọn phiên --</option>
                     {sessions.map((s) => (
                       <option key={s.id} value={s.id}>
-                        #{s.id} - {statusLabel(s.status)} ({toDatetimeLocal(s.startAt).replace('T', ' ')})
+                        #{s.sessionNumber || s.id} - {statusLabel(s.status)} ({toDatetimeLocal(s.startAt).replace('T', ' ')})
                       </option>
                     ))}
                   </select>
