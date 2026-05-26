@@ -5,6 +5,7 @@ import com.tmdt.phone_store_backend.domain.entity.ProductSeries;
 import com.tmdt.phone_store_backend.dto.ProductSeriesDto;
 import com.tmdt.phone_store_backend.repository.BrandRepository;
 import com.tmdt.phone_store_backend.repository.ProductSeriesRepository;
+import com.tmdt.phone_store_backend.service.SeriesService;
 import jakarta.validation.Valid;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -28,6 +29,7 @@ public class AdminSeriesController {
 
     private final ProductSeriesRepository seriesRepository;
     private final BrandRepository brandRepository;
+    private final SeriesService seriesService;
 
     @GetMapping
     public ResponseEntity<List<ProductSeriesDto>> getAllSeries() {
@@ -99,10 +101,7 @@ public class AdminSeriesController {
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteSeries(@PathVariable Long id) {
-        if (!seriesRepository.existsById(id)) {
-            throw new RuntimeException("Series not found with id: " + id);
-        }
-        seriesRepository.deleteById(id);
+        seriesService.deleteSeries(id);
         return ResponseEntity.noContent().build();
     }
 

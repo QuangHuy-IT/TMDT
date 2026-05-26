@@ -1,19 +1,13 @@
 package com.tmdt.phone_store_backend.repository;
 
 import com.tmdt.phone_store_backend.domain.entity.Product;
-import java.util.List;
-import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
 
 public interface ProductRepository extends JpaRepository<Product, Long> {
 
@@ -32,4 +26,14 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     List<String> findDistinctNamesContaining(@Param("query") String query);
 
     List<Product> findBySeriesIdAndDeletedAtIsNullOrderByCreatedAtDesc(Long seriesId);
+
+    List<Product> findByBrandIdAndDeletedAtIsNull(Long brandId);
+
+    @Modifying
+    @Query("UPDATE Product p SET p.brand = NULL WHERE p.brand.id = :brandId AND p.deletedAt IS NULL")
+    void clearBrandFromProducts(@Param("brandId") Long brandId);
+
+    @Modifying
+    @Query("UPDATE Product p SET p.series = NULL WHERE p.series.id = :seriesId AND p.deletedAt IS NULL")
+    void clearSeriesFromProducts(@Param("seriesId") Long seriesId);
 }

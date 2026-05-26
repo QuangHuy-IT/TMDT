@@ -6,6 +6,7 @@ import com.tmdt.phone_store_backend.dto.BrandRequestDto;
 import com.tmdt.phone_store_backend.exception.ResourceAlreadyExistsException;
 import com.tmdt.phone_store_backend.exception.ResourceNotFoundException;
 import com.tmdt.phone_store_backend.repository.BrandRepository;
+import com.tmdt.phone_store_backend.service.BrandService;
 import jakarta.validation.Valid;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -28,6 +29,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class AdminBrandController {
 
     private final BrandRepository brandRepository;
+    private final BrandService brandService;
 
     @GetMapping
     public ResponseEntity<List<BrandDto>> getAllBrands() {
@@ -122,10 +124,7 @@ public class AdminBrandController {
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteBrand(@PathVariable Long id) {
-        if (!brandRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Brand not found with id: " + id);
-        }
-        brandRepository.deleteById(id);
+        brandService.deleteBrand(id);
         return ResponseEntity.noContent().build();
     }
 
