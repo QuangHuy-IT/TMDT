@@ -4,6 +4,7 @@ import { ShopContext } from '../context/ShopContext';
 import ProductService from '../services/productService';
 import ReviewSection from '../components/review/ReviewSection';
 import QuestionSection from '../components/question/QuestionSection';
+import { ProductSpecificationsTab } from '../components/product/ProductSpecificationsTab';
 
 const inferColorHex = (value) => {
   const normalized = String(value || '')
@@ -73,6 +74,8 @@ const normalizeProduct = (raw) => {
     stock: totalStock,
     specifications: raw.specifications && typeof raw.specifications === 'object'
       ? raw.specifications : {},
+    groupedSpecifications: raw.groupedSpecifications && typeof raw.groupedSpecifications === 'object'
+      ? raw.groupedSpecifications : {},
     allVariants,
     variantOptions,
     selectedVariant,
@@ -167,6 +170,14 @@ export const ProductDetail = () => {
     if (product?.stock != null) return Math.max(1, Number(product.stock));
     return 1;
   }, [selectedVariant, product]);
+
+  // Original price (before discount)
+  const originalPrice = useMemo(() => {
+    if (selectedVariant?.compareAtPrice != null) return Number(selectedVariant.compareAtPrice);
+    if (product?.originalPrice != null) return Number(product.originalPrice);
+    if (selectedVariant?.price != null) return Number(selectedVariant.price);
+    return 0;
+  }, [product, selectedVariant]);
 
   // Available colors for the selected variant's storage
   const availableColors = useMemo(() => {
@@ -535,19 +546,12 @@ export const ProductDetail = () => {
               </div>
             )}
 
-            {/* Specifications */}
-            {Object.keys(product.specifications || {}).length > 0 && (
-              <div className="rounded-2xl border border-gray-100 bg-white p-4">
-                <h2 className="mb-3 text-sm font-black uppercase tracking-wide text-gray-900">Thông số kỹ thuật</h2>
-                <div className="space-y-2">
-                  {Object.entries(product.specifications).map(([key, value]) => (
-                    <div key={key} className="flex justify-between gap-4 border-b border-gray-100 pb-2 text-sm last:border-0 last:pb-0">
-                      <span className="text-gray-500">{key}</span>
-                      <span className="text-right font-medium text-gray-800">{String(value || '')}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
+            {/* Specifications — CellphoneS-style tabbed */}
+            {(Object.keys(product.specifications || {}).length > 0 || Object.keys(product.groupedSpecifications || {}).length > 0) && (
+              <ProductSpecificationsTab
+                groupedSpecifications={product.groupedSpecifications}
+                specifications={product.specifications}
+              />
             )}
           </section>
         </div>

@@ -596,9 +596,19 @@ public class ProductAdminService {
 
         List<ProductImage> images = productImageRepository.findByProductIdOrderBySortOrderAscIdAsc(product.getId());
         Map<String, String> specs = new HashMap<>();
+        Map<String, Map<String, String>> groupedSpecs = new LinkedHashMap<>();
         for (ProductSpecification specification : productSpecificationRepository
                 .findByProductIdOrderBySortOrderAscIdAsc(product.getId())) {
             specs.put(specification.getSpecKey(), specification.getSpecValue());
+
+            String category = specification.getSpecCategory();
+            if (category != null && !category.isBlank()) {
+                groupedSpecs.computeIfAbsent(category, k -> new LinkedHashMap<>())
+                        .put(specification.getSpecKey(), specification.getSpecValue());
+            } else {
+                groupedSpecs.computeIfAbsent("Khác", k -> new LinkedHashMap<>())
+                        .put(specification.getSpecKey(), specification.getSpecValue());
+            }
         }
 
         AdminProductVariantDto selectedDto = selectedVariant != null
@@ -638,6 +648,7 @@ public class ProductAdminService {
         dto.setThumbnailUrl(product.getThumbnailUrl());
         dto.setImages(images.stream().map(ProductImage::getImageUrl).toList());
         dto.setSpecifications(specs);
+        dto.setGroupedSpecifications(groupedSpecs);
         dto.setVariantOptions(variantOptions);
         dto.setVariants(variantDtos);
         dto.setSelectedVariant(selectedDto);
@@ -964,9 +975,14 @@ public class ProductAdminService {
                         .replaceAll("(^-|-$)", "");
         if (baseSlug.isBlank()) baseSlug = "san-pham";
 
-        // For product slug, we use the product name as identifier
-        // URL: /products/{variantSlug} where variantSlug contains product slug as prefix
-        return baseSlug;
+        // Ensure uniqueness — append timestamp suffix if slug already exists
+        String finalSlug = baseSlug;
+        int counter = 1;
+        while (productRepository.findBySlugAndDeletedAtIsNull(finalSlug).isPresent()) {
+            finalSlug = baseSlug + "-" + counter;
+            counter++;
+        }
+        return finalSlug;
     }
 
     private String getStorageLabel(ProductVariant variant) {
@@ -1177,12 +1193,31 @@ public class ProductAdminService {
             spec.setProduct(product);
             spec.setSpecKey(entry.getKey());
             spec.setSpecValue(entry.getValue().trim());
+            spec.setSpecCategory(categorizeSpecKey(entry.getKey()));
             spec.setSortOrder(i++);
             spec.setCreatedAt(now);
             spec.setUpdatedAt(now);
             specifications.add(spec);
         }
         if (!specifications.isEmpty()) productSpecificationRepository.saveAll(specifications);
+    }
+
+    /**
+     * Auto-categorize specification key to a CellphoneS-style category.
+     */
+    private String categorizeSpecKey(String key) {
+        if (key == null) return "Khác";
+        String lower = key.toLowerCase();
+        if (lower.matches(".*(m[àáạảãâầấậẩẫăằắặẳẵ]|screen|monitor|display|lcd|oled|amoled|尺寸|屏幕).*")) return "Màn hình";
+        if (lower.matches(".*(camera|chup anh|quay video|mp|megapixel|ois|ois|zoom| telephoto|wide|ultra wide|góc).*")) return "Camera";
+        if (lower.matches(".*(cpu|chip|processor|ram|bộ nhớ ram|gpu|vi xử lý|a\\d+|snapdragon|exynos|mediatek|tensor).*")) return "CPU & RAM";
+        if (lower.matches(".*(pin|battery|sạc|charging| mah|wh|giờ|charger|magsafe|wireless).*")) return "Pin & Sạc";
+        if (lower.matches(".*(wifi|wifi|bluetooth|nfc|usb|cổng|gps|jack|thunderbolt|usb-c|usb 3).*")) return "Kết nối";
+        if (lower.matches(".*(5g|4g|lte|sim|esim|nano|băng tần|mạng|carrier).*")) return "Mạng & Di động";
+        if (lower.matches(".*(ios|android|hệ điều hành|os|phone os|software).*")) return "Hệ điều hành";
+        if (lower.matches(".*(thiết kế|design|kích thước|trọng lượng|weight|size|cao|rộng|dày|mm|gram|chất liệu|mặt kính|vỏ|khung|màu).*")) return "Thiết kế";
+        if (lower.matches(".*(bảo mật|security|face id|touch id|vân tay|fingerprint|encrypted|mã hóa).*")) return "Bảo mật";
+        return "Khác";
     }
 
     private Brand getOrCreateBrand(String brandName) {

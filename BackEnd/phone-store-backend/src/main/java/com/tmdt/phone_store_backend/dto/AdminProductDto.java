@@ -52,6 +52,12 @@ public class AdminProductDto {
     private Map<String, String> specifications;
 
     /**
+     * Thông số kỹ thuật theo nhóm (CellphoneS-style).
+     * Key = tên nhóm (Màn hình, Camera, CPU & RAM, ...), Value = Map&lt;key, value&gt;.
+     */
+    private Map<String, Map<String, String>> groupedSpecifications;
+
+    /**
      * Tất cả variants của sản phẩm này.
      * Dùng cho trang chi tiết (hiển thị các phiên bản) và trang listing (filter theo storage).
      */
