@@ -44,7 +44,7 @@ const emptyForm = {
   specifications: {
     screen: '', cpu: '', battery: '', camera: '', os: '', connectivity: '',
   },
-  variants: [], // [{id, color, storageLabel, ramGb, price, stock, colorImageUrl}]
+  variants: [], // [{id, color, storageLabel, ramGb, price, costPrice, stock, colorImageUrl}]
 };
 
 import { TiptapEditor } from '../../components/ui/RichTextEditor';
@@ -55,6 +55,7 @@ const createEmptyVariant = () => ({
   storageLabel: '',
   ramGb: '',
   price: '',
+  costPrice: '',
   stock: '',
   colorImageUrl: '',
 });
@@ -79,6 +80,19 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
   const [brandSearch, setBrandSearch] = useState('');
   const [showBrandDropdown, setShowBrandDropdown] = useState(false);
   const [loadingBrands, setLoadingBrands] = useState(false);
+  const brandDropdownRef = useRef(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    if (!showBrandDropdown) return;
+    const handleClick = (e) => {
+      if (brandDropdownRef.current && !brandDropdownRef.current.contains(e.target)) {
+        setShowBrandDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [showBrandDropdown]);
 
   const [seriesList, setSeriesList] = useState([]);
   const [showSeriesInput, setShowSeriesInput] = useState(false);
@@ -91,7 +105,6 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
       setShowBrandDropdown(false);
       return;
     }
-    setShowBrandDropdown(true);
     setLoadingBrands(true);
     const timer = setTimeout(() => {
       setLoadingBrands(false);
@@ -100,7 +113,7 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
   }, [brandSearch]);
 
   const filteredBrands = brands.filter((b) =>
-    b.name?.toLowerCase().includes(brandSearch.toLowerCase())
+    !brandSearch || b.name?.toLowerCase().includes(brandSearch.toLowerCase())
   );
 
   const fileInputRef = useRef(null);
@@ -158,6 +171,7 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
             storageLabel: v.storageLabel || '',
             ramGb: v.ramGb ?? '',
             price: v.price ?? '',
+            costPrice: v.costPrice ?? '',
             stock: v.stock ?? '',
             colorImageUrl: v.colorImageUrl || '',
           })),
@@ -377,6 +391,7 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
           storageGb: parseStorageToNumber(label),
           ramGb: v.ramGb ? Number(v.ramGb) : null,
           price: Number(v.price || 0),
+          costPrice: Number(v.costPrice || 0),
           stock: Number(v.stock || 0),
           colorImageUrl: v.colorImageUrl || null,
         };
@@ -425,9 +440,7 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
             <h2 className="text-lg font-black text-white">
               {editingProduct ? 'Chỉnh sửa sản phẩm' : 'Thêm sản phẩm mới'}
             </h2>
-            <p className="text-xs text-gray-500 mt-0.5">
-              {editingProduct ? `ID: ${editingProduct._id || editingProduct.id}` : '1 sản phẩm = N phiên bản (RAM/storage khác nhau)'}
-            </p>
+            
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -444,13 +457,11 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
 
       {/* Body */}
       <div className="flex-1 overflow-y-auto">
-        <div className="max-w-[1400px] mx-auto px-6 py-8 grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-8">
-
-          {/* Left Column */}
+        <div className="max-w-[1000px] mx-auto px-6 py-8">
           <div className="space-y-8">
 
-            {/* Basic Info */}
-            <section className="bg-[#13151e] border border-white/5 rounded-2xl p-6 space-y-5">
+          {/* Basic Info */}
+          <section className="bg-[#13151e] border border-white/5 rounded-2xl p-6 space-y-5">
               <h3 className="text-sm font-black text-white uppercase tracking-wider">Thông tin cơ bản</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
@@ -463,35 +474,33 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
                     placeholder="VD: iPhone 17 Pro Max"
                     onChange={(e) => updateForm({ name: e.target.value })}
                     className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-red-500/50 transition-all" />
-                  <p className="text-[10px] text-gray-600 mt-1">
-                    Tên chung cho tất cả phiên bản. Mỗi phiên bản = 1 variant riêng trong CSDL.
-                  </p>
+                  
                 </div>
 
                 {/* Brand */}
                 <div>
                   <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">Thương hiệu *</label>
                   {!showBrandInput ? (
-                    <div className="relative">
-                      <input
-                        type="text"
-                        value={brandSearch || form.brand}
-                        onChange={(e) => {
-                          setBrandSearch(e.target.value);
-                          updateForm({ brand: e.target.value });
-                        }}
-                        onFocus={() => {
-                          setBrandSearch(form.brand || '');
-                          setShowBrandDropdown(true);
-                        }}
-                        placeholder="Gõ tên thương hiệu để tìm..."
-                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-red-500/50 transition-all"
-                      />
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={brandSearch || form.brand}
+                          onChange={(e) => {
+                            setBrandSearch(e.target.value);
+                            updateForm({ brand: e.target.value });
+                          }}
+                          onFocus={() => {
+                            setBrandSearch(form.brand || '');
+                            setShowBrandDropdown(true);
+                          }}
+                          placeholder="Gõ tên thương hiệu để tìm..."
+                          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-red-500/50 transition-all"
+                        />
                       {showBrandDropdown && (
-                        <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl max-h-60 overflow-y-auto shadow-xl">
+                        <div ref={brandDropdownRef} className="absolute z-20 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl max-h-60 overflow-y-auto shadow-xl">
                           {loadingBrands ? (
                             <div className="px-4 py-3 text-sm text-gray-500">Đang tìm...</div>
-                          ) : filteredBrands.length === 0 && brandSearch ? (
+                          ) : filteredBrands.length === 0 && !form.brand ? (
                             <div className="px-4 py-3 text-sm text-gray-500">
                               Không tìm thấy thương hiệu nào.{' '}
                               <button onClick={() => { setShowBrandDropdown(false); setShowBrandInput(true); setNewBrandName(brandSearch); }}
@@ -509,6 +518,7 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
                                   updateForm({ brand: b.name });
                                   setBrandSearch(b.name);
                                   setShowBrandDropdown(false);
+                                  setBrandDropdownInteracting(false);
                                 }}
                                 className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-100 text-left transition-colors border-b border-gray-100 last:border-b-0"
                               >
@@ -519,9 +529,7 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
                           )}
                         </div>
                       )}
-                      {form.brand && (
-                        <p className="text-[10px] text-green-400 mt-1">✓ Đã chọn: {form.brand}</p>
-                      )}
+                      
                     </div>
                   ) : (
                     <div className="flex gap-2">
@@ -557,7 +565,7 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
                             onChange={(e) => updateForm({ seriesId: e.target.value ? Number(e.target.value) : '' })}
                             className="flex-1 bg-[#1e2030] border border-white/20 rounded-xl px-4 py-3 text-sm text-gray-200 focus:outline-none focus:border-red-500"
                             style={{ color: '#e5e7eb' }}>
-                            <option value="">-- Không thuộc dòng nào --</option>
+                            <option value="">Không thuộc dòng nào</option>
                             {seriesList.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                           </select>
                           <button type="button" onClick={() => setShowSeriesInput(true)}
@@ -673,7 +681,7 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-sm font-black text-white uppercase tracking-wider">Phiên bản</h3>
-                  <p className="text-xs text-gray-500 mt-1">Mỗi phiên bản (RAM/storage) = 1 row trong CSDL.</p>
+
                 </div>
                 <span className="text-xs bg-white/5 text-gray-400 px-3 py-1 rounded-lg">
                   {form.variants.length} phiên bản
@@ -746,14 +754,14 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
                         className="w-7 h-7 rounded-lg border border-red-500/30 text-red-400 text-xs hover:bg-red-500/10 flex items-center justify-center transition-all font-bold">×</button>
                     </div>
                     <div className="grid grid-cols-12 gap-2">
-                      <div className="col-span-3">
+                      <div className="col-span-2">
                         <label className="text-[10px] text-gray-500 block mb-1">Màu sắc</label>
                         <input type="text" list="variant-color-presets" value={variant.color || ''}
                           onChange={(e) => updateVariantField(index, 'color', e.target.value)}
                           placeholder="Đen, Bạc..."
                           className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-2 text-xs text-gray-300 placeholder-gray-600 focus:outline-none focus:border-red-500/50" />
                       </div>
-                      <div className="col-span-3">
+                      <div className="col-span-2">
                         <label className="text-[10px] text-gray-500 block mb-1">Dung lượng</label>
                         <input type="text" list="variant-storage-presets" value={variant.storageLabel || ''}
                           onChange={(e) => updateVariantField(index, 'storageLabel', e.target.value)}
@@ -768,11 +776,18 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
                           className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-2 text-xs text-gray-300" />
                       </div>
                       <div className="col-span-2">
-                        <label className="text-[10px] text-gray-500 block mb-1">Giá (VNĐ)</label>
+                        <label className="text-[10px] text-gray-500 block mb-1">Giá nhập (VNĐ)</label>
+                        <input type="number" value={variant.costPrice || ''}
+                          onChange={(e) => updateVariantField(index, 'costPrice', e.target.value)}
+                          placeholder="25000000"
+                          className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-2 text-xs text-gray-300 placeholder-gray-600 focus:outline-none focus:border-red-500/50" />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="text-[10px] text-gray-500 block mb-1">Giá bán (VNĐ)</label>
                         <input type="number" value={variant.price || ''}
                           onChange={(e) => updateVariantField(index, 'price', e.target.value)}
                           placeholder="29990000"
-                          className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-2 text-xs text-gray-300" />
+                          className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-2 text-xs text-gray-300 placeholder-gray-600 focus:outline-none focus:border-red-500/50" />
                       </div>
                       <div className="col-span-2">
                         <label className="text-[10px] text-gray-500 block mb-1">Tồn kho</label>
@@ -845,51 +860,6 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
                 ))}
               </div>
             </section>
-          </div>
-
-          {/* Right Column: Preview */}
-          <div className="lg:block">
-            <div className="sticky top-8">
-              <h3 className="text-xs font-black text-gray-500 uppercase tracking-widest mb-4">Xem trước</h3>
-              <div className="bg-white rounded-2xl overflow-hidden shadow-2xl">
-                <div className="aspect-square bg-gray-50 flex items-center justify-center overflow-hidden">
-                  {form.thumbnailUrl ? (
-                    <img src={form.thumbnailUrl} alt="preview"
-                      className="w-full h-full object-contain"
-                      onError={(e) => { e.target.src = 'https://picsum.photos/seed/preview/400/400'; }} />
-                  ) : form.images.length > 0 ? (
-                    <img src={form.images[0]} alt="preview"
-                      className="w-full h-full object-contain"
-                      onError={(e) => { e.target.src = 'https://picsum.photos/seed/preview/400/400'; }} />
-                  ) : (
-                    <div className="text-center text-gray-300">
-                      <svg className="w-12 h-12 mx-auto mb-2 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <rect x="3" y="3" width="18" height="18" rx="2" />
-                        <circle cx="8.5" cy="8.5" r="1.5" />
-                        <polyline points="21 15 16 10 5 21" />
-                      </svg>
-                      <p className="text-xs">Chưa có ảnh</p>
-                    </div>
-                  )}
-                </div>
-                <div className="p-4 space-y-2">
-                  {form.brand && <p className="text-[10px] text-gray-400 uppercase font-bold tracking-widest">{form.brand}</p>}
-                  <p className="font-bold text-gray-900 text-sm leading-tight">{form.name || 'Tên sản phẩm'}</p>
-                  {form.variants.length > 0 && (
-                    <p className="text-lg font-black text-red-600">
-                      {Number(form.variants.find(v => v.price)?.price || 0).toLocaleString()}₫
-                    </p>
-                  )}
-                  {form.variants.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {[...new Set(form.variants.map(v => v.storageLabel).filter(Boolean))].map(s => (
-                        <span key={s} className="text-[10px] px-2 py-0.5 bg-gray-100 text-gray-600 rounded font-bold">{s}</span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
           </div>
         </div>
       </div>
