@@ -81,6 +81,8 @@ const statusLabel = (s) => {
   return map[s] || s;
 };
 
+const getCampaignActive = (campaign) => Boolean(campaign?.isActive ?? campaign?.active);
+
 const getCampaignStatus = (campaign) => {
   const startAt = parseLocalDateTime(campaign?.startAt);
   const endAt = parseLocalDateTime(campaign?.endAt);
@@ -603,13 +605,13 @@ const AdminFlashSale = () => {
 
   const handleToggleCampaign = async (c) => {
     try {
-      if (c.isActive) {
+      if (getCampaignActive(c)) {
         await AdminService.deactivateFlashSaleCampaign(c.id);
       } else {
         await AdminService.activateFlashSaleCampaign(c.id);
       }
       setCampaigns((p) => p.map((x) =>
-        x.id === c.id ? { ...x, isActive: !x.isActive } : x
+        x.id === c.id ? { ...x, isActive: !getCampaignActive(x), active: !getCampaignActive(x) } : x
       ));
     } catch (e) {
       alert('Cập nhật thất bại');
@@ -811,7 +813,7 @@ const AdminFlashSale = () => {
                     <th className="text-left px-6 py-3 font-medium">Chiến dịch</th>
                     <th className="text-center px-6 py-3 font-medium hidden md:table-cell">Thời gian</th>
                     <th className="text-center px-6 py-3 font-medium">Trạng thái</th>
-                    <th className="text-center px-6 py-3 font-medium">Bật/Tắt</th>
+                    <th className="text-center px-6 py-3 font-medium">Tắt/Bật</th>
                     <th className="text-center px-6 py-3 font-medium">Thao tác</th>
                   </tr>
                 </thead>
@@ -839,11 +841,11 @@ const AdminFlashSale = () => {
                         <button
                           onClick={() => handleToggleCampaign(c)}
                           className={`relative w-11 h-6 rounded-full transition-colors ${
-                            c.isActive ? 'bg-red-600' : 'bg-gray-600'
+                            getCampaignActive(c) ? 'bg-red-600' : 'bg-gray-600'
                           }`}
                         >
                           <span className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${
-                            c.isActive ? 'translate-x-5' : 'translate-x-0'
+                            getCampaignActive(c) ? 'translate-x-5' : 'translate-x-0'
                           }`} />
                         </button>
                       </td>
