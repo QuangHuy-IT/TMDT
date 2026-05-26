@@ -82,6 +82,15 @@ public class ProductAdminService {
                 .toList();
     }
 
+    public AdminProductDto getProductById(Long id) {
+        Product product = productRepository.findByIdAndDeletedAtIsNull(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm: " + id));
+        // Get first active variant as selected
+        List<ProductVariant> variants = productVariantRepository.findByProductIdAndDeletedAtIsNull(id);
+        ProductVariant selectedVariant = !variants.isEmpty() ? variants.get(0) : null;
+        return toDetailDto(product, selectedVariant);
+    }
+
     public List<AdminProductDto> getPublicProducts(String brandSlug, String price,
             String storage, String sort, Integer limit, String seriesSlug) {
         List<Product> products = productRepository.findByDeletedAtIsNullOrderByCreatedAtDesc();
@@ -444,6 +453,13 @@ public class ProductAdminService {
 
         List<ProductImage> images = productImageRepository.findByProductIdOrderBySortOrderAscIdAsc(product.getId());
 
+        // Build flat specs map
+        Map<String, String> specs = new HashMap<>();
+        for (ProductSpecification specification : productSpecificationRepository
+                .findByProductIdOrderBySortOrderAscIdAsc(product.getId())) {
+            specs.put(specification.getSpecKey(), specification.getSpecValue());
+        }
+
         AdminProductDto dto = new AdminProductDto();
         dto.setId(product.getId());
         dto.setVariantId(!variants.isEmpty() ? variants.get(0).getId() : null);
@@ -465,7 +481,9 @@ public class ProductAdminService {
         dto.setIsFeatured(product.getIsFeatured());
         dto.setCreatedAt(product.getCreatedAt());
         dto.setReleaseDate(product.getCreatedAt());
+        dto.setSpecifications(specs);
         dto.setSelectedVariant(!variants.isEmpty() ? toVariantDto(variants.get(0)) : null);
+        dto.setVariants(variantItemDtos);
         dto.setVariantItems(variantItemDtos);
         return dto;
     }
@@ -670,6 +688,7 @@ public class ProductAdminService {
         dto.setRamGb(variant.getRamGb());
         dto.setStorageGb(variant.getStorageGb());
         dto.setPrice(variant.getPrice());
+        dto.setCostPrice(variant.getCostPrice());
         dto.setStock(stock);
         dto.setColorImageUrl(variant.getColorImageUrl());
         return dto;
@@ -765,6 +784,7 @@ public class ProductAdminService {
         variant.setStorageGb(variantReq.getStorageGb());
         variant.setStorageLabel(normalizeStorageLabel(variantReq));
         variant.setPrice(resolveVariantPrice(variantReq, null));
+        variant.setCostPrice(variantReq.getCostPrice());
         variant.setIsActive(Boolean.TRUE);
         variant.setCreatedAt(now);
         variant.setUpdatedAt(now);
@@ -793,6 +813,7 @@ public class ProductAdminService {
         variant.setStorageGb(variantReq.getStorageGb());
         variant.setStorageLabel(normalizeStorageLabel(variantReq));
         variant.setPrice(resolveVariantPrice(variantReq, null));
+        variant.setCostPrice(variantReq.getCostPrice());
         variant.setUpdatedAt(now);
         variant.setColorImageUrl(variantReq.getColorImageUrl());
 

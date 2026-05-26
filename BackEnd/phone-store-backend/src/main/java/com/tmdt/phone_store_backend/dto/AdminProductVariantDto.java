@@ -22,6 +22,7 @@ public class AdminProductVariantDto {
     private Integer ramGb;
     private Integer storageGb;
     private BigDecimal price;
+    private BigDecimal costPrice;
     private Integer stock;
     private BigDecimal compareAtPrice;
     private String colorImageUrl;

@@ -35,6 +35,11 @@ public class AdminProductController {
         return ResponseEntity.ok(productAdminService.getAllProducts());
     }
 
+    @GetMapping("/{id}")
+    public ResponseEntity<AdminProductDto> getProductById(@PathVariable Long id) {
+        return ResponseEntity.ok(productAdminService.getProductById(id));
+    }
+
     @PostMapping
     public ResponseEntity<AdminProductDto> createProduct(
             @Valid @RequestBody AdminProductRequestDto requestDto) {

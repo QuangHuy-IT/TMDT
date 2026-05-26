@@ -68,13 +68,12 @@ const parseSpecsMap = (specMap) => {
 
   if (specMap && typeof specMap === 'object') {
     Object.entries(specMap).forEach(([key, value]) => {
-      if (!key || !value) return;
+      if (!key) return;
       const matchedGroup = SPEC_GROUPS.find(g => g.keys.includes(key));
       if (matchedGroup) {
-        fixed[key] = value;
+        fixed[key] = value || '';
       } else {
-        // Unknown spec → goes to "Khác" extra or new group
-        extra.push({ key, value });
+        extra.push({ key, value: value || '' });
       }
     });
   }
@@ -464,29 +463,9 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
     const fetchProduct = async () => {
       setFetching(true);
       try {
-        // editingProduct has `id` and optionally `selectedVariant?.slug`
         const productId = editingProduct._id || editingProduct.id;
-        // Use the first variant's slug if available, otherwise fetch all products and find one
-        let variantSlug = editingProduct.selectedVariant?.slug;
-        let data;
-
-        if (variantSlug) {
-          const res = await ProductService.getProductDetail(variantSlug);
-          data = res.data;
-        } else {
-          // Fallback: fetch all products and match by id
-          const res = await ProductService.getAdminProducts();
-          const match = (res.data || []).find(p => (p._id || p.id) == productId);
-          if (match?.selectedVariant?.slug) {
-            const detailRes = await ProductService.getProductDetail(match.selectedVariant.slug);
-            data = detailRes.data;
-          } else {
-            // Direct match, build minimal form
-            data = match || {};
-            data.variants = match?.variants || [];
-            data.specifications = match?.specifications || {};
-          }
-        }
+        const res = await ProductService.getAdminProduct(productId);
+        const data = res.data;
 
         setForm({
           name: data.name || '',
@@ -495,8 +474,9 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
           description: data.description || '',
           thumbnailUrl: data.thumbnailUrl || '',
           images: data.images || [],
-          // Parse flat specs → fixed template + extraGroups
-          ...parseSpecsMap(data.specifications),
+          specifications: data.specifications || {},
+          hiddenSpecKeys: [],
+          extraGroups: [],
           variants: (data.variants || []).map(v => ({
             id: v.id || null,
             color: v.color || 'Đen',

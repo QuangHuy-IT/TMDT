@@ -2,6 +2,7 @@ import api from '../api/axiosInstance';
 
 const ProductService = {
   getAdminProducts: () => api.get('/admin/products'),
+  getAdminProduct: (id) => api.get(`/admin/products/${id}`),
   getAdminInventoryProducts: () => api.get('/admin/inventory/products'),
   adjustInventory: (productId, payload) => api.put(`/admin/inventory/${productId}/adjust`, payload),
   batchAdjustInventory: (payload) => api.post('/admin/inventory/adjust', payload),
