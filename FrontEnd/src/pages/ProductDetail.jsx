@@ -136,7 +136,7 @@ export const ProductDetail = () => {
             navigate(`/products/${targetVariant.slug}`, { replace: true });
           }
         }
-      } catch (e) {
+      } catch {
         if (!mounted) return;
         setError('Không tải được thông tin sản phẩm.');
         setProduct(null);
@@ -259,6 +259,8 @@ export const ProductDetail = () => {
       payload: {
         ...product,
         variantId: selectedVariant?.id || null,
+        slug: selectedVariant?.slug || slug || product.slug || product.productSlug || '',
+        variantSlug: selectedVariant?.slug || '',
         id: String(product.id),
         quantity,
         price: currentPrice,

@@ -13,7 +13,12 @@ import { Link } from 'react-router-dom';
 const CartItem = ({ item, checked, onToggle, onQtyChange, onRemove }) => {
   const thumbnail = item.images?.[0] || item.image || 'https://picsum.photos/80';
   const subtotal  = item.price * item.quantity;
-  const productSlug = item.slug || item._id || item.id;
+  const productSlug = item.slug
+    || item.variantSlug
+    || item.selectedVariant?.slug
+    || item.productSlug
+    || item._id
+    || item.id;
 
   const handleQty = (delta) => {
     const next = item.quantity + delta;
