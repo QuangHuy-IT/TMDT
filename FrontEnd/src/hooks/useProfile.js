@@ -21,6 +21,7 @@ export const useProfile = () => {
       const res = await UserService.getProfile();
       const data = res.data;
       setProfile(data);
+      dispatch({ type: 'UPDATE_USER', payload: data });
       setPersonalForm({
         fullName: data.fullName || '',
         phone: data.phone || '',

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Modal } from '../ui/Modal';
 
 const CameraIcon = () => (
@@ -14,6 +14,13 @@ export const AvatarModal = ({ isOpen, currentAvatar, onClose, onSave }) => {
   const [selectedFile, setSelectedFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setPreview(currentAvatar);
+    setSelectedFile(null);
+    setError('');
+  }, [currentAvatar, isOpen]);
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
@@ -51,7 +58,8 @@ export const AvatarModal = ({ isOpen, currentAvatar, onClose, onSave }) => {
       });
       if (!res.ok) throw new Error('Upload failed');
       const data = await res.json();
-      const url = data.secure_url || data.url;
+      const url = data.imageUrl || data.secureUrl || data.secure_url || data.url;
+      if (!url) throw new Error('Missing uploaded image URL');
       await onSave(url);
     } catch {
       setError('Tải ảnh lên thất bại. Vui lòng thử lại.');
