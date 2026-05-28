@@ -359,7 +359,7 @@ const AdminSeries = () => {
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-gray-200 focus:outline-none focus:border-red-500/50"
                   style={{ color: '#e5e7eb' }}
                 >
-                  <option value="">-- Chọn thương hiệu --</option>
+                  <option value="">Chọn thương hiệu</option>
                   {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                 </select>
               </div>

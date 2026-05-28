@@ -354,7 +354,7 @@ const ProductModal = ({ product, sessions, onClose, onSave, saving }) => {
             <select value={form.sessionId} onChange={(e) => handle('sessionId', e.target.value)}
               className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-gray-200
                          focus:outline-none focus:border-red-500/50">
-              <option value="">-- Chọn phiên --</option>
+              <option value="">Chọn phiên</option>
               {sessions.map((s) => (
                 <option key={s.id} value={s.id}>
                   {statusLabel(s.status)} | {toDatetimeLocal(s.startAt).replace('T', ' ')} → {toDatetimeLocal(s.endAt).replace('T', ' ')}
@@ -894,7 +894,7 @@ const AdminFlashSale = () => {
                 }}
                 className="bg-[#13151e] border border-white/10 rounded-xl px-4 py-2 text-sm text-gray-200 focus:outline-none focus:border-red-500/50"
               >
-                <option value="">-- Chọn chiến dịch --</option>
+                <option value="">Chọn chiến dịch</option>
                 {campaigns.map((c) => (
                   <option key={c.id} value={c.id}>{c.title}</option>
                 ))}
@@ -995,7 +995,7 @@ const AdminFlashSale = () => {
                 }}
                 className="bg-[#13151e] border border-white/10 rounded-xl px-4 py-2 text-sm text-gray-200 focus:outline-none focus:border-red-500/50"
               >
-                <option value="">-- Chọn chiến dịch --</option>
+                <option value="">Chọn chiến dịch</option>
                 {campaigns.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
               </select>
 
@@ -1012,7 +1012,7 @@ const AdminFlashSale = () => {
                     }}
                     className="bg-[#13151e] border border-white/10 rounded-xl px-4 py-2 text-sm text-gray-200 focus:outline-none focus:border-red-500/50"
                   >
-                    <option value="">-- Chọn phiên --</option>
+                    <option value="">Chọn phiên</option>
                     {sessions.map((s) => (
                       <option key={s.id} value={s.id}>
                         #{s.sessionNumber || s.id} - {statusLabel(s.status)} ({toDatetimeLocal(s.startAt).replace('T', ' ')})

@@ -456,7 +456,7 @@ const AdminBanners = () => {
                         <div className="relative">
                           <select value={form.brandId} onChange={(e) => setForm((p) => ({ ...p, brandId: e.target.value }))}
                             className="w-full bg-[#1a1d2e] border border-white/10 rounded-xl px-4 py-3 text-sm text-gray-200 focus:outline-none focus:border-red-500/50 appearance-none cursor-pointer pr-10">
-                            <option value="">-- Chọn thương hiệu --</option>
+                            <option value="">Chọn thương hiệu</option>
                             {brands.map((b) => <option key={b.id} value={b.id}>{b.name} ({b.slug})</option>)}
                           </select>
                           <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
