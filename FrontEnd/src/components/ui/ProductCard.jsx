@@ -56,7 +56,9 @@ export const ProductCard = ({ product, variant = 'default', className }) => {
   const soldQuantity = product.soldQuantity || 0;
 
   const brandName = product.brand?.name || product.brandName || 'Mobile';
-  const rating = product.rating || 5.0;
+  const reviewCount = Number(product.reviewCount ?? product.totalReviews ?? 0);
+  const ratingValue = Number(product.averageRating ?? product.rating ?? 0);
+  const rating = reviewCount > 0 ? ratingValue : 0;
 
   // Has any discount (product discount, not flash sale)
   const hasDiscount = sale > 0;
@@ -149,13 +151,13 @@ export const ProductCard = ({ product, variant = 'default', className }) => {
       <div className={cn('flex flex-col flex-grow', isFlashSale ? 'p-3' : '')}>
 
         {/* Brand & Rating (default mode only) */}
-        {!isFlashSale && (
+        {!isFlashSale && rating > 0 && (
           <div className="flex items-center gap-1 mb-1.5">
             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{brandName}</span>
             <div className="w-1 h-1 rounded-full bg-slate-300" />
             <div className="flex items-center gap-0.5 text-orange-400">
               <Star size={10} fill="currentColor" />
-              <span className="text-[10px] font-bold text-slate-500">{rating}</span>
+              <span className="text-[10px] font-bold text-slate-500">{rating.toFixed(1)}</span>
             </div>
           </div>
         )}

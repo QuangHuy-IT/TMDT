@@ -44,6 +44,8 @@ public class AdminProductDto {
     private BigDecimal price;
     private Integer stock;
     private Integer sale;
+    private Double averageRating;
+    private Long reviewCount;
 
     /** Thông tin chung */
     private String description;

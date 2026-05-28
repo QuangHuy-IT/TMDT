@@ -23,7 +23,7 @@ const ProductService = {
   getProducts: (params = {}) => api.get('/products', { params }),
   getProductDetail: (idOrSlug) => api.get(`/products/${idOrSlug}`),
   getRelatedProducts: (productName) => api.get(`/products/related/${encodeURIComponent(productName)}`),
-  getFeaturedProducts: () => api.get('/products/featured'),
+  getFeaturedProducts: (limit = 8) => api.get('/products/featured', { params: { limit } }),
   getLatestProducts: (limit = 12) => api.get('/products/featured/latest', { params: { limit } }),
   getFlashSaleProducts: (limit = 12) => api.get('/products/flash-sale', { params: { limit } }),
   getHomeBrandSections: (brands = ['apple', 'samsung', 'xiaomi'], limitPerBrand = 8) =>

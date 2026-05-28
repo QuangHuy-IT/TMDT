@@ -33,6 +33,7 @@ import com.tmdt.phone_store_backend.repository.ProductRepository;
 import com.tmdt.phone_store_backend.repository.ProductSeriesRepository;
 import com.tmdt.phone_store_backend.repository.ProductSpecificationRepository;
 import com.tmdt.phone_store_backend.repository.ProductVariantRepository;
+import com.tmdt.phone_store_backend.repository.ReviewRepository;
 import com.tmdt.phone_store_backend.repository.FlashSaleCampaignRepository;
 import com.tmdt.phone_store_backend.repository.FlashSaleProductRepository;
 import com.tmdt.phone_store_backend.repository.ProductDiscountRepository;
@@ -70,6 +71,7 @@ public class ProductAdminService {
     private final FlashSaleCampaignRepository flashSaleCampaignRepository;
     private final FlashSaleProductRepository flashSaleProductRepository;
     private final ProductDiscountRepository discountRepository;
+    private final ReviewRepository reviewRepository;
 
     // ══════════════════════════════════════════════════════════════
     //  READ
@@ -111,12 +113,18 @@ public class ProductAdminService {
                 .toList();
     }
 
-    public List<AdminProductDto> getFeaturedProducts() {
-        // Featured section: one row per product (not expanded)
+        public List<AdminProductDto> getFeaturedProducts(Integer limit) {
+        int maxItems = limit != null && limit > 0 ? limit : 8;
+
         return productRepository.findByDeletedAtIsNullOrderByCreatedAtDesc().stream()
-                .filter(p -> Boolean.TRUE.equals(p.getIsFeatured()))
-                .map(this::toSingleDto)
-                .toList();
+            .filter(p -> p.getStatus() == ProductStatus.ACTIVE)
+            .map(this::toSingleDto)
+            .filter(dto -> dto.getReviewCount() != null && dto.getReviewCount() > 0)
+            .sorted(Comparator.comparing(AdminProductDto::getAverageRating, Comparator.nullsLast(Comparator.reverseOrder()))
+                .thenComparing(AdminProductDto::getReviewCount, Comparator.nullsLast(Comparator.reverseOrder()))
+                .thenComparing(AdminProductDto::getReleaseDate, Comparator.nullsLast(Comparator.reverseOrder())))
+            .limit(maxItems)
+            .toList();
     }
 
     public List<AdminProductDto> getLatestProducts(Integer limit) {
@@ -476,6 +484,7 @@ public class ProductAdminService {
         dto.setPrice(minPrice);
         dto.setStock(totalStock);
         dto.setSale(0);
+        applyReviewStats(dto, product.getId());
         dto.setThumbnailUrl(product.getThumbnailUrl());
         dto.setImages(images.stream().map(ProductImage::getImageUrl).toList());
         dto.setIsFeatured(product.getIsFeatured());
@@ -547,6 +556,7 @@ public class ProductAdminService {
             dto.setPrice(displayPrice);
             dto.setOriginalPrice(basePrice);
             dto.setSale(getDiscountPercent(basePrice, discount));
+            applyReviewStats(dto, product.getId());
 
             dto.setThumbnailUrl(thumbnailUrl);
             dto.setImages(imageUrls);
@@ -677,6 +687,7 @@ public class ProductAdminService {
         dto.setDescription(product.getDetailDescription());
         dto.setThumbnailUrl(product.getThumbnailUrl());
         dto.setImages(images.stream().map(ProductImage::getImageUrl).toList());
+        applyReviewStats(dto, product.getId());
         dto.setSpecifications(specs);
         dto.setGroupedSpecifications(groupedSpecs);
         dto.setVariantOptions(variantOptions);
@@ -737,6 +748,7 @@ public class ProductAdminService {
         dto.setPrice(flashPrice);
         dto.setSale(salePercent);
         dto.setStock(fp.getQuantity() != null ? fp.getQuantity() : 0);
+        applyReviewStats(dto, product.getId());
         dto.setThumbnailUrl(product.getThumbnailUrl());
         dto.setImages(images.stream().map(ProductImage::getImageUrl).toList());
         dto.setIsFeatured(product.getIsFeatured());
@@ -770,6 +782,18 @@ public class ProductAdminService {
         dto.setBannerLinkUrl(banner != null ? banner.getLinkUrl() : "/brands/" + brand.getSlug());
         dto.setProducts(products);
         return dto;
+    }
+
+    private void applyReviewStats(AdminProductDto dto, Long productId) {
+        if (dto == null || productId == null) {
+            return;
+        }
+
+        Double averageRating = reviewRepository.getAverageRatingByProductId(productId);
+        Long reviewCount = reviewRepository.countApprovedByProductId(productId);
+
+        dto.setAverageRating(averageRating != null ? Math.round(averageRating * 10.0) / 10.0 : 0.0);
+        dto.setReviewCount(reviewCount != null ? reviewCount : 0L);
     }
 
     private BrandDto toBrandDto(Brand brand) {

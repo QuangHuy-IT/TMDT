@@ -30,11 +30,11 @@ export const Home = () => {
     staleTime: 30 * 1000,
   });
 
-  // 3. Featured / Latest Products
+  // 3. Featured Products
   const { data: featuredProducts, isLoading: isFeaturedLoading } = useQuery({
-    queryKey: ['latestProducts'],
+    queryKey: ['featuredProducts'],
     queryFn: async () => {
-      const response = await productService.getLatestProducts(8);
+      const response = await productService.getFeaturedProducts(8);
       return response.data;
     },
     staleTime: 5 * 60 * 1000,
