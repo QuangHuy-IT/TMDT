@@ -140,6 +140,7 @@ export const ProductDetail = () => {
   // UI state
   const [activeImage, setActiveImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
+  const [selectedColorImageOverride, setSelectedColorImageOverride] = useState(null);
   const productIdParam = searchParams.get('product_id');
 
   useEffect(() => {
@@ -282,12 +283,13 @@ export const ProductDetail = () => {
   }, [product, selectedVariant?.id]);
 
   const selectedColorImage = useMemo(() => {
+    if (selectedColorImageOverride) return selectedColorImageOverride;
     if (!product || !productIdParam || !product?.allVariants) return null;
     const targetVariant = product.allVariants.find(v => String(v.id) === productIdParam);
     if (!targetVariant?.color) return null;
     const colorNameLower = targetVariant.color.toLowerCase();
     return product.colorImages?.[colorNameLower] || targetVariant.colorImageUrl || null;
-  }, [product, productIdParam]);
+  }, [product, productIdParam, selectedColorImageOverride]);
 
   // When a color image is available, jump to it after the gallery images are ready
   useEffect(() => {
@@ -518,6 +520,7 @@ export const ProductDetail = () => {
                         key={version.key}
                         onClick={() => {
                           if (!isActive && version.slug) {
+                            setSelectedColorImageOverride(null);
                             setActiveImage(0);
                             navigate(`/products/${version.slug}`);
                           }
@@ -569,8 +572,11 @@ export const ProductDetail = () => {
                         key={color.name}
                         onClick={() => {
                           if (!isActive && variantOfColor?.slug) {
+                            setSelectedColorImageOverride(color.imageUrl || variantOfColor.colorImageUrl || null);
                             setActiveImage(0);
                             navigate(`/products/${variantOfColor.slug}?product_id=${variantOfColor.id}`);
+                          } else {
+                            setSelectedColorImageOverride(color.imageUrl || variantOfColor?.colorImageUrl || null);
                           }
                         }}
                         title={color.name}
