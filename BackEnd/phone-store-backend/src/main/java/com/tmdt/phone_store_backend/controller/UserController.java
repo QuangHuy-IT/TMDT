@@ -79,6 +79,33 @@ public class UserController {
     }
 
     /**
+     * PUT /api/users/avatar - Cập nhật ảnh đại diện của user hiện tại
+     */
+    @PutMapping("/avatar")
+    public ResponseEntity<?> updateAvatar(@RequestBody Map<String, String> request) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String email = authentication.getName();
+
+        log.info("Update avatar for user: {}", email);
+
+        String avatarUrl = request.get("avatarUrl");
+        if (avatarUrl == null || avatarUrl.isBlank()) {
+            Map<String, String> error = new HashMap<>();
+            error.put("message", "URL ảnh đại diện không hợp lệ");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+        }
+
+        try {
+            User user = userService.getUserByEmail(email);
+            UserResponseDto response = userService.updateAvatar(user.getId(), avatarUrl);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Failed to update avatar: {}", e.getMessage());
+            throw e;
+        }
+    }
+
+    /**
      * POST /api/users/password/send-otp - Gửi OTP để đổi mật khẩu
      */
     @PostMapping("/password/send-otp")

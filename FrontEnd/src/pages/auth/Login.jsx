@@ -88,7 +88,7 @@ export const Login = () => {
                 avatarUrl: payload.picture,
               });
 
-              handleGoogleResponse(res);
+              handleGoogleResponse(res, payload.picture);
             } catch (err) {
               setGoogleLoading(false);
               setError('Đăng nhập Google thất bại. Vui lòng thử lại!');
@@ -109,20 +109,24 @@ export const Login = () => {
     }
   };
 
-  const handleGoogleResponse = (res) => {
+  const handleGoogleResponse = (res, googleAvatarUrl = '') => {
     setGoogleLoading(false);
     const data = res.data;
 
     if (data.stage === 'login') {
       const { token, refreshToken, user } = data;
-      dispatch({ type: 'LOGIN_SUCCESS', payload: { token, refreshToken, user } });
+      const normalizedUser = {
+        ...user,
+        avatarUrl: user?.avatarUrl || googleAvatarUrl || null,
+      };
+      dispatch({ type: 'LOGIN_SUCCESS', payload: { token, refreshToken, user: normalizedUser } });
       navigate(from, { replace: true });
     } else if (data.stage === 'complete_profile') {
       navigate('/complete-google-register', {
         state: {
           email: data.email,
           fullName: data.fullName,
-          avatarUrl: data.avatarUrl,
+          avatarUrl: data.avatarUrl || googleAvatarUrl,
         }
       });
     } else if (data.stage === 'verify_otp') {

@@ -33,8 +33,11 @@ const shopReducer = (state, action) => {
       if (existingItem) {
         updatedCart = state.cart.map(item =>
           item.id === action.payload.id
-            // Sửa: Dùng || 1 để tránh cộng undefined → NaN khi quantity không được truyền
-            ? { ...item, quantity: item.quantity + (action.payload.quantity || 1) }
+            ? {
+              ...item,
+              ...action.payload,
+              quantity: item.quantity + (action.payload.quantity || 1),
+            }
             : item
         );
       } else {
@@ -118,7 +121,11 @@ const shopReducer = (state, action) => {
       };
 
     case 'UPDATE_USER': {
-      const updatedUser = { ...state.user, ...action.payload };
+      const nextUser = { ...state.user, ...action.payload };
+      const updatedUser = {
+        ...nextUser,
+        avatarUrl: action.payload?.avatarUrl || state.user?.avatarUrl || nextUser.avatarUrl || null,
+      };
       localStorage.setItem('user', JSON.stringify(updatedUser));
       return { ...state, user: updatedUser };
     }

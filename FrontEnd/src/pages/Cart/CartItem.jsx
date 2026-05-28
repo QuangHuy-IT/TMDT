@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { getProductThumbnail } from '../../utils/catalog';
 
 // ─── CartItem ─────────────────────────────────────────────────────────────────
 // Props:
@@ -11,7 +12,11 @@ import { Link } from 'react-router-dom';
 // ─────────────────────────────────────────────────────────────────────────────
 
 const CartItem = ({ item, checked, onToggle, onQtyChange, onRemove }) => {
-  const thumbnail = item.images?.[0] || item.image || 'https://picsum.photos/80';
+  const thumbnail = item.thumbnailUrl
+    || item.thumbnail
+    || item.imageUrl
+    || getProductThumbnail(item)
+    || 'https://picsum.photos/80';
   const subtotal  = item.price * item.quantity;
   const productSlug = item.slug
     || item.variantSlug

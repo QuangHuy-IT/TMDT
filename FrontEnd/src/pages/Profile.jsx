@@ -65,8 +65,8 @@ export const Profile = () => {
           isOpen={showAvatarModal}
           currentAvatar={avatar}
           onClose={() => setShowAvatarModal(false)}
-          onSave={(url) => {
-            profileHook.handleAvatarSave(url);
+          onSave={async (url) => {
+            await profileHook.handleAvatarSave(url);
             setShowAvatarModal(false);
           }}
         />

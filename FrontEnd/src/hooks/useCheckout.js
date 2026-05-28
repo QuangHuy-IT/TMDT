@@ -123,7 +123,7 @@ const useCheckout = () => {
         storage: item.storage || '',
         unitPrice: item.price,
         quantity: item.quantity,
-        imageUrl: item.images?.[0] || '',
+        imageUrl: item.thumbnailUrl || item.imageUrl || item.images?.[0] || '',
       })),
     };
   }, [user, shippingInfo, subtotal, discountAmount, voucherCode, shippingFee, total, selectedCart]);

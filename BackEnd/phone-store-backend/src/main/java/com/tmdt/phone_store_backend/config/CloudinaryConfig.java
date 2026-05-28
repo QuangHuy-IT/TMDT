@@ -3,6 +3,7 @@ package com.tmdt.phone_store_backend.config;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -11,12 +12,21 @@ import com.cloudinary.Cloudinary;
 @Configuration
 public class CloudinaryConfig {
 
+    @Value("${cloudinary.cloud-name}")
+    private String cloudName;
+
+    @Value("${cloudinary.api-key}")
+    private String apiKey;
+
+    @Value("${cloudinary.api-secret}")
+    private String apiSecret;
+
     @Bean
     public Cloudinary configKey(){
         Map config = new HashMap<>();
-        config.put("cloud_name", "dsggqo4lb");
-        config.put("api_key", "258433544298829");
-        config.put("api_secret", "P4-4TiRaDN2N7nW4T9VwT0esy5Y");
+        config.put("cloud_name", cloudName);
+        config.put("api_key", apiKey);
+        config.put("api_secret", apiSecret);
         config.put("secure", true);
         return new Cloudinary(config);
 

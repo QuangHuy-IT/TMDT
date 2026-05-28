@@ -100,8 +100,7 @@ export const ProductDetail = () => {
   // UI state
   const [activeImage, setActiveImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
-  // User-chosen color image: null on page load, set only when user actively clicks a color button
-  const [userSelectedColorImage, setUserSelectedColorImage] = useState(null);
+  const productIdParam = searchParams.get('product_id');
 
   useEffect(() => {
     let mounted = true;
@@ -111,7 +110,6 @@ export const ProductDetail = () => {
       setError('');
         setActiveImage(0);
         setQuantity(1);
-        setUserSelectedColorImage(null);
 
       try {
         // slug here IS the variant slug
@@ -120,16 +118,7 @@ export const ProductDetail = () => {
         const normalized = normalizeProduct(response.data);
         setProduct(normalized);
 
-        // Auto-set color image based on the loaded variant's color
-        const variant = normalized?.selectedVariant;
-        if (variant?.color) {
-          const colorNameLower = variant.color.toLowerCase();
-          const colorImage = normalized.colorImages?.[colorNameLower] || variant.colorImageUrl || null;
-          setUserSelectedColorImage(colorImage);
-        }
-
         // Read ?product_id from URL and switch color if present
-        const productIdParam = searchParams.get('product_id');
         if (productIdParam && normalized?.allVariants) {
           const targetVariant = normalized.allVariants.find(v => String(v.id) === productIdParam);
           if (targetVariant?.slug && targetVariant.slug !== slug) {
@@ -147,7 +136,7 @@ export const ProductDetail = () => {
 
     fetchDetail();
     return () => { mounted = false; };
-  }, [slug, searchParams]);
+  }, [slug, searchParams, productIdParam]);
 
   // Derived state
   const selectedVariant = product?.selectedVariant || null;
@@ -206,19 +195,27 @@ export const ProductDetail = () => {
     }
   }, [product, selectedVariant?.id]);
 
-  // When userSelectedColorImage changes (e.g. after navigating to a new color), jump to that image
+  const selectedColorImage = useMemo(() => {
+    if (!product || !productIdParam || !product?.allVariants) return null;
+    const targetVariant = product.allVariants.find(v => String(v.id) === productIdParam);
+    if (!targetVariant?.color) return null;
+    const colorNameLower = targetVariant.color.toLowerCase();
+    return product.colorImages?.[colorNameLower] || targetVariant.colorImageUrl || null;
+  }, [product, productIdParam]);
+
+  // When a color image is available, jump to it after the gallery images are ready
   useEffect(() => {
-    if (!userSelectedColorImage || !product?.images) return;
+    if (!selectedColorImage || !product?.images) return;
     const allImages = product.images;
     const thumbnail = product.thumbnailUrl;
     let gallery = allImages;
     if (thumbnail && allImages.length > 0 && allImages[0] === thumbnail) {
       gallery = allImages.slice(1);
     }
-    const filtered = gallery.filter(img => img !== userSelectedColorImage);
+    const filtered = gallery.filter(img => img !== selectedColorImage);
     const colorImageIndex = filtered.length; // color image is appended at the end
     setActiveImage(colorImageIndex);
-  }, [userSelectedColorImage]);
+  }, [selectedColorImage, product?.images, product?.thumbnailUrl]);
 
   // Dynamic gallery:
   // - Gallery images (product.images) — exclude thumbnail from front to avoid duplication
@@ -235,14 +232,14 @@ export const ProductDetail = () => {
     }
 
     // Append color image to the END when user actively selected a color with an image
-    if (userSelectedColorImage) {
+    if (selectedColorImage) {
       // Avoid duplicate if somehow already in gallery
-      const filtered = gallery.filter(img => img !== userSelectedColorImage);
-      return [...filtered, userSelectedColorImage];
+      const filtered = gallery.filter(img => img !== selectedColorImage);
+      return [...filtered, selectedColorImage];
     }
 
     return gallery;
-  }, [product?.images, product?.thumbnailUrl, userSelectedColorImage]);
+  }, [product?.images, product?.thumbnailUrl, selectedColorImage]);
 
   const images = galleryImages;
 
@@ -269,6 +266,7 @@ export const ProductDetail = () => {
         storage: selectedVariant?.storageLabel || '',
         color: selectedColor?.name || selectedVariant?.color || '',
         sku: selectedVariant?.sku || '',
+        thumbnailUrl: product.thumbnailUrl || '',
         images: product.images,
       },
     });

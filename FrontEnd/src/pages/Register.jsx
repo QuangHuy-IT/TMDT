@@ -153,7 +153,7 @@ export const Register = () => {
                 avatarUrl: payload.picture,
               });
 
-              handleGoogleResponse(res);
+              handleGoogleResponse(res, payload.picture);
             } catch (err) {
               setGoogleLoading(false);
               setError('Đăng ký Google thất bại. Vui lòng thử lại!');
@@ -172,7 +172,7 @@ export const Register = () => {
     }
   };
 
-  const handleGoogleResponse = (res) => {
+  const handleGoogleResponse = (res, googleAvatarUrl = '') => {
     setGoogleLoading(false);
     const data = res.data;
 
@@ -183,7 +183,7 @@ export const Register = () => {
         state: {
           email: data.email,
           fullName: data.fullName,
-          avatarUrl: data.avatarUrl,
+          avatarUrl: data.avatarUrl || googleAvatarUrl,
         }
       });
     } else if (data.stage === 'verify_otp') {

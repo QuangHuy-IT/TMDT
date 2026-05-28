@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { getProductThumbnail } from '../../utils/catalog';
 
 const fmt = (n) => n.toLocaleString('vi-VN') + '₫';
 
@@ -28,6 +29,11 @@ export const OrderSummary = ({
       <div className="mb-8 space-y-3">
         {visibleItems.map(item => {
           const originalPrice = item.originalPrice || 0;
+          const thumbnail = item.thumbnailUrl
+            || item.thumbnail
+            || item.imageUrl
+            || getProductThumbnail(item)
+            || 'https://picsum.photos/80';
 
           return (
             <div
@@ -37,7 +43,7 @@ export const OrderSummary = ({
               {/* Image */}
               <div className="relative w-16 h-16 flex-shrink-0">
                 <img
-                  src={item.images?.[0]}
+                  src={thumbnail}
                   alt=""
                   className="w-full h-full object-contain bg-white rounded-xl p-1"
                   onError={(e) => { e.target.style.display = 'none'; }}
