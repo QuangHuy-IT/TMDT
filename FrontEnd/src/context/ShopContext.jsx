@@ -11,7 +11,10 @@ const normalizeUserRole = (user) => {
 };
 
 const initialState = {
-  cart: JSON.parse(localStorage.getItem('cart')) || [],
+  cart: (JSON.parse(localStorage.getItem('cart')) || []).map((item) => ({
+    ...item,
+    cartKey: String(item.cartKey || item.variantId || item.variantSlug || item.slug || item.id || item._id),
+  })),
   isAuthenticated: localStorage.getItem('token') ? true : false,
   user: JSON.parse(localStorage.getItem('user')) || null,
   token: localStorage.getItem('token') || null,
@@ -26,22 +29,37 @@ const initialState = {
 const shopReducer = (state, action) => {
   switch (action.type) {
     case 'ADD_TO_CART': {
-      const actionId = action.payload.id || action.payload._id;
-      const existingItem = state.cart.find(item => (item.id || item._id) === actionId);
+      const actionCartId = String(
+        action.payload.cartKey
+        || action.payload.variantId
+        || action.payload.variantSlug
+        || action.payload.slug
+        || action.payload.id
+        || action.payload._id
+      );
+      const existingItem = state.cart.find(item => String(
+        item.cartKey
+        || item.variantId
+        || item.variantSlug
+        || item.slug
+        || item.id
+        || item._id
+      ) === actionCartId);
 
       let updatedCart;
       if (existingItem) {
         updatedCart = state.cart.map(item =>
-          item.id === action.payload.id
+          String(item.cartKey || item.variantId || item.variantSlug || item.slug || item.id || item._id) === actionCartId
             ? {
               ...item,
               ...action.payload,
+              cartKey: actionCartId,
               quantity: item.quantity + (action.payload.quantity || 1),
             }
             : item
         );
       } else {
-        updatedCart = [...state.cart, { ...action.payload, quantity: action.payload.quantity || 1 }];
+        updatedCart = [...state.cart, { ...action.payload, cartKey: actionCartId, quantity: action.payload.quantity || 1 }];
       }
 
       localStorage.setItem('cart', JSON.stringify(updatedCart)); // ← thiếu dòng này
@@ -49,8 +67,9 @@ const shopReducer = (state, action) => {
     }
 
     case 'UPDATE_CART_QUANTITY': {
+      const targetCartId = String(action.payload.cartKey || action.payload.id || action.payload._id);
       const cartAfterUpdate = state.cart.map(item =>
-        (item.id || item._id) === action.payload.id   // ← thêm fallback
+        String(item.cartKey || item.variantId || item.variantSlug || item.slug || item.id || item._id) === targetCartId
           ? { ...item, quantity: action.payload.quantity }
           : item
       );
@@ -59,8 +78,9 @@ const shopReducer = (state, action) => {
     }
 
     case 'REMOVE_FROM_CART': {
+      const targetCartId = String(action.payload.cartKey || action.payload.id || action.payload._id || action.payload);
       const cartAfterRemove = state.cart.filter(
-        item => (item.id || item._id) !== action.payload  // ← thêm fallback
+        item => String(item.cartKey || item.variantId || item.variantSlug || item.slug || item.id || item._id) !== targetCartId
       );
       localStorage.setItem('cart', JSON.stringify(cartAfterRemove));
       return { ...state, cart: cartAfterRemove };

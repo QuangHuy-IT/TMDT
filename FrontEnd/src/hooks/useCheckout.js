@@ -42,7 +42,7 @@ const useCheckout = () => {
 
   // ── Only the items the user selected in Cart ─────────────────────────────────
   const selectedCart = Array.isArray(selectedIds) && selectedIds.length > 0
-    ? cart.filter(item => selectedIds.includes(item.id || item._id))
+    ? cart.filter(item => selectedIds.includes(item.cartKey || item.variantId || item.variantSlug || item.slug || item.id || item._id))
     : cart;
 
   // ── Load saved addresses & default shipping address ─────────────────────────

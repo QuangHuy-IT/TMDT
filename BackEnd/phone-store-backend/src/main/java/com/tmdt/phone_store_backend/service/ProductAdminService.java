@@ -514,7 +514,22 @@ public class ProductAdminService {
         // Load active product discounts
         List<ProductDiscount> activeDiscounts = discountRepository.findAllActiveNow(LocalDateTime.now());
 
-        return variants.stream().map(variant -> {
+        Map<String, List<ProductVariant>> groupedVariants = new LinkedHashMap<>();
+        for (ProductVariant variant : variants) {
+            groupedVariants.computeIfAbsent(buildListingVariantGroupKey(variant), k -> new ArrayList<>())
+                .add(variant);
+        }
+
+        return groupedVariants.values().stream().map(group -> {
+            ProductVariant variant = group.getFirst();
+            int groupStock = group.stream()
+                .mapToInt(v -> inventoryRepository.findByVariantId(v.getId())
+                    .map(Inventory::getQuantityOnHand).orElse(0))
+                .sum();
+            BigDecimal basePrice = variant.getPrice() != null ? variant.getPrice() : BigDecimal.ZERO;
+            ProductDiscount discount = getActiveDiscount(variant.getId(), activeDiscounts);
+            BigDecimal displayPrice = applyDiscount(basePrice, discount);
+
             AdminProductDto dto = new AdminProductDto();
             dto.setId(product.getId());
             dto.setVariantId(variant.getId());
@@ -527,13 +542,8 @@ public class ProductAdminService {
             dto.setSeriesName(seriesName);
             dto.setSeriesSlug(seriesSlug);
 
-            int variantStock = inventoryRepository.findByVariantId(variant.getId())
-                    .map(Inventory::getQuantityOnHand).orElse(0);
-            dto.setStock(variantStock);
+            dto.setStock(groupStock);
 
-            BigDecimal basePrice = variant.getPrice() != null ? variant.getPrice() : BigDecimal.ZERO;
-            ProductDiscount discount = getActiveDiscount(variant.getId(), activeDiscounts);
-            BigDecimal displayPrice = applyDiscount(basePrice, discount);
             dto.setPrice(displayPrice);
             dto.setOriginalPrice(basePrice);
             dto.setSale(getDiscountPercent(basePrice, discount));
@@ -544,6 +554,8 @@ public class ProductAdminService {
             dto.setCreatedAt(createdAt);
             dto.setReleaseDate(createdAt);
             dto.setSelectedVariant(toVariantDto(variant));
+            dto.setVariants(group.stream().map(this::toVariantDto).toList());
+            dto.setVariantItems(group.stream().map(this::toVariantDto).toList());
             return dto;
         }).toList();
     }
@@ -1185,6 +1197,17 @@ public class ProductAdminService {
             sb.append(storage);
         }
         return sb.toString();
+    }
+
+    private String buildListingVariantGroupKey(ProductVariant variant) {
+        if (variant == null) return "default|default";
+        String ramKey = variant.getRamGb() != null ? String.valueOf(variant.getRamGb()) : "default";
+        String storageKey = variant.getStorageLabel() != null && !variant.getStorageLabel().isBlank()
+                ? variant.getStorageLabel().trim().toLowerCase(Locale.ROOT)
+                : (variant.getStorageGb() != null && variant.getStorageGb() > 0
+                ? formatStorageGb(variant.getStorageGb()).toLowerCase(Locale.ROOT)
+                : "default");
+        return ramKey + "|" + storageKey;
     }
 
     private void saveImages(Product product, List<String> imageUrls, LocalDateTime now) {

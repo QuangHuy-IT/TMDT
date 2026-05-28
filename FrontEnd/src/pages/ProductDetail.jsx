@@ -22,6 +22,21 @@ const inferColorHex = (value) => {
   return '#6b7280';
 };
 
+const formatVariantName = (productName, variant) => {
+  const baseName = productName || 'Sản phẩm';
+  if (!variant) return baseName;
+
+  const parts = [];
+  if (variant.ramGb != null && String(variant.ramGb).trim() !== '') {
+    parts.push(`${variant.ramGb}GB`);
+  }
+  if (variant.storageLabel != null && String(variant.storageLabel).trim() !== '') {
+    parts.push(String(variant.storageLabel).trim());
+  }
+
+  return parts.length > 0 ? `${baseName} ${parts.join('/')}` : baseName;
+};
+
 /**
  * Normalize API response to unified structure.
  *
@@ -258,7 +273,10 @@ export const ProductDetail = () => {
         variantId: selectedVariant?.id || null,
         slug: selectedVariant?.slug || slug || product.slug || product.productSlug || '',
         variantSlug: selectedVariant?.slug || '',
-        id: String(product.id),
+        id: String(selectedVariant?.id || product.id),
+        productId: String(product.id),
+        cartKey: String(selectedVariant?.id || selectedVariant?.slug || selectedVariant?.storageLabel || selectedVariant?.color || product.id),
+        name: displayName,
         quantity,
         price: currentPrice,
         originalPrice,
@@ -294,7 +312,7 @@ export const ProductDetail = () => {
   }
 
   const hasMultipleStorages = (product.storages?.length || 0) > 1;
-  const displayName = product.name || 'Sản phẩm';
+  const displayName = formatVariantName(product.name, selectedVariant);
 
   return (
     <main className="min-h-screen bg-[#f8f8f6] pb-20">

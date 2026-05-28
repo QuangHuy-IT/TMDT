@@ -25,6 +25,13 @@ const CartItem = ({ item, checked, onToggle, onQtyChange, onRemove }) => {
     || item._id
     || item.id;
 
+  const variantParts = [
+    item.ram,
+    item.storage,
+    item.color || item.selectedColor?.name,
+  ].filter((part) => part && String(part).trim());
+  const variantLabel = variantParts.join(' · ');
+
   const handleQty = (delta) => {
     const next = item.quantity + delta;
     if (next < 1 || next > 99) return;
@@ -71,11 +78,10 @@ const CartItem = ({ item, checked, onToggle, onQtyChange, onRemove }) => {
           <p className="text-[11px] text-gray-400 uppercase tracking-widest font-semibold mt-1">
             {item.brand}
           </p>
-          {item.selectedStorage && (
+          {variantLabel && (
             <span className="inline-block mt-1.5 text-[11px] text-gray-500
                              bg-gray-100 border border-gray-200 rounded px-2 py-0.5">
-              {item.selectedStorage}
-              {item.selectedColor?.name ? ` · ${item.selectedColor.name}` : ''}
+              {variantLabel}
             </span>
           )}
         </div>
