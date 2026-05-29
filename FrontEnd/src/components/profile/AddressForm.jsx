@@ -138,7 +138,7 @@ export const AddressForm = ({ address, onSave, onCancel, saving }) => {
           value={form.provinceCode}
           onChange={handleChange}
           options={PROVINCES}
-          placeholder="-- Chọn Tỉnh / Thành phố --"
+          placeholder="Chọn Tỉnh / Thành phố"
           error={fieldErrors.province}
         />
         <SelectField
@@ -149,10 +149,10 @@ export const AddressForm = ({ address, onSave, onCancel, saving }) => {
           options={wardOptions}
           placeholder={
             !form.provinceCode
-              ? '-- Chọn Tỉnh / Thành phố trước --'
+              ? 'Chọn Tỉnh / Thành phố trước'
               : loadingWards
               ? 'Đang tải...'
-              : '-- Chọn Phường / Xã --'
+              : 'Chọn Phường / Xã'
           }
           disabled={!form.provinceCode || loadingWards}
           error={fieldErrors.ward}

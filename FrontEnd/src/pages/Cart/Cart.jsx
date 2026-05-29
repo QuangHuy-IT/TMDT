@@ -87,7 +87,7 @@ export const Cart = () => {
   // ── Stable cartId (handles both id and _id schema) ───────────────────────────
   const enriched = cart.map((item) => ({
     ...item,
-    cartId: item.id || item._id,
+    cartId: String(item.cartKey || item.variantId || item.variantSlug || item.slug || item.id || item._id),
   }));
 
   // ── Selection state ──────────────────────────────────────────────────────────
@@ -134,10 +134,10 @@ export const Cart = () => {
     });
 
   const handleQtyChange = (cartId, quantity) =>
-    dispatch({ type: 'UPDATE_CART_QUANTITY', payload: { id: cartId, quantity } });
+    dispatch({ type: 'UPDATE_CART_QUANTITY', payload: { cartKey: cartId, quantity } });
 
   const handleRemove = (cartId) =>
-    dispatch({ type: 'REMOVE_FROM_CART', payload: cartId });
+    dispatch({ type: 'REMOVE_FROM_CART', payload: { cartKey: cartId } });
 
   const handleDeleteSelected = () => {
     if (!selectedIds.size) {
@@ -145,7 +145,7 @@ export const Cart = () => {
       return;
     }
     if (window.confirm('Xóa các sản phẩm đã chọn?')) {
-      selectedIds.forEach((id) => dispatch({ type: 'REMOVE_FROM_CART', payload: id }));
+      selectedIds.forEach((id) => dispatch({ type: 'REMOVE_FROM_CART', payload: { cartKey: id } }));
       setSelectedIds(new Set());
     }
   };

@@ -44,12 +44,20 @@ public class AdminProductDto {
     private BigDecimal price;
     private Integer stock;
     private Integer sale;
+    private Double averageRating;
+    private Long reviewCount;
 
     /** Thông tin chung */
     private String description;
     private List<String> images;
     private String thumbnailUrl;
     private Map<String, String> specifications;
+
+    /**
+     * Thông số kỹ thuật theo nhóm (CellphoneS-style).
+     * Key = tên nhóm (Màn hình, Camera, CPU & RAM, ...), Value = Map&lt;key, value&gt;.
+     */
+    private Map<String, Map<String, String>> groupedSpecifications;
 
     /**
      * Tất cả variants của sản phẩm này.

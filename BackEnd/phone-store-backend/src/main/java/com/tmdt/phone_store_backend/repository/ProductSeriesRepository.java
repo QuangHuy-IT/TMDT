@@ -14,4 +14,6 @@ public interface ProductSeriesRepository extends JpaRepository<ProductSeries, Lo
     List<ProductSeries> findByBrandIdAndIsActiveTrueOrderBySortOrderAsc(Long brandId);
 
     List<ProductSeries> findByIsActiveTrueOrderBySortOrderAsc();
+
+    List<ProductSeries> findByBrandId(Long brandId);
 }

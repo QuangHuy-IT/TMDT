@@ -19,7 +19,7 @@ const FeaturedProductsSection = ({ products = [], loading = false }) => {
           <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-400">Hot Deal</p>
           <h2 className="mt-2 text-3xl font-black uppercase tracking-tight text-slate-950">Sản phẩm nổi bật</h2>
           <p className="mt-2 text-sm font-medium text-slate-500">
-            Những sản phẩm mới nhất, được quan tâm nhiều nhất.
+            Những sản phẩm được đánh giá cao và nhận nhiều phản hồi tốt.
           </p>
         </div>
         <Link to="/products" className="text-xs font-black uppercase tracking-[0.2em] text-red-600 hover:text-red-700">

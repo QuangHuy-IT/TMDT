@@ -116,6 +116,7 @@ export const OrderDetail = () => {
             price: item.unitPrice,
             quantity: item.quantity,
             imageUrl: item.imageUrl || '',
+            thumbnailUrl: item.imageUrl || '',
             images: item.imageUrl ? [item.imageUrl] : [],
           },
         });

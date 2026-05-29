@@ -187,6 +187,10 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
         if (item.getVariant() == null || item.getVariant().getProduct() == null) {
             return null;
         }
+        if (item.getVariant().getProduct().getThumbnailUrl() != null
+                && !item.getVariant().getProduct().getThumbnailUrl().isBlank()) {
+            return item.getVariant().getProduct().getThumbnailUrl();
+        }
         Long productId = item.getVariant().getProduct().getId();
         var images = productImageRepository.findByProductIdOrderBySortOrderAscIdAsc(productId);
         if (images.isEmpty()) return null;

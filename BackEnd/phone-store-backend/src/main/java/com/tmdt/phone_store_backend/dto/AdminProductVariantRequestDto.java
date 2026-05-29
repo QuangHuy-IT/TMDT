@@ -27,6 +27,10 @@ public class AdminProductVariantRequestDto {
     @DecimalMin(value = "0", message = "Giá biến thể phải lớn hơn hoặc bằng 0")
     private BigDecimal price;
 
+    /** Giá nhập */
+    @DecimalMin(value = "0", message = "Giá nhập phải lớn hơn hoặc bằng 0")
+    private BigDecimal costPrice;
+
     @Min(value = 0, message = "Tồn kho biến thể phải lớn hơn hoặc bằng 0")
     private Integer stock;
 

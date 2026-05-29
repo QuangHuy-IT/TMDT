@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useContext, useState } from 'react';
 import { useProfile } from '../hooks/useProfile';
 import { useAddress } from '../hooks/useAddress';
 import { ProfileSidebar } from '../components/profile/ProfileSidebar';
@@ -7,19 +7,17 @@ import { AddressSection } from '../components/profile/AddressSection';
 import { AvatarModal } from '../components/profile/AvatarModal';
 import { PasswordModal } from '../components/profile/PasswordModal';
 import { AlertError, AlertSuccess, FullPageLoader } from '../components/ui/Alert';
+import { ShopContext } from '../context/ShopContext';
 
 export const Profile = () => {
   const profileHook = useProfile();
   const addressHook = useAddress();
+  const { state } = useContext(ShopContext);
 
   const [showAvatarModal, setShowAvatarModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
 
-  const avatar = profileHook.profile?.avatarUrl
-    ? (profileHook.profile.avatarUrl.startsWith('http')
-        ? profileHook.profile.avatarUrl
-        : profileHook.profile.avatarUrl)
-    : '/assets/images/profile/avatar-default.png';
+  const avatar = profileHook.profile?.avatarUrl || state.user?.avatarUrl || '/assets/images/profile/avatar-default.svg';
 
   if (profileHook.loadingProfile) {
     return <FullPageLoader message="Đang tải thông tin..." />;
@@ -67,8 +65,8 @@ export const Profile = () => {
           isOpen={showAvatarModal}
           currentAvatar={avatar}
           onClose={() => setShowAvatarModal(false)}
-          onSave={(url) => {
-            profileHook.handleAvatarSave(url);
+          onSave={async (url) => {
+            await profileHook.handleAvatarSave(url);
             setShowAvatarModal(false);
           }}
         />

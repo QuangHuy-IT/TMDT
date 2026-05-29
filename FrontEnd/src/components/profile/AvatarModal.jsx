@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Modal } from '../ui/Modal';
 
 const CameraIcon = () => (
@@ -14,6 +14,13 @@ export const AvatarModal = ({ isOpen, currentAvatar, onClose, onSave }) => {
   const [selectedFile, setSelectedFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setPreview(currentAvatar);
+    setSelectedFile(null);
+    setError('');
+  }, [currentAvatar, isOpen]);
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
@@ -43,18 +50,25 @@ export const AvatarModal = ({ isOpen, currentAvatar, onClose, onSave }) => {
     try {
       const formData = new FormData();
       formData.append('image', selectedFile);
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
-      const res = await fetch(`${apiUrl}/cloudinary/upload`, {
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
+      const uploadBaseUrl = apiBaseUrl.replace(/\/api\/?$/, '');
+      const res = await fetch(`${uploadBaseUrl}/cloudinary/upload`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
         body: formData,
       });
-      if (!res.ok) throw new Error('Upload failed');
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(errorText || 'Upload failed');
+      }
       const data = await res.json();
-      const url = data.secure_url || data.url;
+      const url = data.imageUrl || data.secureUrl || data.secure_url || data.url;
+      if (!url) throw new Error('Missing uploaded image URL');
       await onSave(url);
-    } catch {
-      setError('Tải ảnh lên thất bại. Vui lòng thử lại.');
+    } catch (err) {
+      setError(err?.message && err.message !== 'Upload failed'
+        ? err.message
+        : 'Tải ảnh lên thất bại. Vui lòng thử lại.');
     } finally {
       setUploading(false);
     }

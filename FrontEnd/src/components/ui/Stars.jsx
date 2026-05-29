@@ -1,6 +1,6 @@
 import React from 'react';
 
-const Stars = ({ rating = 5, totalStars = 5 }) => {
+const Stars = ({ rating = 0, totalStars = 5 }) => {
   return (
     <div className="flex items-center gap-1">
       {[...Array(totalStars)].map((_, index) => (

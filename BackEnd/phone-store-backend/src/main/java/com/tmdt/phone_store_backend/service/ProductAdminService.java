@@ -33,6 +33,7 @@ import com.tmdt.phone_store_backend.repository.ProductRepository;
 import com.tmdt.phone_store_backend.repository.ProductSeriesRepository;
 import com.tmdt.phone_store_backend.repository.ProductSpecificationRepository;
 import com.tmdt.phone_store_backend.repository.ProductVariantRepository;
+import com.tmdt.phone_store_backend.repository.ReviewRepository;
 import com.tmdt.phone_store_backend.repository.FlashSaleCampaignRepository;
 import com.tmdt.phone_store_backend.repository.FlashSaleProductRepository;
 import com.tmdt.phone_store_backend.repository.ProductDiscountRepository;
@@ -70,6 +71,7 @@ public class ProductAdminService {
     private final FlashSaleCampaignRepository flashSaleCampaignRepository;
     private final FlashSaleProductRepository flashSaleProductRepository;
     private final ProductDiscountRepository discountRepository;
+    private final ReviewRepository reviewRepository;
 
     // ══════════════════════════════════════════════════════════════
     //  READ
@@ -80,6 +82,15 @@ public class ProductAdminService {
         return productRepository.findByDeletedAtIsNullOrderByCreatedAtDesc().stream()
                 .map(this::toSingleDto)
                 .toList();
+    }
+
+    public AdminProductDto getProductById(Long id) {
+        Product product = productRepository.findByIdAndDeletedAtIsNull(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm: " + id));
+        // Get first active variant as selected
+        List<ProductVariant> variants = productVariantRepository.findByProductIdAndDeletedAtIsNull(id);
+        ProductVariant selectedVariant = !variants.isEmpty() ? variants.get(0) : null;
+        return toDetailDto(product, selectedVariant);
     }
 
     public List<AdminProductDto> getPublicProducts(String brandSlug, String price,
@@ -102,12 +113,18 @@ public class ProductAdminService {
                 .toList();
     }
 
-    public List<AdminProductDto> getFeaturedProducts() {
-        // Featured section: one row per product (not expanded)
+        public List<AdminProductDto> getFeaturedProducts(Integer limit) {
+        int maxItems = limit != null && limit > 0 ? limit : 8;
+
         return productRepository.findByDeletedAtIsNullOrderByCreatedAtDesc().stream()
-                .filter(p -> Boolean.TRUE.equals(p.getIsFeatured()))
-                .map(this::toSingleDto)
-                .toList();
+            .filter(p -> p.getStatus() == ProductStatus.ACTIVE)
+            .map(this::toSingleDto)
+            .filter(dto -> dto.getReviewCount() != null && dto.getReviewCount() > 0)
+            .sorted(Comparator.comparing(AdminProductDto::getAverageRating, Comparator.nullsLast(Comparator.reverseOrder()))
+                .thenComparing(AdminProductDto::getReviewCount, Comparator.nullsLast(Comparator.reverseOrder()))
+                .thenComparing(AdminProductDto::getReleaseDate, Comparator.nullsLast(Comparator.reverseOrder())))
+            .limit(maxItems)
+            .toList();
     }
 
     public List<AdminProductDto> getLatestProducts(Integer limit) {
@@ -444,6 +461,13 @@ public class ProductAdminService {
 
         List<ProductImage> images = productImageRepository.findByProductIdOrderBySortOrderAscIdAsc(product.getId());
 
+        // Build flat specs map
+        Map<String, String> specs = new HashMap<>();
+        for (ProductSpecification specification : productSpecificationRepository
+                .findByProductIdOrderBySortOrderAscIdAsc(product.getId())) {
+            specs.put(specification.getSpecKey(), specification.getSpecValue());
+        }
+
         AdminProductDto dto = new AdminProductDto();
         dto.setId(product.getId());
         dto.setVariantId(!variants.isEmpty() ? variants.get(0).getId() : null);
@@ -460,12 +484,15 @@ public class ProductAdminService {
         dto.setPrice(minPrice);
         dto.setStock(totalStock);
         dto.setSale(0);
+        applyReviewStats(dto, product.getId());
         dto.setThumbnailUrl(product.getThumbnailUrl());
         dto.setImages(images.stream().map(ProductImage::getImageUrl).toList());
         dto.setIsFeatured(product.getIsFeatured());
         dto.setCreatedAt(product.getCreatedAt());
         dto.setReleaseDate(product.getCreatedAt());
+        dto.setSpecifications(specs);
         dto.setSelectedVariant(!variants.isEmpty() ? toVariantDto(variants.get(0)) : null);
+        dto.setVariants(variantItemDtos);
         dto.setVariantItems(variantItemDtos);
         return dto;
     }
@@ -496,7 +523,22 @@ public class ProductAdminService {
         // Load active product discounts
         List<ProductDiscount> activeDiscounts = discountRepository.findAllActiveNow(LocalDateTime.now());
 
-        return variants.stream().map(variant -> {
+        Map<String, List<ProductVariant>> groupedVariants = new LinkedHashMap<>();
+        for (ProductVariant variant : variants) {
+            groupedVariants.computeIfAbsent(buildListingVariantGroupKey(variant), k -> new ArrayList<>())
+                .add(variant);
+        }
+
+        return groupedVariants.values().stream().map(group -> {
+            ProductVariant variant = group.getFirst();
+            int groupStock = group.stream()
+                .mapToInt(v -> inventoryRepository.findByVariantId(v.getId())
+                    .map(Inventory::getQuantityOnHand).orElse(0))
+                .sum();
+            BigDecimal basePrice = variant.getPrice() != null ? variant.getPrice() : BigDecimal.ZERO;
+            ProductDiscount discount = getActiveDiscount(variant.getId(), activeDiscounts);
+            BigDecimal displayPrice = applyDiscount(basePrice, discount);
+
             AdminProductDto dto = new AdminProductDto();
             dto.setId(product.getId());
             dto.setVariantId(variant.getId());
@@ -509,16 +551,12 @@ public class ProductAdminService {
             dto.setSeriesName(seriesName);
             dto.setSeriesSlug(seriesSlug);
 
-            int variantStock = inventoryRepository.findByVariantId(variant.getId())
-                    .map(Inventory::getQuantityOnHand).orElse(0);
-            dto.setStock(variantStock);
+            dto.setStock(groupStock);
 
-            BigDecimal basePrice = variant.getPrice() != null ? variant.getPrice() : BigDecimal.ZERO;
-            ProductDiscount discount = getActiveDiscount(variant.getId(), activeDiscounts);
-            BigDecimal displayPrice = applyDiscount(basePrice, discount);
             dto.setPrice(displayPrice);
             dto.setOriginalPrice(basePrice);
             dto.setSale(getDiscountPercent(basePrice, discount));
+            applyReviewStats(dto, product.getId());
 
             dto.setThumbnailUrl(thumbnailUrl);
             dto.setImages(imageUrls);
@@ -526,6 +564,8 @@ public class ProductAdminService {
             dto.setCreatedAt(createdAt);
             dto.setReleaseDate(createdAt);
             dto.setSelectedVariant(toVariantDto(variant));
+            dto.setVariants(group.stream().map(this::toVariantDto).toList());
+            dto.setVariantItems(group.stream().map(this::toVariantDto).toList());
             return dto;
         }).toList();
     }
@@ -596,9 +636,19 @@ public class ProductAdminService {
 
         List<ProductImage> images = productImageRepository.findByProductIdOrderBySortOrderAscIdAsc(product.getId());
         Map<String, String> specs = new HashMap<>();
+        Map<String, Map<String, String>> groupedSpecs = new LinkedHashMap<>();
         for (ProductSpecification specification : productSpecificationRepository
                 .findByProductIdOrderBySortOrderAscIdAsc(product.getId())) {
             specs.put(specification.getSpecKey(), specification.getSpecValue());
+
+            String category = specification.getSpecCategory();
+            if (category != null && !category.isBlank()) {
+                groupedSpecs.computeIfAbsent(category, k -> new LinkedHashMap<>())
+                        .put(specification.getSpecKey(), specification.getSpecValue());
+            } else {
+                groupedSpecs.computeIfAbsent("Khác", k -> new LinkedHashMap<>())
+                        .put(specification.getSpecKey(), specification.getSpecValue());
+            }
         }
 
         AdminProductVariantDto selectedDto = selectedVariant != null
@@ -637,7 +687,9 @@ public class ProductAdminService {
         dto.setDescription(product.getDetailDescription());
         dto.setThumbnailUrl(product.getThumbnailUrl());
         dto.setImages(images.stream().map(ProductImage::getImageUrl).toList());
+        applyReviewStats(dto, product.getId());
         dto.setSpecifications(specs);
+        dto.setGroupedSpecifications(groupedSpecs);
         dto.setVariantOptions(variantOptions);
         dto.setVariants(variantDtos);
         dto.setSelectedVariant(selectedDto);
@@ -659,6 +711,7 @@ public class ProductAdminService {
         dto.setRamGb(variant.getRamGb());
         dto.setStorageGb(variant.getStorageGb());
         dto.setPrice(variant.getPrice());
+        dto.setCostPrice(variant.getCostPrice());
         dto.setStock(stock);
         dto.setColorImageUrl(variant.getColorImageUrl());
         return dto;
@@ -695,6 +748,7 @@ public class ProductAdminService {
         dto.setPrice(flashPrice);
         dto.setSale(salePercent);
         dto.setStock(fp.getQuantity() != null ? fp.getQuantity() : 0);
+        applyReviewStats(dto, product.getId());
         dto.setThumbnailUrl(product.getThumbnailUrl());
         dto.setImages(images.stream().map(ProductImage::getImageUrl).toList());
         dto.setIsFeatured(product.getIsFeatured());
@@ -730,6 +784,18 @@ public class ProductAdminService {
         return dto;
     }
 
+    private void applyReviewStats(AdminProductDto dto, Long productId) {
+        if (dto == null || productId == null) {
+            return;
+        }
+
+        Double averageRating = reviewRepository.getAverageRatingByProductId(productId);
+        Long reviewCount = reviewRepository.countApprovedByProductId(productId);
+
+        dto.setAverageRating(averageRating != null ? Math.round(averageRating * 10.0) / 10.0 : 0.0);
+        dto.setReviewCount(reviewCount != null ? reviewCount : 0L);
+    }
+
     private BrandDto toBrandDto(Brand brand) {
         BrandDto dto = new BrandDto();
         dto.setId(brand.getId());
@@ -754,6 +820,7 @@ public class ProductAdminService {
         variant.setStorageGb(variantReq.getStorageGb());
         variant.setStorageLabel(normalizeStorageLabel(variantReq));
         variant.setPrice(resolveVariantPrice(variantReq, null));
+        variant.setCostPrice(variantReq.getCostPrice());
         variant.setIsActive(Boolean.TRUE);
         variant.setCreatedAt(now);
         variant.setUpdatedAt(now);
@@ -782,6 +849,7 @@ public class ProductAdminService {
         variant.setStorageGb(variantReq.getStorageGb());
         variant.setStorageLabel(normalizeStorageLabel(variantReq));
         variant.setPrice(resolveVariantPrice(variantReq, null));
+        variant.setCostPrice(variantReq.getCostPrice());
         variant.setUpdatedAt(now);
         variant.setColorImageUrl(variantReq.getColorImageUrl());
 
@@ -964,9 +1032,14 @@ public class ProductAdminService {
                         .replaceAll("(^-|-$)", "");
         if (baseSlug.isBlank()) baseSlug = "san-pham";
 
-        // For product slug, we use the product name as identifier
-        // URL: /products/{variantSlug} where variantSlug contains product slug as prefix
-        return baseSlug;
+        // Ensure uniqueness — append timestamp suffix if slug already exists
+        String finalSlug = baseSlug;
+        int counter = 1;
+        while (productRepository.findBySlugAndDeletedAtIsNull(finalSlug).isPresent()) {
+            finalSlug = baseSlug + "-" + counter;
+            counter++;
+        }
+        return finalSlug;
     }
 
     private String getStorageLabel(ProductVariant variant) {
@@ -1150,6 +1223,17 @@ public class ProductAdminService {
         return sb.toString();
     }
 
+    private String buildListingVariantGroupKey(ProductVariant variant) {
+        if (variant == null) return "default|default";
+        String ramKey = variant.getRamGb() != null ? String.valueOf(variant.getRamGb()) : "default";
+        String storageKey = variant.getStorageLabel() != null && !variant.getStorageLabel().isBlank()
+                ? variant.getStorageLabel().trim().toLowerCase(Locale.ROOT)
+                : (variant.getStorageGb() != null && variant.getStorageGb() > 0
+                ? formatStorageGb(variant.getStorageGb()).toLowerCase(Locale.ROOT)
+                : "default");
+        return ramKey + "|" + storageKey;
+    }
+
     private void saveImages(Product product, List<String> imageUrls, LocalDateTime now) {
         if (imageUrls == null || imageUrls.isEmpty()) return;
         List<ProductImage> images = new ArrayList<>();
@@ -1177,12 +1261,31 @@ public class ProductAdminService {
             spec.setProduct(product);
             spec.setSpecKey(entry.getKey());
             spec.setSpecValue(entry.getValue().trim());
+            spec.setSpecCategory(categorizeSpecKey(entry.getKey()));
             spec.setSortOrder(i++);
             spec.setCreatedAt(now);
             spec.setUpdatedAt(now);
             specifications.add(spec);
         }
         if (!specifications.isEmpty()) productSpecificationRepository.saveAll(specifications);
+    }
+
+    /**
+     * Auto-categorize specification key to a CellphoneS-style category.
+     */
+    private String categorizeSpecKey(String key) {
+        if (key == null) return "Khác";
+        String lower = key.toLowerCase();
+        if (lower.matches(".*(m[àáạảãâầấậẩẫăằắặẳẵ]|screen|monitor|display|lcd|oled|amoled|尺寸|屏幕).*")) return "Màn hình";
+        if (lower.matches(".*(camera|chup anh|quay video|mp|megapixel|ois|ois|zoom| telephoto|wide|ultra wide|góc).*")) return "Camera";
+        if (lower.matches(".*(cpu|chip|processor|ram|bộ nhớ ram|gpu|vi xử lý|a\\d+|snapdragon|exynos|mediatek|tensor).*")) return "CPU & RAM";
+        if (lower.matches(".*(pin|battery|sạc|charging| mah|wh|giờ|charger|magsafe|wireless).*")) return "Pin & Sạc";
+        if (lower.matches(".*(wifi|wifi|bluetooth|nfc|usb|cổng|gps|jack|thunderbolt|usb-c|usb 3).*")) return "Kết nối";
+        if (lower.matches(".*(5g|4g|lte|sim|esim|nano|băng tần|mạng|carrier).*")) return "Mạng & Di động";
+        if (lower.matches(".*(ios|android|hệ điều hành|os|phone os|software).*")) return "Hệ điều hành";
+        if (lower.matches(".*(thiết kế|design|kích thước|trọng lượng|weight|size|cao|rộng|dày|mm|gram|chất liệu|mặt kính|vỏ|khung|màu).*")) return "Thiết kế";
+        if (lower.matches(".*(bảo mật|security|face id|touch id|vân tay|fingerprint|encrypted|mã hóa).*")) return "Bảo mật";
+        return "Khác";
     }
 
     private Brand getOrCreateBrand(String brandName) {

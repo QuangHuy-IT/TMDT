@@ -178,7 +178,7 @@ export const CheckoutForm = ({
               required
               className="w-full bg-gray-50 border-gray-200 rounded-2xl px-4 py-3 focus:ring-2 focus:ring-red-500 transition-all"
             >
-              <option value="">-- Chọn Tỉnh / Thành phố --</option>
+              <option value="">Chọn Tỉnh / Thành phố</option>
               {provinceOptions.map(p => (
                 <option key={p.code} value={p.code}>{p.name}</option>
               ))}
@@ -196,10 +196,10 @@ export const CheckoutForm = ({
             >
               <option value="">
                 {!shippingInfo.provinceCode
-                  ? '-- Chọn Tỉnh / Thành phố trước --'
+                  ? 'Chọn Tỉnh / Thành phố trước'
                   : loadingWards
                   ? 'Đang tải...'
-                  : '-- Chọn Phường / Xã --'}
+                  : 'Chọn Phường / Xã'}
               </option>
               {wardOptions.map(w => (
                 <option key={w.code} value={w.code}>{w.name}</option>

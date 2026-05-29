@@ -87,6 +87,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/auth/google/complete-profile").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/otp/send").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/otp/verify").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/auth/forgot-password").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/auth/reset-password").permitAll()
                         .requestMatchers("/api/products/**").permitAll()
                         .requestMatchers("/api/categories/**").permitAll()
                         .requestMatchers("/api/brands/**").permitAll()

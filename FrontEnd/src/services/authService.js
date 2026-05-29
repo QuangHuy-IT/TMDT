@@ -24,6 +24,15 @@ const AuthService = {
     return api.post('/auth/otp/send', { email });
   },
 
+  // Forgot / Reset password
+  forgotPassword: (email) => {
+    return api.post('/auth/forgot-password', { email });
+  },
+
+  resetPassword: (token, newPassword, confirmPassword) => {
+    return api.post('/auth/reset-password', { token, newPassword, confirmPassword });
+  },
+
   verifyOtp: (email, otpCode) => {
     return api.post('/auth/otp/verify', { email, otpCode });
   },

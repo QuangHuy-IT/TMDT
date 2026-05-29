@@ -37,6 +37,14 @@ public class ProductSpecification {
     @Column(name = "spec_value", nullable = false, length = 500)
     private String specValue;
 
+    /**
+     * Nhóm thông số (ví dụ: "Màn hình", "Camera", "CPU & RAM", "Pin & Sạc", "Kết nối", "Mạng & Di động",
+     * "Hệ điều hành", "Thiết kế", "Bảo mật", "Khác").
+     * Giúp hiển thị thông số kỹ thuật theo nhóm như trang CellphoneS.
+     */
+    @Column(name = "spec_category", length = 60)
+    private String specCategory;
+
     @Column(name = "sort_order", nullable = false)
     private Integer sortOrder = 0;
 

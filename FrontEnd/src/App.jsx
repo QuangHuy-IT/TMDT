@@ -14,6 +14,8 @@ import { OrderDetail } from './pages/OrderDetail';
 import { PaymentSuccess } from './pages/PaymentSuccess';
 import { PaymentCancel } from './pages/PaymentCancel';
 import { Login } from './pages/auth/Login';
+import { ForgotPassword } from './pages/auth/ForgotPassword';
+import { ResetPassword } from './pages/auth/ResetPassword';
 import { Register } from './pages/Register';
 import { CompleteGoogleRegister } from './pages/auth/CompleteGoogleRegister';
 import { OtpVerification } from './pages/auth/OtpVerification';
@@ -161,6 +163,8 @@ function App() {
 
             {/* ===== AUTH ROUTES (không có Navbar + Footer) ===== */}
             <Route path="/login" element={<Login />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/signup" element={<Register />} />
             <Route path="/complete-google-register" element={<CompleteGoogleRegister />} />
             <Route path="/verify-otp" element={<OtpVerification />} />

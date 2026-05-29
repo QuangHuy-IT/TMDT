@@ -4,11 +4,13 @@ import com.tmdt.phone_store_backend.domain.entity.User;
 import com.tmdt.phone_store_backend.domain.enums.UserStatus;
 import com.tmdt.phone_store_backend.dto.AuthResponseDto;
 import com.tmdt.phone_store_backend.dto.CompleteGoogleRegisterRequestDto;
+import com.tmdt.phone_store_backend.dto.ForgotPasswordRequestDto;
 import com.tmdt.phone_store_backend.dto.GoogleAuthRequestDto;
 import com.tmdt.phone_store_backend.dto.GoogleAuthResponseDto;
 import com.tmdt.phone_store_backend.dto.LoginRequestDto;
 import com.tmdt.phone_store_backend.dto.OtpRequestDto;
 import com.tmdt.phone_store_backend.dto.OtpVerifyDto;
+import com.tmdt.phone_store_backend.dto.ResetPasswordRequestDto;
 import com.tmdt.phone_store_backend.dto.RegisterRequestDto;
 import com.tmdt.phone_store_backend.dto.UserResponseDto;
 import com.tmdt.phone_store_backend.repository.UserRepository;
@@ -154,6 +156,46 @@ public class AuthController {
         UserResponseDto userDto = userService.convertToDto(user);
 
         AuthResponseDto response = new AuthResponseDto(token, refreshToken, userDto);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<?> forgotPassword(@Valid @RequestBody ForgotPasswordRequestDto request) {
+        String email = request.getEmail().toLowerCase();
+        log.info("Forgot password request for email: {}", email);
+
+        User user = userRepository.findByEmail(email).orElse(null);
+        if (user != null) {
+            String resetToken = jwtTokenProvider.generatePasswordResetToken(email);
+            emailService.sendPasswordResetEmail(email, resetToken);
+        }
+
+        Map<String, String> response = new HashMap<>();
+        response.put("message", "Chúng tôi đã gửi liên kết đặt lại mật khẩu.");
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<?> resetPassword(@Valid @RequestBody ResetPasswordRequestDto request) {
+        log.info("Reset password request");
+
+        if (!request.getNewPassword().equals(request.getConfirmPassword())) {
+            Map<String, String> error = new HashMap<>();
+            error.put("message", "Mật khẩu xác nhận không khớp");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+        }
+
+        if (!jwtTokenProvider.validatePasswordResetToken(request.getToken())) {
+            Map<String, String> error = new HashMap<>();
+            error.put("message", "Token đặt lại mật khẩu không hợp lệ hoặc đã hết hạn");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+        }
+
+        String email = jwtTokenProvider.getEmailFromToken(request.getToken());
+        userService.changePassword(email, request.getNewPassword());
+
+        Map<String, String> response = new HashMap<>();
+        response.put("message", "Đặt lại mật khẩu thành công");
         return ResponseEntity.ok(response);
     }
 

@@ -42,7 +42,7 @@ const useCheckout = () => {
 
   // ── Only the items the user selected in Cart ─────────────────────────────────
   const selectedCart = Array.isArray(selectedIds) && selectedIds.length > 0
-    ? cart.filter(item => selectedIds.includes(item.id || item._id))
+    ? cart.filter(item => selectedIds.includes(item.cartKey || item.variantId || item.variantSlug || item.slug || item.id || item._id))
     : cart;
 
   // ── Load saved addresses & default shipping address ─────────────────────────
@@ -123,7 +123,7 @@ const useCheckout = () => {
         storage: item.storage || '',
         unitPrice: item.price,
         quantity: item.quantity,
-        imageUrl: item.images?.[0] || '',
+        imageUrl: item.thumbnailUrl || item.imageUrl || item.images?.[0] || '',
       })),
     };
   }, [user, shippingInfo, subtotal, discountAmount, voucherCode, shippingFee, total, selectedCart]);

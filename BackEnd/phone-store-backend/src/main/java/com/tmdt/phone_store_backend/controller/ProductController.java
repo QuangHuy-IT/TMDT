@@ -46,8 +46,9 @@ public class ProductController {
     }
 
     @GetMapping("/featured")
-    public ResponseEntity<List<AdminProductDto>> getFeaturedProducts() {
-        return ResponseEntity.ok(productAdminService.getFeaturedProducts());
+    public ResponseEntity<List<AdminProductDto>> getFeaturedProducts(
+            @RequestParam(defaultValue = "8") Integer limit) {
+        return ResponseEntity.ok(productAdminService.getFeaturedProducts(limit));
     }
 
     @GetMapping("/featured/latest")

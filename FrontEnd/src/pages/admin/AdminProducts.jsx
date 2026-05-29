@@ -5,21 +5,93 @@ import SeriesService from '../../services/seriesService';
 
 const ITEMS_PER_PAGE = 8;
 
-const SPEC_KEYS = ['screen', 'cpu', 'battery', 'camera', 'os', 'connectivity'];
-const SPEC_LABELS = {
-  screen: 'Màn hình',
-  cpu: 'Vi xử lý',
-  battery: 'Pin',
-  camera: 'Camera',
-  os: 'Hệ điều hành',
-  connectivity: 'Kết nối',
+// Fixed spec groups — each group has a list of fixed spec keys
+// Used for phone/tablet products. Users can add custom groups for accessories.
+const SPEC_GROUPS = [
+  {
+    category: 'Màn hình',
+    keys: [
+      'Kích thước màn hình', 'Công nghệ màn hình', 'Độ phân giải màn hình',
+      'Tính năng màn hình', 'Tần số quét',
+    ],
+  },
+  {
+    category: 'Camera',
+    keys: ['Camera sau', 'Camera trước', 'Đèn Flash', 'Quay video'],
+  },
+  {
+    category: 'CPU & RAM',
+    keys: ['Chipset', 'Loại CPU', 'RAM', 'GPU'],
+  },
+  {
+    category: 'Pin & Sạc',
+    keys: ['Pin', 'Sạc nhanh', 'Công nghệ sạc'],
+  },
+  {
+    category: 'Kết nối',
+    keys: ['Công nghệ NFC', 'Cổng sạc', 'Jack tai nghe', 'Bluetooth', 'WiFi', 'GPS'],
+  },
+  {
+    category: 'Mạng & Di động',
+    keys: ['Mạng', 'Thẻ SIM', 'eSIM'],
+  },
+  {
+    category: 'Hệ điều hành',
+    keys: ['Hệ điều hành'],
+  },
+  {
+    category: 'Thiết kế',
+    keys: ['Trọng lượng', 'Kích thước', 'Chất liệu'],
+  },
+  {
+    category: 'Bảo mật',
+    keys: ['Bảo mật'],
+  },
+  {
+    category: 'Khác',
+    keys: ['Bộ nhớ trong', 'Thẻ nhớ', 'Radio', 'Hồng ngoại'],
+  },
+];
+
+// Build empty flat spec map from fixed groups
+const buildEmptySpecs = () => {
+  const obj = {};
+  SPEC_GROUPS.forEach(g => g.keys.forEach(k => { obj[k] = ''; }));
+  return obj;
+};
+
+// Convert flat spec map {key→value} → { fixed: {}, extra: [{key,value}], extraGroups: [{category, specs:[{key,value}]}] }
+const parseSpecsMap = (specMap) => {
+  const fixed = buildEmptySpecs();
+  const extra = [];
+  const extraGroups = []; // custom groups added by user
+
+  if (specMap && typeof specMap === 'object') {
+    Object.entries(specMap).forEach(([key, value]) => {
+      if (!key) return;
+      const matchedGroup = SPEC_GROUPS.find(g => g.keys.includes(key));
+      if (matchedGroup) {
+        fixed[key] = value || '';
+      } else {
+        extra.push({ key, value: value || '' });
+      }
+    });
+  }
+
+  // If there are extra specs, group them under "Khác"
+  if (extra.length > 0) {
+    extraGroups.push({ id: 'extra-default', category: 'Khác', specs: extra });
+  }
+
+  return { fixed, extraGroups };
 };
 
 const STORAGE_PRESETS = ['64GB', '128GB', '256GB', '512GB', '1TB', '2TB', '5TB'];
 const RAM_PRESETS = ['2', '4', '6', '8', '12', '16', '32', '64', '128'];
 const COLOR_PRESETS = ['Đen', 'Trắng', 'Xanh', 'Tím', 'Vàng', 'Hồng', 'Đỏ', 'Bạc', 'Nâu', 'Cam'];
 
-// Convert storage label like "128GB", "256GB", "1TB" to integer bytes
+// buildEmptySpecs is defined above after SPEC_GROUPS
+
 const parseStorageToNumber = (label) => {
   if (!label) return null;
   const upper = label.toUpperCase().trim();
@@ -41,10 +113,12 @@ const emptyForm = {
   description: '',
   thumbnailUrl: '',
   images: [],
-  specifications: {
-    screen: '', cpu: '', battery: '', camera: '', os: '', connectivity: '',
-  },
-  variants: [], // [{id, color, storageLabel, ramGb, price, stock, colorImageUrl}]
+  specifications: buildEmptySpecs(), // flat map: {key: value}
+  // Template keys that user deleted (per-group array)
+  hiddenSpecKeys: [],
+  // Custom groups added by user (for accessories, etc.)
+  extraGroups: [],
+  variants: [],
 };
 
 import { TiptapEditor } from '../../components/ui/RichTextEditor';
@@ -55,9 +129,269 @@ const createEmptyVariant = () => ({
   storageLabel: '',
   ramGb: '',
   price: '',
+  costPrice: '',
   stock: '',
   colorImageUrl: '',
 });
+
+// SpecGroup — fixed template keys + optional extra rows, collapsible
+// Each spec: key on one line, input on next line. Template keys can be hidden via onDeleteKey.
+const SpecGroup = ({ category, keys, values, onChange, extraRows, onExtraChange, onDeleteKey, hiddenKeys }) => {
+  const [collapsed, setCollapsed] = useState(false);
+
+  // Only show keys that are NOT hidden
+  const visibleKeys = keys.filter(k => !(hiddenKeys || []).includes(k));
+  const filledCount = visibleKeys.filter(k => values?.[k]?.trim()).length;
+  const extraCount = (extraRows || []).filter(r => r.key?.trim() && r.value?.trim()).length;
+  const hasData = filledCount > 0 || extraCount > 0;
+
+  return (
+    <div className="border-b border-white/5 pb-3 mb-3 last:border-0 last:pb-0 last:mb-0">
+      {/* Header — collapsible */}
+      <button
+        type="button"
+        onClick={() => setCollapsed(c => !c)}
+        className="flex items-center justify-between w-full text-left mb-2 hover:opacity-80 transition-opacity"
+      >
+        <span className="text-xs font-black text-red-400 uppercase tracking-wider">{category}</span>
+        <div className="flex items-center gap-2">
+          {hasData && (
+            <span className="text-[10px] font-bold bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded">
+              {filledCount}{extraCount > 0 ? `+${extraCount}` : ''}
+            </span>
+          )}
+          <svg className={`w-3.5 h-3.5 text-gray-500 transition-transform duration-200 ${collapsed ? '-rotate-90' : ''}`}
+            fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </div>
+      </button>
+
+      {/* Content */}
+      {!collapsed && (
+        <div className="space-y-3 pl-0">
+
+          {/* Template rows — key on its own line, input below, delete button */}
+          {visibleKeys.map(key => (
+            <div key={key} className="group/spec relative">
+              {/* Key label row */}
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">
+                  {key}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => onDeleteKey(key)}
+                  className="w-5 h-5 flex items-center justify-center rounded text-gray-700 hover:text-red-400 hover:bg-red-500/10 transition-all opacity-0 group-hover/spec:opacity-100"
+                  title="Xóa dòng này"
+                >
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              {/* Input row */}
+              <input
+                type="text"
+                value={values?.[key] || ''}
+                placeholder="—"
+                onChange={e => onChange(key, e.target.value)}
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-gray-200 placeholder-gray-600 focus:outline-none focus:border-red-500/50 transition-all"
+              />
+            </div>
+          ))}
+
+          {/* Show hidden keys count if any */}
+          {keys.filter(k => (hiddenKeys || []).includes(k)).length > 0 && (
+            <button
+              type="button"
+              onClick={() => {
+                // Restore all hidden keys for this group
+                onDeleteKey && keys.filter(k => (hiddenKeys || []).includes(k)).forEach(k => onDeleteKey(k));
+              }}
+              className="text-[10px] text-gray-600 hover:text-gray-400 underline"
+            >
+              + Hiện lại {keys.filter(k => (hiddenKeys || []).includes(k)).length} dòng đã ẩn
+            </button>
+          )}
+
+          {/* Extra rows — free-form key + value, stacked */}
+          {(extraRows || []).map((row, idx) => (
+            <div key={`extra-${idx}`} className="group/er">
+              {/* Key input */}
+              <div className="flex items-center justify-between mb-1">
+                <input
+                  type="text"
+                  value={row.key}
+                  placeholder="Tên thông số…"
+                  onChange={e => {
+                    const next = [...(extraRows || [])];
+                    next[idx] = { ...next[idx], key: e.target.value };
+                    onExtraChange(next);
+                  }}
+                  className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-gray-200 placeholder-gray-600 focus:outline-none focus:border-red-500/50 transition-all"
+                />
+                <button
+                  type="button"
+                  onClick={() => onExtraChange(extraRows.filter((_, i) => i !== idx))}
+                  className="w-5 h-5 flex items-center justify-center rounded text-gray-700 hover:text-red-400 hover:bg-red-500/10 transition-all opacity-0 group-hover/er:opacity-100 ml-2 shrink-0"
+                  title="Xóa"
+                >
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              {/* Value input */}
+              <input
+                type="text"
+                value={row.value}
+                placeholder="Giá trị…"
+                onChange={e => {
+                  const next = [...(extraRows || [])];
+                  next[idx] = { ...next[idx], value: e.target.value };
+                  onExtraChange(next);
+                }}
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-gray-200 placeholder-gray-600 focus:outline-none focus:border-red-500/50 transition-all"
+              />
+            </div>
+          ))}
+
+          {/* Add extra row button */}
+          <button
+            type="button"
+            onClick={() => onExtraChange([...(extraRows || []), { key: '', value: '' }])}
+            className="flex items-center gap-1 text-[10px] font-bold text-gray-500 hover:text-green-400 transition-colors"
+          >
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Thêm thông số khác
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// CustomGroup — user-defined group (for accessories), each spec key on its own line
+const CustomGroup = ({ group, onChange, onRemove }) => {
+  const [collapsed, setCollapsed] = useState(false);
+  const filledCount = (group.specs || []).filter(r => r.key?.trim() && r.value?.trim()).length;
+
+  return (
+    <div className="border border-dashed border-white/20 rounded-xl p-4 bg-white/[0.02]">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-3">
+        <button
+          type="button"
+          onClick={() => setCollapsed(c => !c)}
+          className="flex items-center gap-2 hover:opacity-80"
+        >
+          <span className="text-[10px] font-black text-blue-400 uppercase tracking-wider">
+            {group.category || 'Nhóm mới'}
+          </span>
+          {filledCount > 0 && (
+            <span className="text-[10px] font-bold bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded">
+              {filledCount}
+            </span>
+          )}
+        </button>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => setCollapsed(c => !c)}
+            className="p-1 text-gray-500 hover:text-gray-300"
+          >
+            <svg className={`w-3.5 h-3.5 transition-transform ${collapsed ? '' : 'rotate-180'}`}
+              fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            onClick={onRemove}
+            className="p-1 text-gray-600 hover:text-red-400 transition-colors"
+            title="Xóa nhóm"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      {/* Category name input */}
+      {!collapsed && (
+        <div className="mb-3">
+          <input
+            type="text"
+            value={group.category}
+            placeholder="Tên nhóm (VD: Tai nghe, Sạc dự phòng)…"
+            onChange={e => onChange({ ...group, category: e.target.value })}
+            className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs font-black text-gray-300 uppercase tracking-wider placeholder-gray-600 focus:outline-none focus:border-red-500/50 transition-all"
+          />
+        </div>
+      )}
+
+      {/* Rows */}
+      {!collapsed && (
+        <div className="space-y-3">
+          {(group.specs || []).map((row, idx) => (
+            <div key={idx} className="group/cr">
+              {/* Key input */}
+              <div className="flex items-center justify-between mb-1">
+                <input
+                  type="text"
+                  value={row.key}
+                  placeholder="Tên thông số…"
+                  onChange={e => {
+                    const next = [...(group.specs || [])];
+                    next[idx] = { ...next[idx], key: e.target.value };
+                    onChange({ ...group, specs: next });
+                  }}
+                  className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-gray-200 placeholder-gray-600 focus:outline-none focus:border-red-500/50 transition-all"
+                />
+                <button
+                  type="button"
+                  onClick={() => onChange({ ...group, specs: group.specs.filter((_, i) => i !== idx) })}
+                  className="w-5 h-5 flex items-center justify-center rounded text-gray-700 hover:text-red-400 hover:bg-red-500/10 transition-all opacity-0 group-hover/cr:opacity-100 ml-2 shrink-0"
+                  title="Xóa"
+                >
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              {/* Value input */}
+              <input
+                type="text"
+                value={row.value}
+                placeholder="Giá trị…"
+                onChange={e => {
+                  const next = [...(group.specs || [])];
+                  next[idx] = { ...next[idx], value: e.target.value };
+                  onChange({ ...group, specs: next });
+                }}
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-gray-200 placeholder-gray-600 focus:outline-none focus:border-red-500/50 transition-all"
+              />
+            </div>
+          ))}
+          <button
+            type="button"
+            onClick={() => onChange({ ...group, specs: [...(group.specs || []), { key: '', value: '' }] })}
+            className="flex items-center gap-1 text-[10px] font-bold text-gray-500 hover:text-green-400 transition-colors"
+          >
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Thêm dòng
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
 
 const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
   const [form, setForm] = useState(emptyForm);
@@ -79,6 +413,19 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
   const [brandSearch, setBrandSearch] = useState('');
   const [showBrandDropdown, setShowBrandDropdown] = useState(false);
   const [loadingBrands, setLoadingBrands] = useState(false);
+  const brandDropdownRef = useRef(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    if (!showBrandDropdown) return;
+    const handleClick = (e) => {
+      if (brandDropdownRef.current && !brandDropdownRef.current.contains(e.target)) {
+        setShowBrandDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [showBrandDropdown]);
 
   const [seriesList, setSeriesList] = useState([]);
   const [showSeriesInput, setShowSeriesInput] = useState(false);
@@ -91,7 +438,6 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
       setShowBrandDropdown(false);
       return;
     }
-    setShowBrandDropdown(true);
     setLoadingBrands(true);
     const timer = setTimeout(() => {
       setLoadingBrands(false);
@@ -100,7 +446,7 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
   }, [brandSearch]);
 
   const filteredBrands = brands.filter((b) =>
-    b.name?.toLowerCase().includes(brandSearch.toLowerCase())
+    !brandSearch || b.name?.toLowerCase().includes(brandSearch.toLowerCase())
   );
 
   const fileInputRef = useRef(null);
@@ -117,29 +463,9 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
     const fetchProduct = async () => {
       setFetching(true);
       try {
-        // editingProduct has `id` and optionally `selectedVariant?.slug`
         const productId = editingProduct._id || editingProduct.id;
-        // Use the first variant's slug if available, otherwise fetch all products and find one
-        let variantSlug = editingProduct.selectedVariant?.slug;
-        let data;
-
-        if (variantSlug) {
-          const res = await ProductService.getProductDetail(variantSlug);
-          data = res.data;
-        } else {
-          // Fallback: fetch all products and match by id
-          const res = await ProductService.getAdminProducts();
-          const match = (res.data || []).find(p => (p._id || p.id) == productId);
-          if (match?.selectedVariant?.slug) {
-            const detailRes = await ProductService.getProductDetail(match.selectedVariant.slug);
-            data = detailRes.data;
-          } else {
-            // Direct match, build minimal form
-            data = match || {};
-            data.variants = match?.variants || [];
-            data.specifications = match?.specifications || {};
-          }
-        }
+        const res = await ProductService.getAdminProduct(productId);
+        const data = res.data;
 
         setForm({
           name: data.name || '',
@@ -148,16 +474,16 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
           description: data.description || '',
           thumbnailUrl: data.thumbnailUrl || '',
           images: data.images || [],
-          specifications: {
-            ...emptyForm.specifications,
-            ...(data.specifications || {}),
-          },
+          specifications: data.specifications || {},
+          hiddenSpecKeys: [],
+          extraGroups: [],
           variants: (data.variants || []).map(v => ({
             id: v.id || null,
             color: v.color || 'Đen',
             storageLabel: v.storageLabel || '',
             ramGb: v.ramGb ?? '',
             price: v.price ?? '',
+            costPrice: v.costPrice ?? '',
             stock: v.stock ?? '',
             colorImageUrl: v.colorImageUrl || '',
           })),
@@ -196,13 +522,6 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
 
   const updateForm = (updater) => {
     setForm((prev) => typeof updater === 'function' ? updater(prev) : { ...prev, ...updater });
-  };
-
-  const updateSpecField = (key, value) => {
-    updateForm((prev) => ({
-      ...prev,
-      specifications: { ...(prev.specifications || {}), [key]: value },
-    }));
   };
 
   const appendVariant = (overrides = {}) => {
@@ -355,19 +674,30 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
       return;
     }
 
-    const payloadSpecifications = SPEC_KEYS.reduce((acc, key) => {
-      acc[key] = String(form.specifications?.[key] || '').trim();
-      return acc;
-    }, {});
+    // Flatten: template specs + extraGroups → flat {key: value}
+    const flatSpecs = {};
+    const hiddenKeys = new Set(form.hiddenSpecKeys || []);
+    // Template specs (non-empty, not hidden)
+    Object.entries(form.specifications || {}).forEach(([key, val]) => {
+      if (key && val && val.trim() && !hiddenKeys.has(key)) flatSpecs[key] = val.trim();
+    });
+    // Extra group specs (non-empty)
+    (form.extraGroups || []).forEach(group => {
+      (group.specs || []).forEach(row => {
+        if (row.key?.trim() && row.value?.trim()) {
+          flatSpecs[row.key.trim()] = row.value.trim();
+        }
+      });
+    });
 
     const payload = {
-      name: form.name.trim(),
+      name: (form.name || '').trim(),
       brand: form.brand,
       seriesId: form.seriesId || null,
       description: form.description,
       thumbnailUrl: form.thumbnailUrl || null,
       images: form.images,
-      specifications: payloadSpecifications,
+      specifications: flatSpecs,
       variants: validVariants.map(v => {
         const label = (v.storageLabel || '').trim();
         return {
@@ -377,6 +707,7 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
           storageGb: parseStorageToNumber(label),
           ramGb: v.ramGb ? Number(v.ramGb) : null,
           price: Number(v.price || 0),
+          costPrice: Number(v.costPrice || 0),
           stock: Number(v.stock || 0),
           colorImageUrl: v.colorImageUrl || null,
         };
@@ -425,9 +756,7 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
             <h2 className="text-lg font-black text-white">
               {editingProduct ? 'Chỉnh sửa sản phẩm' : 'Thêm sản phẩm mới'}
             </h2>
-            <p className="text-xs text-gray-500 mt-0.5">
-              {editingProduct ? `ID: ${editingProduct._id || editingProduct.id}` : '1 sản phẩm = N phiên bản (RAM/storage khác nhau)'}
-            </p>
+            
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -444,13 +773,11 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
 
       {/* Body */}
       <div className="flex-1 overflow-y-auto">
-        <div className="max-w-[1400px] mx-auto px-6 py-8 grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-8">
-
-          {/* Left Column */}
+        <div className="max-w-[1000px] mx-auto px-6 py-8">
           <div className="space-y-8">
 
-            {/* Basic Info */}
-            <section className="bg-[#13151e] border border-white/5 rounded-2xl p-6 space-y-5">
+          {/* Basic Info */}
+          <section className="bg-[#13151e] border border-white/5 rounded-2xl p-6 space-y-5">
               <h3 className="text-sm font-black text-white uppercase tracking-wider">Thông tin cơ bản</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
@@ -463,35 +790,33 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
                     placeholder="VD: iPhone 17 Pro Max"
                     onChange={(e) => updateForm({ name: e.target.value })}
                     className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-red-500/50 transition-all" />
-                  <p className="text-[10px] text-gray-600 mt-1">
-                    Tên chung cho tất cả phiên bản. Mỗi phiên bản = 1 variant riêng trong CSDL.
-                  </p>
+                  
                 </div>
 
                 {/* Brand */}
                 <div>
                   <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">Thương hiệu *</label>
                   {!showBrandInput ? (
-                    <div className="relative">
-                      <input
-                        type="text"
-                        value={brandSearch || form.brand}
-                        onChange={(e) => {
-                          setBrandSearch(e.target.value);
-                          updateForm({ brand: e.target.value });
-                        }}
-                        onFocus={() => {
-                          setBrandSearch(form.brand || '');
-                          setShowBrandDropdown(true);
-                        }}
-                        placeholder="Gõ tên thương hiệu để tìm..."
-                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-red-500/50 transition-all"
-                      />
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={brandSearch || form.brand}
+                          onChange={(e) => {
+                            setBrandSearch(e.target.value);
+                            updateForm({ brand: e.target.value });
+                          }}
+                          onFocus={() => {
+                            setBrandSearch(form.brand || '');
+                            setShowBrandDropdown(true);
+                          }}
+                          placeholder="Gõ tên thương hiệu để tìm..."
+                          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-red-500/50 transition-all"
+                        />
                       {showBrandDropdown && (
-                        <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl max-h-60 overflow-y-auto shadow-xl">
+                        <div ref={brandDropdownRef} className="absolute z-20 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl max-h-60 overflow-y-auto shadow-xl">
                           {loadingBrands ? (
                             <div className="px-4 py-3 text-sm text-gray-500">Đang tìm...</div>
-                          ) : filteredBrands.length === 0 && brandSearch ? (
+                          ) : filteredBrands.length === 0 && !form.brand ? (
                             <div className="px-4 py-3 text-sm text-gray-500">
                               Không tìm thấy thương hiệu nào.{' '}
                               <button onClick={() => { setShowBrandDropdown(false); setShowBrandInput(true); setNewBrandName(brandSearch); }}
@@ -509,6 +834,7 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
                                   updateForm({ brand: b.name });
                                   setBrandSearch(b.name);
                                   setShowBrandDropdown(false);
+                                  setBrandDropdownInteracting(false);
                                 }}
                                 className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-100 text-left transition-colors border-b border-gray-100 last:border-b-0"
                               >
@@ -519,9 +845,7 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
                           )}
                         </div>
                       )}
-                      {form.brand && (
-                        <p className="text-[10px] text-green-400 mt-1">✓ Đã chọn: {form.brand}</p>
-                      )}
+                      
                     </div>
                   ) : (
                     <div className="flex gap-2">
@@ -557,7 +881,7 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
                             onChange={(e) => updateForm({ seriesId: e.target.value ? Number(e.target.value) : '' })}
                             className="flex-1 bg-[#1e2030] border border-white/20 rounded-xl px-4 py-3 text-sm text-gray-200 focus:outline-none focus:border-red-500"
                             style={{ color: '#e5e7eb' }}>
-                            <option value="">-- Không thuộc dòng nào --</option>
+                            <option value="">Không thuộc dòng nào</option>
                             {seriesList.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                           </select>
                           <button type="button" onClick={() => setShowSeriesInput(true)}
@@ -673,7 +997,7 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-sm font-black text-white uppercase tracking-wider">Phiên bản</h3>
-                  <p className="text-xs text-gray-500 mt-1">Mỗi phiên bản (RAM/storage) = 1 row trong CSDL.</p>
+
                 </div>
                 <span className="text-xs bg-white/5 text-gray-400 px-3 py-1 rounded-lg">
                   {form.variants.length} phiên bản
@@ -746,14 +1070,14 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
                         className="w-7 h-7 rounded-lg border border-red-500/30 text-red-400 text-xs hover:bg-red-500/10 flex items-center justify-center transition-all font-bold">×</button>
                     </div>
                     <div className="grid grid-cols-12 gap-2">
-                      <div className="col-span-3">
+                      <div className="col-span-2">
                         <label className="text-[10px] text-gray-500 block mb-1">Màu sắc</label>
                         <input type="text" list="variant-color-presets" value={variant.color || ''}
                           onChange={(e) => updateVariantField(index, 'color', e.target.value)}
                           placeholder="Đen, Bạc..."
                           className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-2 text-xs text-gray-300 placeholder-gray-600 focus:outline-none focus:border-red-500/50" />
                       </div>
-                      <div className="col-span-3">
+                      <div className="col-span-2">
                         <label className="text-[10px] text-gray-500 block mb-1">Dung lượng</label>
                         <input type="text" list="variant-storage-presets" value={variant.storageLabel || ''}
                           onChange={(e) => updateVariantField(index, 'storageLabel', e.target.value)}
@@ -768,11 +1092,18 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
                           className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-2 text-xs text-gray-300" />
                       </div>
                       <div className="col-span-2">
-                        <label className="text-[10px] text-gray-500 block mb-1">Giá (VNĐ)</label>
+                        <label className="text-[10px] text-gray-500 block mb-1">Giá nhập (VNĐ)</label>
+                        <input type="number" value={variant.costPrice || ''}
+                          onChange={(e) => updateVariantField(index, 'costPrice', e.target.value)}
+                          placeholder="25000000"
+                          className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-2 text-xs text-gray-300 placeholder-gray-600 focus:outline-none focus:border-red-500/50" />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="text-[10px] text-gray-500 block mb-1">Giá bán (VNĐ)</label>
                         <input type="number" value={variant.price || ''}
                           onChange={(e) => updateVariantField(index, 'price', e.target.value)}
                           placeholder="29990000"
-                          className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-2 text-xs text-gray-300" />
+                          className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-2 text-xs text-gray-300 placeholder-gray-600 focus:outline-none focus:border-red-500/50" />
                       </div>
                       <div className="col-span-2">
                         <label className="text-[10px] text-gray-500 block mb-1">Tồn kho</label>
@@ -830,66 +1161,96 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
               </datalist>
             </section>
 
-            {/* Specifications */}
-            <section className="bg-[#13151e] border border-white/5 rounded-2xl p-6 space-y-5">
-              <h3 className="text-sm font-black text-white uppercase tracking-wider">Thông số kỹ thuật</h3>
-              <div className="space-y-4">
-                {SPEC_KEYS.map(key => (
-                  <div key={key}>
-                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">{SPEC_LABELS[key]}</label>
-                    <input type="text" value={form.specifications[key] || ''}
-                      placeholder={key === 'screen' ? '6.7-inch OLED, 120Hz' : key === 'cpu' ? 'Apple A17 Pro' : ''}
-                      onChange={(e) => updateSpecField(key, e.target.value)}
-                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-red-500/50 transition-all" />
-                  </div>
-                ))}
-              </div>
-            </section>
-          </div>
+            {/* Specifications — CellphoneS-style grouped tabs */}
+            <section className="bg-[#13151e] border border-white/5 rounded-2xl p-6">
+              <h3 className="text-sm font-black text-white uppercase tracking-wider mb-4">Thông số kỹ thuật</h3>
 
-          {/* Right Column: Preview */}
-          <div className="lg:block">
-            <div className="sticky top-8">
-              <h3 className="text-xs font-black text-gray-500 uppercase tracking-widest mb-4">Xem trước</h3>
-              <div className="bg-white rounded-2xl overflow-hidden shadow-2xl">
-                <div className="aspect-square bg-gray-50 flex items-center justify-center overflow-hidden">
-                  {form.thumbnailUrl ? (
-                    <img src={form.thumbnailUrl} alt="preview"
-                      className="w-full h-full object-contain"
-                      onError={(e) => { e.target.src = 'https://picsum.photos/seed/preview/400/400'; }} />
-                  ) : form.images.length > 0 ? (
-                    <img src={form.images[0]} alt="preview"
-                      className="w-full h-full object-contain"
-                      onError={(e) => { e.target.src = 'https://picsum.photos/seed/preview/400/400'; }} />
-                  ) : (
-                    <div className="text-center text-gray-300">
-                      <svg className="w-12 h-12 mx-auto mb-2 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <rect x="3" y="3" width="18" height="18" rx="2" />
-                        <circle cx="8.5" cy="8.5" r="1.5" />
-                        <polyline points="21 15 16 10 5 21" />
-                      </svg>
-                      <p className="text-xs">Chưa có ảnh</p>
-                    </div>
-                  )}
+              {/* Specs grouped by category — fixed keys + extra rows */}
+              {SPEC_GROUPS.map(group => (
+                <SpecGroup
+                  key={group.category}
+                  category={group.category}
+                  keys={group.keys}
+                  values={form.specifications}
+                  onChange={(key, val) => {
+                    updateForm(prev => ({
+                      ...prev,
+                      specifications: { ...(prev.specifications || {}), [key]: val },
+                    }));
+                  }}
+                  extraRows={form.extraGroups?.find(g => g.category === group.category)?.specs}
+                  onExtraChange={(rows) => {
+                    updateForm(prev => {
+                      const existing = (prev.extraGroups || []).filter(g => g.category !== group.category);
+                      const updated = rows.length > 0
+                        ? [...existing, { id: `extra-${group.category}`, category: group.category, specs: rows }]
+                        : existing;
+                      return { ...prev, extraGroups: updated };
+                    });
+                  }}
+                  hiddenKeys={form.hiddenSpecKeys || []}
+                  onDeleteKey={(keyToHide) => {
+                    updateForm(prev => ({
+                      ...prev,
+                      hiddenSpecKeys: [...(prev.hiddenSpecKeys || []), keyToHide],
+                      specifications: { ...(prev.specifications || {}), [keyToHide]: '' },
+                    }));
+                  }}
+                />
+              ))}
+
+              {/* Custom groups — user-defined (for accessories) */}
+              {(form.extraGroups || []).filter(g => !SPEC_GROUPS.find(sg => sg.category === g.category)).length > 0 && (
+                <div className="mt-4 space-y-3">
+                  {(form.extraGroups || []).filter(g => !SPEC_GROUPS.find(sg => sg.category === g.category)).map(group => (
+                    <CustomGroup
+                      key={group.id || group.category}
+                      group={group}
+                      onChange={(updated) => {
+                        updateForm(prev => ({
+                          ...prev,
+                          extraGroups: (prev.extraGroups || []).map(g =>
+                            (g.id || g.category) === (group.id || group.category) ? updated : g
+                          ),
+                        }));
+                      }}
+                      onRemove={() => {
+                        updateForm(prev => ({
+                          ...prev,
+                          extraGroups: (prev.extraGroups || []).filter(g =>
+                            (g.id || g.category) !== (group.id || group.category)
+                          ),
+                        }));
+                      }}
+                    />
+                  ))}
                 </div>
-                <div className="p-4 space-y-2">
-                  {form.brand && <p className="text-[10px] text-gray-400 uppercase font-bold tracking-widest">{form.brand}</p>}
-                  <p className="font-bold text-gray-900 text-sm leading-tight">{form.name || 'Tên sản phẩm'}</p>
-                  {form.variants.length > 0 && (
-                    <p className="text-lg font-black text-red-600">
-                      {Number(form.variants.find(v => v.price)?.price || 0).toLocaleString()}₫
-                    </p>
-                  )}
-                  {form.variants.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {[...new Set(form.variants.map(v => v.storageLabel).filter(Boolean))].map(s => (
-                        <span key={s} className="text-[10px] px-2 py-0.5 bg-gray-100 text-gray-600 rounded font-bold">{s}</span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
+              )}
+
+              {/* Add custom group button */}
+              <button
+                type="button"
+                onClick={() => {
+                  updateForm(prev => ({
+                    ...prev,
+                    extraGroups: [
+                      ...(prev.extraGroups || []),
+                      { id: `custom-${Date.now()}`, category: '', specs: [{ key: '', value: '' }] },
+                    ],
+                  }));
+                }}
+                className="flex items-center gap-2 text-[10px] font-bold text-gray-500 hover:text-green-400 transition-colors mt-3 px-2"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Thêm nhóm tùy chỉnh (VD: Tai nghe, Sạc dự phòng…)
+              </button>
+
+              <p className="text-[10px] text-gray-600 mt-2">
+                Nhấn "Thêm thông số khác" để bổ sung dòng. Dùng "Thêm nhóm tùy chỉnh" để thêm nhóm mới cho phụ kiện.
+              </p>
+            </section>
           </div>
         </div>
       </div>

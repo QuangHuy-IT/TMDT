@@ -6,6 +6,7 @@
  *  - products.brand_id / category_id : BIGINT NOT NULL (FK RESTRICT)
  *  - products.short_description       : VARCHAR(500) NOT NULL
  *  - products.detail_description      : TEXT NOT NULL
+ *  - products.base_name               : VARCHAR(255) NOT NULL (tên cơ bản, không có RAM/ROM)
  *  - products.status                  : ENUM('DRAFT','ACTIVE','INACTIVE','DISCONTINUED')
  *  - products.created_by              : BIGINT NULL (FK users — bỏ qua khi crawl)
  *  - product_variants.color           : VARCHAR(80) NOT NULL  ← không có DEFAULT
@@ -41,6 +42,33 @@ const COLOR_UNKNOWN = 'Chưa xác định';
 
 // Fallback khi trang không có nội dung mô tả — đảm bảo NOT NULL constraint
 const DESC_FALLBACK = 'Đang cập nhật thông tin sản phẩm.';
+
+// =============================================
+// BASE NAME EXTRACTION
+// =============================================
+
+/**
+ * Trích xuất base_name từ tên sản phẩm
+ * Ví dụ: "iPhone 17 Pro 256GB" → "iPhone 17 Pro"
+ *         "Samsung Galaxy S26 Ultra 12GB 256GB" → "Samsung Galaxy S26 Ultra"
+ */
+function extractBaseName(productName) {
+  if (!productName) return '';
+  
+  // Loại bỏ các pattern như "256GB", "12GB 256GB", "256 GB", etc.
+  let baseName = productName
+    // Loại bỏ storage pattern: "256GB", "512 GB", "1TB", "1 TB"
+    .replace(/\b(\d+)\s*(?:GB|TB)\b/gi, '')
+    // Loại bỏ dấu | và text sau đó (như "| Chính hãng")
+    .replace(/\s*\|\s*.*$/, '')
+    // Loại bỏ dấu phẩy thừa
+    .replace(/,\s*/g, ' ')
+    // Loại bỏ khoảng trắng thừa
+    .replace(/\s+/g, ' ')
+    .trim();
+  
+  return baseName || productName;
+}
 
 // =============================================
 // MAIN SAVE FUNCTION
@@ -159,19 +187,21 @@ async function insertProduct(conn, data, slug, brandId, categoryId) {
   const shortDesc  = (cleanText(data.shortDescription) || DESC_FALLBACK).substring(0, 500);
   const detailDesc = data.detailDescription?.trim() || DESC_FALLBACK;
   const sale       = resolveSalePercent(data);
+  const baseName   = extractBaseName(data.name);
 
   const [result] = await conn.execute(`
     INSERT INTO products (
       brand_id, category_id,
-      name, slug,
+      name, base_name, slug,
       short_description, detail_description,
       sale, warranty_months,
       status, is_featured
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE', ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE', ?)
   `, [
     brandId,
     categoryId,
     data.name.trim(),
+    baseName,
     slug,
     shortDesc,
     detailDesc,
@@ -191,12 +221,14 @@ async function updateProduct(conn, productId, data, brandId, categoryId) {
   const shortDesc  = (cleanText(data.shortDescription) || DESC_FALLBACK).substring(0, 500);
   const detailDesc = data.detailDescription?.trim() || DESC_FALLBACK;
   const sale       = resolveSalePercent(data);
+  const baseName   = extractBaseName(data.name);
 
   await conn.execute(`
     UPDATE products SET
       brand_id           = ?,
       category_id        = ?,
       name               = ?,
+      base_name          = ?,
       short_description  = ?,
       detail_description = ?,
       sale               = ?,
@@ -208,6 +240,7 @@ async function updateProduct(conn, productId, data, brandId, categoryId) {
     brandId,
     categoryId,
     data.name.trim(),
+    baseName,
     shortDesc,
     detailDesc,
     sale,

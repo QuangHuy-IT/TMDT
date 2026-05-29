@@ -15,6 +15,12 @@ public interface FlashSaleSessionRepository extends JpaRepository<FlashSaleSessi
 
     List<FlashSaleSession> findByCampaignIdOrderByStartAtAsc(Long campaignId);
 
+    @Query("SELECT COUNT(s) FROM FlashSaleSession s WHERE s.campaign.id = :campaignId")
+    long countByCampaignId(@Param("campaignId") Long campaignId);
+
+    @Query("SELECT s FROM FlashSaleSession s WHERE s.campaign.id = :campaignId AND s.startAt < :startAt ORDER BY s.startAt DESC")
+    List<FlashSaleSession> findByCampaignIdAndStartAtBefore(@Param("campaignId") Long campaignId, @Param("startAt") LocalDateTime startAt);
+
     @Query("SELECT s FROM FlashSaleSession s WHERE s.campaign.id = :campaignId AND s.status = :status ORDER BY s.startAt ASC")
     List<FlashSaleSession> findByCampaignIdAndStatus(@Param("campaignId") Long campaignId, @Param("status") SessionStatus status);
 

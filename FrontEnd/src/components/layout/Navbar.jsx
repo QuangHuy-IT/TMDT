@@ -397,11 +397,7 @@ export const Navbar = () => {
                         <Link to="/orders" onClick={() => setIsUserMenuOpen(false)} className="block rounded-2xl px-3 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">
                           Đơn hàng
                         </Link>
-                        {isAdmin && (
-                          <Link to="/admin" onClick={() => setIsUserMenuOpen(false)} className="block rounded-2xl px-3 py-2.5 text-sm font-black text-blue-600 hover:bg-blue-50">
-                            Quản trị
-                          </Link>
-                        )}
+                        {/* Admin link removed from main user menu to require separate admin login */}
                         <button
                           type="button"
                           onClick={handleLogout}

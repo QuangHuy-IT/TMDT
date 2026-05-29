@@ -35,6 +35,8 @@ export const AdminReviews = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [totalElements, setTotalElements] = useState(0);
   const [pendingCount, setPendingCount] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
+  const [approvedCount, setApprovedCount] = useState(0);
 
   // Filter state
   const [activeTab, setActiveTab] = useState('pending'); // 'pending' | 'approved' | 'all'
@@ -74,12 +76,37 @@ export const AdminReviews = () => {
     }
   };
 
+  const fetchTotalCount = async () => {
+    try {
+      const response = await adminApi.get('/admin/reviews', { params: { page: 0, size: 1 } });
+      setTotalCount(response.data.totalElements || 0);
+    } catch {
+      setTotalCount(0);
+    }
+  };
+
+  const fetchApprovedCount = async () => {
+    try {
+      const response = await adminApi.get('/admin/reviews', { params: { page: 0, size: 1, approved: true } });
+      setApprovedCount(response.data.totalElements || 0);
+    } catch {
+      setApprovedCount(0);
+    }
+  };
+
   useEffect(() => {
     fetchReviews(0, activeTab);
   }, [activeTab]);
 
+  const approvedPercent = (() => {
+    const denom = approvedCount + pendingCount;
+    return denom > 0 ? Math.round((approvedCount / denom) * 100) : 0;
+  })();
+
   useEffect(() => {
     fetchPendingCount();
+    fetchTotalCount();
+    fetchApprovedCount();
     const interval = setInterval(fetchPendingCount, 15000);
     return () => clearInterval(interval);
   }, []);
@@ -95,6 +122,8 @@ export const AdminReviews = () => {
       setReviews((prev) => prev.filter((r) => r.id !== reviewId));
       setTotalElements((prev) => prev - 1);
       fetchPendingCount();
+      fetchTotalCount();
+      fetchApprovedCount();
     } catch (err) {
       alert(err.response?.data?.message || 'Duyệt đánh giá thất bại.');
     } finally {
@@ -110,6 +139,8 @@ export const AdminReviews = () => {
       setReviews((prev) => prev.filter((r) => r.id !== reviewId));
       setTotalElements((prev) => prev - 1);
       fetchPendingCount();
+      fetchTotalCount();
+      fetchApprovedCount();
     } catch (err) {
       alert(err.response?.data?.message || 'Từ chối đánh giá thất bại.');
     } finally {
@@ -125,6 +156,8 @@ export const AdminReviews = () => {
       setReviews((prev) => prev.filter((r) => r.id !== reviewId));
       setTotalElements((prev) => prev - 1);
       fetchPendingCount();
+      fetchTotalCount();
+      fetchApprovedCount();
     } catch (err) {
       alert(err.response?.data?.message || 'Xóa đánh giá thất bại.');
     } finally {
@@ -208,19 +241,15 @@ export const AdminReviews = () => {
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4">
         <div className="bg-[#13151e] border border-white/5 rounded-2xl p-4 text-center">
-          <p className="text-2xl font-black text-white">{totalElements}</p>
-          <p className="text-xs text-gray-500 mt-1">
-            {activeTab === 'pending' ? 'Chờ duyệt' : activeTab === 'approved' ? 'Đã duyệt' : activeTab === 'rejected' ? 'Từ chối' : 'Tổng đánh giá'}
-          </p>
+          <p className="text-2xl font-black text-white">{activeTab === 'rejected' ? totalElements : totalCount}</p>
+          <p className="text-xs text-gray-500 mt-1">{activeTab === 'rejected' ? 'Từ chối' : 'Tổng đánh giá'}</p>
         </div>
         <div className="bg-[#13151e] border border-white/5 rounded-2xl p-4 text-center">
           <p className="text-2xl font-black text-emerald-400">{pendingCount}</p>
           <p className="text-xs text-gray-500 mt-1">Chờ duyệt</p>
         </div>
         <div className="bg-[#13151e] border border-white/5 rounded-2xl p-4 text-center">
-          <p className="text-2xl font-black text-gray-400">
-            {totalElements > 0 ? Math.round((totalElements - pendingCount) / Math.max(totalElements, 1) * 100) : 0}{'%'}
-          </p>
+          <p className="text-2xl font-black text-gray-400">{approvedPercent}%</p>
           <p className="text-xs text-gray-500 mt-1">Đã duyệt</p>
         </div>
       </div>

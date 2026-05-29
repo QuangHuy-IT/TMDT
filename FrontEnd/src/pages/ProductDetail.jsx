@@ -4,6 +4,7 @@ import { ShopContext } from '../context/ShopContext';
 import ProductService from '../services/productService';
 import ReviewSection from '../components/review/ReviewSection';
 import QuestionSection from '../components/question/QuestionSection';
+import { ProductSpecificationsTab } from '../components/product/ProductSpecificationsTab';
 
 const inferColorHex = (value) => {
   const normalized = String(value || '')
@@ -19,6 +20,46 @@ const inferColorHex = (value) => {
   if (normalized.includes('tim') || normalized.includes('purple')) return '#7c3aed';
   if (normalized.includes('hong') || normalized.includes('pink')) return '#ec4899';
   return '#6b7280';
+};
+
+const formatVariantName = (productName, variant) => {
+  const baseName = productName || 'Sản phẩm';
+  if (!variant) return baseName;
+
+  const parts = [];
+  if (variant.ramGb != null && String(variant.ramGb).trim() !== '') {
+    parts.push(`${variant.ramGb}GB`);
+  }
+  if (variant.storageLabel != null && String(variant.storageLabel).trim() !== '') {
+    parts.push(String(variant.storageLabel).trim());
+  }
+
+  return parts.length > 0 ? `${baseName} ${parts.join('/')}` : baseName;
+};
+
+const formatVariantPrice = (price) => Number(price || 0).toLocaleString('vi-VN') + '₫';
+
+const getVersionGroupKey = (variant) => {
+  if (!variant) return 'default|default';
+  const ramKey = variant.ramGb != null && String(variant.ramGb).trim() !== ''
+    ? String(variant.ramGb).trim()
+    : 'default';
+  const storageKey = variant.storageLabel != null && String(variant.storageLabel).trim() !== ''
+    ? String(variant.storageLabel).trim().toLowerCase()
+    : 'default';
+  return `${ramKey}|${storageKey}`;
+};
+
+const getVersionLabel = (variant) => {
+  if (!variant) return 'Mặc định';
+  const parts = [];
+  if (variant.ramGb != null && String(variant.ramGb).trim() !== '') {
+    parts.push(`${variant.ramGb}GB`);
+  }
+  if (variant.storageLabel != null && String(variant.storageLabel).trim() !== '') {
+    parts.push(String(variant.storageLabel).trim());
+  }
+  return parts.length > 0 ? parts.join('/') : 'Mặc định';
 };
 
 /**
@@ -73,6 +114,8 @@ const normalizeProduct = (raw) => {
     stock: totalStock,
     specifications: raw.specifications && typeof raw.specifications === 'object'
       ? raw.specifications : {},
+    groupedSpecifications: raw.groupedSpecifications && typeof raw.groupedSpecifications === 'object'
+      ? raw.groupedSpecifications : {},
     allVariants,
     variantOptions,
     selectedVariant,
@@ -97,8 +140,8 @@ export const ProductDetail = () => {
   // UI state
   const [activeImage, setActiveImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
-  // User-chosen color image: null on page load, set only when user actively clicks a color button
-  const [userSelectedColorImage, setUserSelectedColorImage] = useState(null);
+  const [selectedColorImageOverride, setSelectedColorImageOverride] = useState(null);
+  const productIdParam = searchParams.get('product_id');
 
   useEffect(() => {
     let mounted = true;
@@ -108,7 +151,6 @@ export const ProductDetail = () => {
       setError('');
         setActiveImage(0);
         setQuantity(1);
-        setUserSelectedColorImage(null);
 
       try {
         // slug here IS the variant slug
@@ -117,23 +159,14 @@ export const ProductDetail = () => {
         const normalized = normalizeProduct(response.data);
         setProduct(normalized);
 
-        // Auto-set color image based on the loaded variant's color
-        const variant = normalized?.selectedVariant;
-        if (variant?.color) {
-          const colorNameLower = variant.color.toLowerCase();
-          const colorImage = normalized.colorImages?.[colorNameLower] || variant.colorImageUrl || null;
-          setUserSelectedColorImage(colorImage);
-        }
-
         // Read ?product_id from URL and switch color if present
-        const productIdParam = searchParams.get('product_id');
         if (productIdParam && normalized?.allVariants) {
           const targetVariant = normalized.allVariants.find(v => String(v.id) === productIdParam);
           if (targetVariant?.slug && targetVariant.slug !== slug) {
             navigate(`/products/${targetVariant.slug}`, { replace: true });
           }
         }
-      } catch (e) {
+      } catch {
         if (!mounted) return;
         setError('Không tải được thông tin sản phẩm.');
         setProduct(null);
@@ -144,7 +177,7 @@ export const ProductDetail = () => {
 
     fetchDetail();
     return () => { mounted = false; };
-  }, [slug, searchParams]);
+  }, [slug, searchParams, productIdParam]);
 
   // Derived state
   const selectedVariant = product?.selectedVariant || null;
@@ -168,14 +201,68 @@ export const ProductDetail = () => {
     return 1;
   }, [selectedVariant, product]);
 
-  // Available colors for the selected variant's storage
+  // Original price (before discount)
+  const originalPrice = useMemo(() => {
+    if (selectedVariant?.compareAtPrice != null) return Number(selectedVariant.compareAtPrice);
+    if (product?.originalPrice != null) return Number(product.originalPrice);
+    if (selectedVariant?.price != null) return Number(selectedVariant.price);
+    return 0;
+  }, [product, selectedVariant]);
+
+  const versionOptions = useMemo(() => {
+    if (!product?.allVariants?.length) return [];
+
+    const groups = new Map();
+    product.allVariants.forEach((variant) => {
+      const key = getVersionGroupKey(variant);
+      const existing = groups.get(key);
+      const variantStock = Number(variant?.stock || 0);
+
+      if (!existing) {
+        groups.set(key, {
+          key,
+          label: getVersionLabel(variant),
+          ramGb: variant.ramGb || null,
+          storageLabel: variant.storageLabel || '',
+          slug: variant.slug,
+          price: variant.price || 0,
+          stock: variantStock,
+          variants: [variant],
+        });
+        return;
+      }
+
+      existing.variants.push(variant);
+      existing.stock += variantStock;
+      if (!existing.slug) existing.slug = variant.slug;
+      if (!existing.price || Number(variant.price || 0) < Number(existing.price || 0)) {
+        existing.price = variant.price || 0;
+      }
+    });
+
+    return Array.from(groups.values()).sort((a, b) => {
+      const aRam = Number(a.ramGb || 0);
+      const bRam = Number(b.ramGb || 0);
+      if (aRam !== bRam) return aRam - bRam;
+      return String(a.storageLabel || '').localeCompare(String(b.storageLabel || ''), 'vi');
+    });
+  }, [product?.allVariants]);
+
+  const activeVersionKey = useMemo(() => getVersionGroupKey(selectedVariant), [selectedVariant]);
+
+  const activeVersion = useMemo(() => {
+    if (!versionOptions.length) return null;
+    return versionOptions.find((option) => option.key === activeVersionKey) || versionOptions[0];
+  }, [versionOptions, activeVersionKey]);
+
+  // Available colors for the selected version group
   const availableColors = useMemo(() => {
-    if (!product?.allVariants || !selectedVariant) return [];
-    const storage = selectedVariant.storageLabel;
+    if (!product?.allVariants || !activeVersion) return [];
+    const versionKey = activeVersion.key;
     const seen = new Set();
     const colors = [];
     product.allVariants.forEach(v => {
-      if (v.storageLabel === storage && v.color && !seen.has(v.color.toLowerCase())) {
+      if (getVersionGroupKey(v) === versionKey && v.color && !seen.has(v.color.toLowerCase())) {
         seen.add(v.color.toLowerCase());
         const colorNameLower = v.color.toLowerCase();
         const colorImage = product.colorImages?.[colorNameLower] || v.colorImageUrl || null;
@@ -183,7 +270,7 @@ export const ProductDetail = () => {
       }
     });
     return colors;
-  }, [product, selectedVariant]);
+  }, [product, activeVersion]);
 
   // Selected color state (synced with selectedVariant)
   const [selectedColor, setSelectedColor] = useState(null);
@@ -195,19 +282,28 @@ export const ProductDetail = () => {
     }
   }, [product, selectedVariant?.id]);
 
-  // When userSelectedColorImage changes (e.g. after navigating to a new color), jump to that image
+  const selectedColorImage = useMemo(() => {
+    if (selectedColorImageOverride) return selectedColorImageOverride;
+    if (!product || !productIdParam || !product?.allVariants) return null;
+    const targetVariant = product.allVariants.find(v => String(v.id) === productIdParam);
+    if (!targetVariant?.color) return null;
+    const colorNameLower = targetVariant.color.toLowerCase();
+    return product.colorImages?.[colorNameLower] || targetVariant.colorImageUrl || null;
+  }, [product, productIdParam, selectedColorImageOverride]);
+
+  // When a color image is available, jump to it after the gallery images are ready
   useEffect(() => {
-    if (!userSelectedColorImage || !product?.images) return;
+    if (!selectedColorImage || !product?.images) return;
     const allImages = product.images;
     const thumbnail = product.thumbnailUrl;
     let gallery = allImages;
     if (thumbnail && allImages.length > 0 && allImages[0] === thumbnail) {
       gallery = allImages.slice(1);
     }
-    const filtered = gallery.filter(img => img !== userSelectedColorImage);
+    const filtered = gallery.filter(img => img !== selectedColorImage);
     const colorImageIndex = filtered.length; // color image is appended at the end
     setActiveImage(colorImageIndex);
-  }, [userSelectedColorImage]);
+  }, [selectedColorImage, product?.images, product?.thumbnailUrl]);
 
   // Dynamic gallery:
   // - Gallery images (product.images) — exclude thumbnail from front to avoid duplication
@@ -224,14 +320,14 @@ export const ProductDetail = () => {
     }
 
     // Append color image to the END when user actively selected a color with an image
-    if (userSelectedColorImage) {
+    if (selectedColorImage) {
       // Avoid duplicate if somehow already in gallery
-      const filtered = gallery.filter(img => img !== userSelectedColorImage);
-      return [...filtered, userSelectedColorImage];
+      const filtered = gallery.filter(img => img !== selectedColorImage);
+      return [...filtered, selectedColorImage];
     }
 
     return gallery;
-  }, [product?.images, product?.thumbnailUrl, userSelectedColorImage]);
+  }, [product?.images, product?.thumbnailUrl, selectedColorImage]);
 
   const images = galleryImages;
 
@@ -248,7 +344,12 @@ export const ProductDetail = () => {
       payload: {
         ...product,
         variantId: selectedVariant?.id || null,
-        id: String(product.id),
+        slug: selectedVariant?.slug || slug || product.slug || product.productSlug || '',
+        variantSlug: selectedVariant?.slug || '',
+        id: String(selectedVariant?.id || product.id),
+        productId: String(product.id),
+        cartKey: String(selectedVariant?.id || selectedVariant?.slug || selectedVariant?.storageLabel || selectedVariant?.color || product.id),
+        name: displayName,
         quantity,
         price: currentPrice,
         originalPrice,
@@ -256,6 +357,7 @@ export const ProductDetail = () => {
         storage: selectedVariant?.storageLabel || '',
         color: selectedColor?.name || selectedVariant?.color || '',
         sku: selectedVariant?.sku || '',
+        thumbnailUrl: product.thumbnailUrl || '',
         images: product.images,
       },
     });
@@ -282,8 +384,9 @@ export const ProductDetail = () => {
     );
   }
 
-  const hasMultipleStorages = (product.storages?.length || 0) > 1;
-  const displayName = product.name || 'Sản phẩm';
+  const hasMultipleVersions = (versionOptions?.length || 0) > 1;
+  const displayName = formatVariantName(product.name, selectedVariant);
+  const selectedVersionLabel = activeVersion?.label || getVersionLabel(selectedVariant);
 
   return (
     <main className="min-h-screen bg-[#f8f8f6] pb-20">
@@ -401,39 +504,45 @@ export const ProductDetail = () => {
               )}
             </div>
 
-            {/* Storage Variant Buttons */}
-            {hasMultipleStorages && (
-              <div>
-                <p className="mb-3 text-xs font-bold uppercase text-gray-500">Phiên bản</p>
-                <div className="flex flex-wrap gap-2">
-                  {product.storages.map((storage) => {
-                    const variantOfStorage = product.allVariants.find(v => v.storageLabel === storage);
-                    const storagePrice = product.basePrices?.[storage];
-                    const isActive = selectedVariant?.storageLabel === storage;
-                    const targetSlug = variantOfStorage?.slug;
+            {/* Version Variant Buttons */}
+            {hasMultipleVersions && (
+              <div className="rounded-3xl border border-gray-100 bg-white p-4 shadow-sm">
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <p className="text-sm font-black uppercase tracking-wide text-gray-900">Phiên bản</p>
+                  <span className="text-xs font-medium text-gray-500">Chọn RAM / dung lượng</span>
+                </div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {versionOptions.map((version) => {
+                    const isActive = version.key === activeVersionKey;
 
                     return (
                       <button
-                        key={storage}
+                        key={version.key}
                         onClick={() => {
-                          if (!isActive && targetSlug) {
+                          if (!isActive && version.slug) {
+                            setSelectedColorImageOverride(null);
                             setActiveImage(0);
-                            setUserSelectedColorImage(null);
-                            navigate(`/products/${targetSlug}`);
+                            navigate(`/products/${version.slug}`);
                           }
                         }}
-                        className={`relative rounded-xl border px-4 py-2.5 text-sm font-bold transition-all ${
+                        className={`group relative overflow-hidden rounded-2xl border bg-white p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-md ${
                           isActive
-                            ? 'border-red-500 bg-red-50 text-red-600 shadow-sm'
-                            : 'border-gray-200 text-gray-700 hover:border-gray-300 hover:bg-gray-50'
+                            ? 'border-red-500 ring-1 ring-red-100 shadow-[0_8px_24px_rgba(239,68,68,0.12)]'
+                            : 'border-gray-200 hover:border-red-300'
                         }`}
                       >
-                        <span className="block text-base">{storage}</span>
-                        {storagePrice != null && (
-                          <span className={`block text-xs font-normal ${isActive ? 'text-red-400' : 'text-gray-400'}`}>
-                            {Number(storagePrice).toLocaleString('vi-VN')}₫
+                        {isActive && (
+                          <span className="absolute right-3 top-3 inline-flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-white shadow-sm">
+                            <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                            </svg>
                           </span>
                         )}
+                        <div className="flex flex-col gap-1 pr-6">
+                          <span className={`text-base font-black ${isActive ? 'text-red-600' : 'text-gray-900'}`}>
+                            {version.label}
+                          </span>
+                        </div>
                       </button>
                     );
                   })}
@@ -443,54 +552,71 @@ export const ProductDetail = () => {
 
             {/* Color Buttons */}
             {availableColors.length > 0 && (
-              <div>
-                <p className="mb-3 text-xs font-bold uppercase text-gray-500">
-                  Màu sắc
+              <div className="rounded-3xl border border-gray-100 bg-white p-4 shadow-sm">
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <p className="text-sm font-black uppercase tracking-wide text-gray-900">Màu sắc</p>
                   {selectedColor && (
-                    <span className="ml-2 font-normal normal-case text-gray-600">— {selectedColor.name}</span>
+                    <span className="text-xs font-medium text-gray-500">Đang chọn: {selectedColor.name}</span>
                   )}
-                </p>
+                </div>
                 <div className="flex flex-wrap gap-3">
                   {availableColors.map((color) => {
                     const isActive = selectedVariant?.color?.toLowerCase() === color.name.toLowerCase();
                     const variantOfColor = product.allVariants.find(
-                      v => v.storageLabel === selectedVariant?.storageLabel && v.color?.toLowerCase() === color.name.toLowerCase()
+                      v => getVersionGroupKey(v) === activeVersion?.key && v.color?.toLowerCase() === color.name.toLowerCase()
                     );
                     const hasColorImage = color.imageUrl && color.imageUrl.trim();
+                    const colorPrice = variantOfColor?.price || selectedVariant?.price || currentPrice;
                     return (
                       <button
                         key={color.name}
                         onClick={() => {
                           if (!isActive && variantOfColor?.slug) {
+                            setSelectedColorImageOverride(color.imageUrl || variantOfColor.colorImageUrl || null);
                             setActiveImage(0);
                             navigate(`/products/${variantOfColor.slug}?product_id=${variantOfColor.id}`);
+                          } else {
+                            setSelectedColorImageOverride(color.imageUrl || variantOfColor?.colorImageUrl || null);
                           }
                         }}
                         title={color.name}
-                        className={`relative rounded-full transition-all overflow-hidden ${
+                        className={`group relative inline-flex min-w-[220px] max-w-full items-center gap-3 rounded-2xl border px-4 py-3 text-left transition-all hover:-translate-y-0.5 hover:shadow-md ${
                           isActive
-                            ? 'ring-2 ring-offset-2 ring-gray-900'
-                            : 'hover:ring-2 hover:ring-offset-1 hover:ring-gray-400'
-                        } ${hasColorImage ? 'h-14 w-14' : 'h-11 w-11'}`}
-                        style={hasColorImage ? {} : { backgroundColor: color.hex || '#6b7280' }}
+                            ? 'border-red-500 ring-1 ring-red-100 shadow-[0_8px_24px_rgba(239,68,68,0.12)]'
+                            : 'border-gray-200 hover:border-red-300'
+                        }`}
                       >
-                        {hasColorImage ? (
-                          <img
-                            src={color.imageUrl}
-                            alt={color.name}
-                            className="h-full w-full object-cover"
-                            onError={(e) => {
-                              e.target.style.display = 'none';
-                              e.currentTarget.parentElement.style.backgroundColor = color.hex || '#6b7280';
-                            }}
-                          />
-                        ) : null}
-                        {!hasColorImage && (
-                          <span className="absolute inset-0 flex items-center justify-center">
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-gray-100 bg-gray-50">
+                          {hasColorImage ? (
+                            <img
+                              src={color.imageUrl}
+                              alt={color.name}
+                              className="h-full w-full object-contain p-1"
+                              onError={(e) => {
+                                e.target.style.display = 'none';
+                                e.currentTarget.parentElement.style.backgroundColor = '#f3f4f6';
+                              }}
+                            />
+                          ) : (
                             <span
-                              className="h-3 w-3 rounded-full"
+                              className="h-5 w-5 rounded-full"
                               style={{ backgroundColor: color.hex || '#6b7280', boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.1)' }}
                             />
+                          )}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <span className={`block whitespace-nowrap text-sm font-black ${isActive ? 'text-red-600' : 'text-gray-900'}`}>
+                            {color.name}
+                          </span>
+                          <span className={`mt-1 block text-sm font-bold ${isActive ? 'text-red-500' : 'text-gray-600'}`}>
+                            {formatVariantPrice(colorPrice)}
+                          </span>
+                        </div>
+                        {isActive && (
+                          <span className="absolute right-2 top-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-white shadow-sm">
+                            <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                            </svg>
                           </span>
                         )}
                       </button>
@@ -507,8 +633,7 @@ export const ProductDetail = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 <span>
-                  Phiên bản {selectedVariant.storageLabel || 'mặc định'}
-                  {selectedVariant.ramGb && <span className="text-gray-400"> | {selectedVariant.ramGb}GB RAM</span>}
+                  Phiên bản {selectedVersionLabel}
                   {selectedVariant.color && <span className="text-gray-400"> | {selectedVariant.color}</span>}
                 </span>
               </div>
@@ -535,19 +660,12 @@ export const ProductDetail = () => {
               </div>
             )}
 
-            {/* Specifications */}
-            {Object.keys(product.specifications || {}).length > 0 && (
-              <div className="rounded-2xl border border-gray-100 bg-white p-4">
-                <h2 className="mb-3 text-sm font-black uppercase tracking-wide text-gray-900">Thông số kỹ thuật</h2>
-                <div className="space-y-2">
-                  {Object.entries(product.specifications).map(([key, value]) => (
-                    <div key={key} className="flex justify-between gap-4 border-b border-gray-100 pb-2 text-sm last:border-0 last:pb-0">
-                      <span className="text-gray-500">{key}</span>
-                      <span className="text-right font-medium text-gray-800">{String(value || '')}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
+            {/* Specifications — CellphoneS-style tabbed */}
+            {(Object.keys(product.specifications || {}).length > 0 || Object.keys(product.groupedSpecifications || {}).length > 0) && (
+              <ProductSpecificationsTab
+                groupedSpecifications={product.groupedSpecifications}
+                specifications={product.specifications}
+              />
             )}
           </section>
         </div>

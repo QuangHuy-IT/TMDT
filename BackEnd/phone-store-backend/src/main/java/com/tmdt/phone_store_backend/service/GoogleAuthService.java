@@ -44,7 +44,12 @@ public class GoogleAuthService {
                     throw new InvalidCredentialsException("Tài khoản đã bị khóa");
                 }
                 user.setLastLoginAt(LocalDateTime.now());
-                user.setAvatarUrl(request.getAvatarUrl());
+                if (request.getAvatarUrl() != null && !request.getAvatarUrl().isBlank()) {
+                    user.setAvatarUrl(request.getAvatarUrl());
+                }
+                if (request.getGoogleId() != null && !request.getGoogleId().isBlank()) {
+                    user.setGoogleId(request.getGoogleId());
+                }
                 userRepository.save(user);
 
                 String token = jwtTokenProvider.generateToken(user.getEmail());
@@ -60,12 +65,22 @@ public class GoogleAuthService {
             }
 
             // Case B: Email đã tồn tại nhưng chưa có mật khẩu -> Chuyển đến trang complete profile
+            if (request.getAvatarUrl() != null && !request.getAvatarUrl().isBlank()
+                    && (user.getAvatarUrl() == null || user.getAvatarUrl().isBlank())) {
+                user.setAvatarUrl(request.getAvatarUrl());
+            }
+            if (request.getGoogleId() != null && !request.getGoogleId().isBlank()
+                    && (user.getGoogleId() == null || user.getGoogleId().isBlank())) {
+                user.setGoogleId(request.getGoogleId());
+            }
+            userRepository.save(user);
+
             GoogleAuthResponseDto response = new GoogleAuthResponseDto();
             response.setStage("complete_profile");
             response.setMessage("Vui lòng hoàn thiện thông tin tài khoản");
             response.setEmail(user.getEmail());
             response.setFullName(user.getFullName());
-            response.setAvatarUrl(user.getAvatarUrl());
+            response.setAvatarUrl(user.getAvatarUrl() != null ? user.getAvatarUrl() : request.getAvatarUrl());
             return response;
         }
 
@@ -90,7 +105,7 @@ public class GoogleAuthService {
         response.setMessage("Vui lòng hoàn thiện thông tin tài khoản");
         response.setEmail(email);
         response.setFullName(request.getFullName());
-        response.setAvatarUrl(request.getAvatarUrl());
+        response.setAvatarUrl(newUser.getAvatarUrl());
         return response;
     }
 
@@ -115,6 +130,12 @@ public class GoogleAuthService {
         }
 
         user.setPhone(request.getPhone());
+        if (request.getAvatarUrl() != null && !request.getAvatarUrl().isBlank()) {
+            user.setAvatarUrl(request.getAvatarUrl());
+        }
+        if (request.getGoogleId() != null && !request.getGoogleId().isBlank()) {
+            user.setGoogleId(request.getGoogleId());
+        }
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         user.setStatus(UserStatus.PENDING);
         user.setEnabled(false);

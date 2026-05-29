@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { getProductThumbnail } from '../../utils/catalog';
 
 // ─── CartItem ─────────────────────────────────────────────────────────────────
 // Props:
@@ -11,9 +12,25 @@ import { Link } from 'react-router-dom';
 // ─────────────────────────────────────────────────────────────────────────────
 
 const CartItem = ({ item, checked, onToggle, onQtyChange, onRemove }) => {
-  const thumbnail = item.images?.[0] || item.image || 'https://picsum.photos/80';
+  const thumbnail = item.thumbnailUrl
+    || item.thumbnail
+    || item.imageUrl
+    || getProductThumbnail(item)
+    || 'https://picsum.photos/80';
   const subtotal  = item.price * item.quantity;
-  const productSlug = item.slug || item._id || item.id;
+  const productSlug = item.slug
+    || item.variantSlug
+    || item.selectedVariant?.slug
+    || item.productSlug
+    || item._id
+    || item.id;
+
+  const variantParts = [
+    item.ram,
+    item.storage,
+    item.color || item.selectedColor?.name,
+  ].filter((part) => part && String(part).trim());
+  const variantLabel = variantParts.join(' · ');
 
   const handleQty = (delta) => {
     const next = item.quantity + delta;
@@ -61,11 +78,10 @@ const CartItem = ({ item, checked, onToggle, onQtyChange, onRemove }) => {
           <p className="text-[11px] text-gray-400 uppercase tracking-widest font-semibold mt-1">
             {item.brand}
           </p>
-          {item.selectedStorage && (
+          {variantLabel && (
             <span className="inline-block mt-1.5 text-[11px] text-gray-500
                              bg-gray-100 border border-gray-200 rounded px-2 py-0.5">
-              {item.selectedStorage}
-              {item.selectedColor?.name ? ` · ${item.selectedColor.name}` : ''}
+              {variantLabel}
             </span>
           )}
         </div>
