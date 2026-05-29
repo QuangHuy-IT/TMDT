@@ -1,17 +1,18 @@
 import api from '../api/axiosInstance';
+import adminApi from '../api/adminAxiosInstance';
 
 const SeriesService = {
-  getAllSeries: () => api.get('/admin/series'),
+  getAllSeries: () => adminApi.get('/admin/series'),
   
-  getSeriesByBrand: (brandId) => api.get(`/admin/series/brand/${brandId}`),
+  getSeriesByBrand: (brandId) => adminApi.get(`/admin/series/brand/${brandId}`),
   
-  getSeries: (id) => api.get(`/admin/series/${id}`),
+  getSeries: (id) => adminApi.get(`/admin/series/${id}`),
   
-  createSeries: (payload) => api.post('/admin/series', payload),
+  createSeries: (payload) => adminApi.post('/admin/series', payload),
   
-  updateSeries: (id, payload) => api.put(`/admin/series/${id}`, payload),
+  updateSeries: (id, payload) => adminApi.put(`/admin/series/${id}`, payload),
   
-  deleteSeries: (id) => api.delete(`/admin/series/${id}`),
+  deleteSeries: (id) => adminApi.delete(`/admin/series/${id}`),
 };
 
 export default SeriesService;

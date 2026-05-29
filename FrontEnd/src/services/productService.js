@@ -1,20 +1,21 @@
 import api from '../api/axiosInstance';
+import adminApi from '../api/adminAxiosInstance';
 
 const ProductService = {
-  getAdminProducts: () => api.get('/admin/products'),
-  getAdminProduct: (id) => api.get(`/admin/products/${id}`),
-  getAdminInventoryProducts: () => api.get('/admin/inventory/products'),
-  adjustInventory: (productId, payload) => api.put(`/admin/inventory/${productId}/adjust`, payload),
-  batchAdjustInventory: (payload) => api.post('/admin/inventory/adjust', payload),
-  getInventoryLogs: (page = 0, size = 10) => api.get('/admin/inventory/logs', { params: { page, size } }),
-  getInventoryLog: (id) => api.get(`/admin/inventory/logs/${id}`),
-  createProduct: (payload) => api.post('/admin/products', payload),
-  updateProduct: (id, payload) => api.put(`/admin/products/${id}`, payload),
-  deleteProduct: (id) => api.delete(`/admin/products/${id}`),
+  getAdminProducts: () => adminApi.get('/admin/products'),
+  getAdminProduct: (id) => adminApi.get(`/admin/products/${id}`),
+  getAdminInventoryProducts: () => adminApi.get('/admin/inventory/products'),
+  adjustInventory: (productId, payload) => adminApi.put(`/admin/inventory/${productId}/adjust`, payload),
+  batchAdjustInventory: (payload) => adminApi.post('/admin/inventory/adjust', payload),
+  getInventoryLogs: (page = 0, size = 10) => adminApi.get('/admin/inventory/logs', { params: { page, size } }),
+  getInventoryLog: (id) => adminApi.get(`/admin/inventory/logs/${id}`),
+  createProduct: (payload) => adminApi.post('/admin/products', payload),
+  updateProduct: (id, payload) => adminApi.put(`/admin/products/${id}`, payload),
+  deleteProduct: (id) => adminApi.delete(`/admin/products/${id}`),
   uploadImage: (file) => {
     const formData = new FormData();
     formData.append('file', file);
-    return api.post('/admin/products/upload-image', formData, {
+    return adminApi.post('/admin/products/upload-image', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
