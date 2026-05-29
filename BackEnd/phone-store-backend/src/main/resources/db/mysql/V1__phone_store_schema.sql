@@ -559,6 +559,23 @@ CREATE TABLE chat_messages (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE product_discounts (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    variant_id BIGINT NOT NULL,
+    discount_percent INT,
+    discount_amount DECIMAL(18, 0),
+    discount_type ENUM('PERCENT', 'FIXED'),
+    start_at DATETIME NOT NULL,
+    end_at DATETIME NOT NULL,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
+    CONSTRAINT fk_product_discounts_variant FOREIGN KEY (variant_id) REFERENCES product_variants(id)
+);
+CREATE INDEX idx_product_discounts_variant ON product_discounts(variant_id);
+CREATE INDEX idx_product_discounts_active ON product_discounts(is_active);
+CREATE INDEX idx_product_discounts_period ON product_discounts(start_at, end_at);
+
 -- CREATE TABLE IF NOT EXISTS flash_sales (
 --     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
 --     title VARCHAR(255),

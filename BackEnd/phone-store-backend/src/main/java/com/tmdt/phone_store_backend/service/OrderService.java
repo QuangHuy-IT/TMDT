@@ -139,6 +139,7 @@ public class OrderService {
 
         return OrderDto.builder()
                 .id(order.getId())
+                .userId(order.getUser() != null ? order.getUser().getId() : null)
                 .orderCode(order.getOrderCode())
                 .paymentLinkId(order.getPaymentLinkId())
                 .orderStatus(order.getOrderStatus().name())

@@ -96,7 +96,10 @@ public class SecurityConfig {
                         .requestMatchers("/api/flash-sales/**").permitAll()
                         .requestMatchers("/api/chat/**").permitAll()
                         .requestMatchers("/api/ai/**").permitAll()
-                        .requestMatchers("/api/orders/**").permitAll()
+                        
+                        // Order endpoints - require authentication (ownership is verified in controller)
+                        .requestMatchers("/api/orders/**").authenticated()
+                        
                         .requestMatchers("/api/payment/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/payment/payos/create").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/payment/payos/webhook").permitAll()

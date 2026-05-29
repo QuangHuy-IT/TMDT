@@ -834,7 +834,6 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
                                   updateForm({ brand: b.name });
                                   setBrandSearch(b.name);
                                   setShowBrandDropdown(false);
-                                  setBrandDropdownInteracting(false);
                                 }}
                                 className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-100 text-left transition-colors border-b border-gray-100 last:border-b-0"
                               >

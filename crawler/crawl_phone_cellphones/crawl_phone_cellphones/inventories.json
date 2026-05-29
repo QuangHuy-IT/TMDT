@@ -1,0 +1,102 @@
+[
+  {
+    "variant_id": 1,
+    "quantity_on_hand": 10,
+    "stock_status": "IN_STOCK"
+  },
+  {
+    "variant_id": 2,
+    "quantity_on_hand": 10,
+    "stock_status": "IN_STOCK"
+  },
+  {
+    "variant_id": 3,
+    "quantity_on_hand": 10,
+    "stock_status": "IN_STOCK"
+  },
+  {
+    "variant_id": 4,
+    "quantity_on_hand": 10,
+    "stock_status": "IN_STOCK"
+  },
+  {
+    "variant_id": 5,
+    "quantity_on_hand": 10,
+    "stock_status": "IN_STOCK"
+  },
+  {
+    "variant_id": 6,
+    "quantity_on_hand": 10,
+    "stock_status": "IN_STOCK"
+  },
+  {
+    "variant_id": 7,
+    "quantity_on_hand": 10,
+    "stock_status": "IN_STOCK"
+  },
+  {
+    "variant_id": 8,
+    "quantity_on_hand": 10,
+    "stock_status": "IN_STOCK"
+  },
+  {
+    "variant_id": 9,
+    "quantity_on_hand": 10,
+    "stock_status": "IN_STOCK"
+  },
+  {
+    "variant_id": 10,
+    "quantity_on_hand": 10,
+    "stock_status": "IN_STOCK"
+  },
+  {
+    "variant_id": 11,
+    "quantity_on_hand": 10,
+    "stock_status": "IN_STOCK"
+  },
+  {
+    "variant_id": 12,
+    "quantity_on_hand": 10,
+    "stock_status": "IN_STOCK"
+  },
+  {
+    "variant_id": 13,
+    "quantity_on_hand": 10,
+    "stock_status": "IN_STOCK"
+  },
+  {
+    "variant_id": 14,
+    "quantity_on_hand": 10,
+    "stock_status": "IN_STOCK"
+  },
+  {
+    "variant_id": 15,
+    "quantity_on_hand": 10,
+    "stock_status": "IN_STOCK"
+  },
+  {
+    "variant_id": 16,
+    "quantity_on_hand": 10,
+    "stock_status": "IN_STOCK"
+  },
+  {
+    "variant_id": 17,
+    "quantity_on_hand": 10,
+    "stock_status": "IN_STOCK"
+  },
+  {
+    "variant_id": 18,
+    "quantity_on_hand": 10,
+    "stock_status": "IN_STOCK"
+  },
+  {
+    "variant_id": 19,
+    "quantity_on_hand": 10,
+    "stock_status": "IN_STOCK"
+  },
+  {
+    "variant_id": 20,
+    "quantity_on_hand": 10,
+    "stock_status": "IN_STOCK"
+  }
+]

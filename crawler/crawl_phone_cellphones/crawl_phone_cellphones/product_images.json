@@ -1,0 +1,618 @@
+[
+  {
+    "product_id": 1,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:50:50/q:90/plain/https://cellphones.com.vn/media/catalog/product/d/i/dien-thoai-itel-p55-plus-8gb-256gb.1_1_2.png",
+    "is_primary": false,
+    "sort_order": 0
+  },
+  {
+    "product_id": 1,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:50:50/q:90/plain/https://cellphones.com.vn/media/catalog/product/d/i/dien-thoai-itel-p55-plus-8gb-256gb_1__2_1.png",
+    "is_primary": false,
+    "sort_order": 1
+  },
+  {
+    "product_id": 1,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:50:50/q:90/plain/https://cellphones.com.vn/media/catalog/product/d/i/dien-thoai-itel-p55-plus-8gb-256gb_2__2_1.png",
+    "is_primary": false,
+    "sort_order": 2
+  },
+  {
+    "product_id": 1,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:56:56/q:90/plain/https://cellphones.com.vn/media/catalog/product/d/i/dien-thoai-itel-p55-plus-8gb-256gb_1__2.png",
+    "is_primary": false,
+    "sort_order": 3
+  },
+  {
+    "product_id": 2,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:50:50/q:90/plain/https://cellphones.com.vn/media/catalog/product/v/a/vang_1_1.jpg",
+    "is_primary": false,
+    "sort_order": 0
+  },
+  {
+    "product_id": 2,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:50:50/q:90/plain/https://cellphones.com.vn/media/catalog/product/d/i/dien-thoai-nubia-neo-5-5g.jpg",
+    "is_primary": false,
+    "sort_order": 1
+  },
+  {
+    "product_id": 2,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:50:50/q:90/plain/https://cellphones.com.vn/media/catalog/product/f/r/frame_427320932.jpg",
+    "is_primary": false,
+    "sort_order": 2
+  },
+  {
+    "product_id": 2,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:56:56/q:90/plain/https://cellphones.com.vn/media/catalog/product/d/i/dien-thoai-nubia-neo-5-5g-den.jpg",
+    "is_primary": false,
+    "sort_order": 3
+  },
+  {
+    "product_id": 3,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:50:50/q:90/plain/https://cellphones.com.vn/media/catalog/product/d/i/dien-thoai-nubia-neo-5-gt-1.jpg",
+    "is_primary": false,
+    "sort_order": 0
+  },
+  {
+    "product_id": 3,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:50:50/q:90/plain/https://cellphones.com.vn/media/catalog/product/d/i/dien-thoai-nubia-neo-5-gt.jpg",
+    "is_primary": false,
+    "sort_order": 1
+  },
+  {
+    "product_id": 3,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:56:56/q:90/plain/https://cellphones.com.vn/media/catalog/product/d/i/dien-thoai-nubia-neo-5-gt-den.jpg",
+    "is_primary": false,
+    "sort_order": 2
+  },
+  {
+    "product_id": 4,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:50:50/q:90/plain/https://cellphones.com.vn/media/catalog/product/o/p/oppo-find-n6_1.jpg",
+    "is_primary": false,
+    "sort_order": 0
+  },
+  {
+    "product_id": 4,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:50:50/q:90/plain/https://cellphones.com.vn/media/catalog/product/o/p/oppo-find-n6-1_1.jpg",
+    "is_primary": false,
+    "sort_order": 1
+  },
+  {
+    "product_id": 4,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:56:56/q:90/plain/https://cellphones.com.vn/media/catalog/product/o/p/oppo-find-n6-0.jpg",
+    "is_primary": false,
+    "sort_order": 2
+  },
+  {
+    "product_id": 5,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:50:50/q:90/plain/https://cellphones.com.vn/media/catalog/product/o/p/oppo-find-x9s-24_1.jpg",
+    "is_primary": false,
+    "sort_order": 0
+  },
+  {
+    "product_id": 5,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:50:50/q:90/plain/https://cellphones.com.vn/media/catalog/product/o/p/oppo-find-x9s-26_1.jpg",
+    "is_primary": false,
+    "sort_order": 1
+  },
+  {
+    "product_id": 5,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:50:50/q:90/plain/https://cellphones.com.vn/media/catalog/product/o/p/oppo-find-x9s-25_1.jpg",
+    "is_primary": false,
+    "sort_order": 2
+  },
+  {
+    "product_id": 5,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:56:56/q:90/plain/https://cellphones.com.vn/media/catalog/product/o/p/oppo-find-x9s-25.jpg",
+    "is_primary": false,
+    "sort_order": 3
+  },
+  {
+    "product_id": 6,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:50:50/q:90/plain/https://cellphones.com.vn/media/catalog/product/o/p/oppo-reno-15f.jpg",
+    "is_primary": false,
+    "sort_order": 0
+  },
+  {
+    "product_id": 6,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:50:50/q:90/plain/https://cellphones.com.vn/media/catalog/product/o/p/oppo-reno-15f-2.jpg",
+    "is_primary": false,
+    "sort_order": 1
+  },
+  {
+    "product_id": 6,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:50:50/q:90/plain/https://cellphones.com.vn/media/catalog/product/o/p/oppo-reno-15f-1.jpg",
+    "is_primary": false,
+    "sort_order": 2
+  },
+  {
+    "product_id": 6,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:56:56/q:90/plain/https://cellphones.com.vn/media/catalog/product/o/p/oppo-reno15f-5g.jpg",
+    "is_primary": false,
+    "sort_order": 3
+  },
+  {
+    "product_id": 7,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:50:50/q:90/plain/https://cellphones.com.vn/media/catalog/product/d/i/dien-thoai-samsung-galaxy-a06-5g_2.png",
+    "is_primary": false,
+    "sort_order": 0
+  },
+  {
+    "product_id": 7,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:50:50/q:90/plain/https://cellphones.com.vn/media/catalog/product/d/i/dien-thoai-samsung-galaxy-a06-5g_2__2.png",
+    "is_primary": false,
+    "sort_order": 1
+  },
+  {
+    "product_id": 7,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:50:50/q:90/plain/https://cellphones.com.vn/media/catalog/product/d/i/dien-thoai-samsung-galaxy-a06-5g_1__2.png",
+    "is_primary": false,
+    "sort_order": 2
+  },
+  {
+    "product_id": 7,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:56:56/q:90/plain/https://cellphones.com.vn/media/catalog/product/d/i/dien-thoai-samsung-galaxy-a06-5g_1__1.png",
+    "is_primary": false,
+    "sort_order": 3
+  },
+  {
+    "product_id": 8,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:50:50/q:90/plain/https://cellphones.com.vn/media/catalog/product/s/a/samsung-galaxy-a07-green_1.jpg",
+    "is_primary": false,
+    "sort_order": 0
+  },
+  {
+    "product_id": 8,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:50:50/q:90/plain/https://cellphones.com.vn/media/catalog/product/s/a/samsung-galaxy-a07-black_1.jpg",
+    "is_primary": false,
+    "sort_order": 1
+  },
+  {
+    "product_id": 8,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:50:50/q:90/plain/https://cellphones.com.vn/media/catalog/product/s/a/samsung-galaxy-a07-violet_1.jpg",
+    "is_primary": false,
+    "sort_order": 2
+  },
+  {
+    "product_id": 8,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:56:56/q:90/plain/https://cellphones.com.vn/media/catalog/product/s/a/samsung-galaxy-a07-black.jpg",
+    "is_primary": false,
+    "sort_order": 3
+  },
+  {
+    "product_id": 9,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:50:50/q:90/plain/https://cellphones.com.vn/media/catalog/product/s/a/samsung-galaxy-a17-5g-blue_1.jpg",
+    "is_primary": false,
+    "sort_order": 0
+  },
+  {
+    "product_id": 9,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:50:50/q:90/plain/https://cellphones.com.vn/media/catalog/product/s/a/samsung-galaxy-a17-5g-back_1.jpg",
+    "is_primary": false,
+    "sort_order": 1
+  },
+  {
+    "product_id": 9,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:50:50/q:90/plain/https://cellphones.com.vn/media/catalog/product/s/a/samsung-galaxy-a17-5g-gray_1.jpg",
+    "is_primary": false,
+    "sort_order": 2
+  },
+  {
+    "product_id": 9,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:56:56/q:90/plain/https://cellphones.com.vn/media/catalog/product/s/a/samsung-galaxy-a17-5g-back.jpg",
+    "is_primary": false,
+    "sort_order": 3
+  },
+  {
+    "product_id": 10,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:50:50/q:90/plain/https://cellphones.com.vn/media/catalog/product/d/i/dien-thoai-samsung-galaxy-a57-3.jpg",
+    "is_primary": false,
+    "sort_order": 0
+  },
+  {
+    "product_id": 10,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:50:50/q:90/plain/https://cellphones.com.vn/media/catalog/product/d/i/dien-thoai-samsung-galaxy-a57_2.jpg",
+    "is_primary": false,
+    "sort_order": 1
+  },
+  {
+    "product_id": 10,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:50:50/q:90/plain/https://cellphones.com.vn/media/catalog/product/d/i/dien-thoai-samsung-galaxy-a57-1.jpg",
+    "is_primary": false,
+    "sort_order": 2
+  },
+  {
+    "product_id": 10,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:50:50/q:90/plain/https://cellphones.com.vn/media/catalog/product/d/i/dien-thoai-samsung-galaxy-a57-2_1.jpg",
+    "is_primary": false,
+    "sort_order": 3
+  },
+  {
+    "product_id": 10,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:56:56/q:90/plain/https://cellphones.com.vn/media/catalog/product/d/i/dien-thoai-samsung-galaxy-a57-2.jpg",
+    "is_primary": false,
+    "sort_order": 4
+  },
+  {
+    "product_id": 11,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:50:50/q:90/plain/https://cellphones.com.vn/media/catalog/product/d/i/dien-thoai-samsung-galaxy-s25-ultra_5.png",
+    "is_primary": false,
+    "sort_order": 0
+  },
+  {
+    "product_id": 11,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:50:50/q:90/plain/https://cellphones.com.vn/media/catalog/product/d/i/dien-thoai-samsung-galaxy-s25-ultra_2__6.png",
+    "is_primary": false,
+    "sort_order": 1
+  },
+  {
+    "product_id": 11,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:50:50/q:90/plain/https://cellphones.com.vn/media/catalog/product/d/i/dien-thoai-samsung-galaxy-s25-ultra_3__6.png",
+    "is_primary": false,
+    "sort_order": 2
+  },
+  {
+    "product_id": 11,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:50:50/q:90/plain/https://cellphones.com.vn/media/catalog/product/d/i/dien-thoai-samsung-galaxy-s25-ultra_1__6.png",
+    "is_primary": false,
+    "sort_order": 3
+  },
+  {
+    "product_id": 11,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:56:56/q:90/plain/https://cellphones.com.vn/media/catalog/product/d/i/dien-thoai-samsung-galaxy-s25-ultra_3__3.png",
+    "is_primary": false,
+    "sort_order": 4
+  },
+  {
+    "product_id": 12,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:50:50/q:90/plain/https://cellphones.com.vn/media/catalog/product/s/a/samsung-galaxy-s26-ultra_2.jpg",
+    "is_primary": false,
+    "sort_order": 0
+  },
+  {
+    "product_id": 12,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:50:50/q:90/plain/https://cellphones.com.vn/media/catalog/product/s/a/samsung-galaxy-s26-ultra-11_2.jpg",
+    "is_primary": false,
+    "sort_order": 1
+  },
+  {
+    "product_id": 12,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:50:50/q:90/plain/https://cellphones.com.vn/media/catalog/product/s/a/samsung-galaxy-s26-ultra-33_2.jpg",
+    "is_primary": false,
+    "sort_order": 2
+  },
+  {
+    "product_id": 12,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:50:50/q:90/plain/https://cellphones.com.vn/media/catalog/product/s/a/samsung-galaxy-s26-ultra-22_2.jpg",
+    "is_primary": false,
+    "sort_order": 3
+  },
+  {
+    "product_id": 12,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:56:56/q:90/plain/https://cellphones.com.vn/media/catalog/product/s/a/samsung-galaxy-s26-ultra-1.jpg",
+    "is_primary": false,
+    "sort_order": 4
+  },
+  {
+    "product_id": 13,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:50:50/q:90/plain/https://cellphones.com.vn/media/catalog/product/s/a/samsung-galaxy-s26-10_2.jpg",
+    "is_primary": false,
+    "sort_order": 0
+  },
+  {
+    "product_id": 13,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:50:50/q:90/plain/https://cellphones.com.vn/media/catalog/product/s/a/samsung-galaxy-s26_2.jpg",
+    "is_primary": false,
+    "sort_order": 1
+  },
+  {
+    "product_id": 13,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:50:50/q:90/plain/https://cellphones.com.vn/media/catalog/product/s/a/samsung-galaxy-s26-30_2.jpg",
+    "is_primary": false,
+    "sort_order": 2
+  },
+  {
+    "product_id": 13,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:50:50/q:90/plain/https://cellphones.com.vn/media/catalog/product/s/a/samsung-galaxy-s26-20_2.jpg",
+    "is_primary": false,
+    "sort_order": 3
+  },
+  {
+    "product_id": 13,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:56:56/q:90/plain/https://cellphones.com.vn/media/catalog/product/s/a/samsung-galaxy-s26-10.jpg",
+    "is_primary": false,
+    "sort_order": 4
+  },
+  {
+    "product_id": 14,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:50:50/q:90/plain/https://cellphones.com.vn/media/catalog/product/s/a/samsung-galaxy-z-flip-7.jpg",
+    "is_primary": false,
+    "sort_order": 0
+  },
+  {
+    "product_id": 14,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:50:50/q:90/plain/https://cellphones.com.vn/media/catalog/product/s/a/samsung-galaxy-z-flip-7-1_1.jpg",
+    "is_primary": false,
+    "sort_order": 1
+  },
+  {
+    "product_id": 14,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:50:50/q:90/plain/https://cellphones.com.vn/media/catalog/product/s/a/samsung-galaxy-z-flip-7-2.jpg",
+    "is_primary": false,
+    "sort_order": 2
+  },
+  {
+    "product_id": 14,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:56:56/q:90/plain/https://cellphones.com.vn/media/catalog/product/s/a/samsung-galaxy-z-flip-7-1.jpg",
+    "is_primary": false,
+    "sort_order": 3
+  },
+  {
+    "product_id": 15,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:50:50/q:90/plain/https://cellphones.com.vn/media/catalog/product/i/p/iphone-15-128gb-xanh-duong.png",
+    "is_primary": false,
+    "sort_order": 0
+  },
+  {
+    "product_id": 15,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:50:50/q:90/plain/https://cellphones.com.vn/media/catalog/product/i/p/iphone-15-hong.png",
+    "is_primary": false,
+    "sort_order": 1
+  },
+  {
+    "product_id": 15,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:50:50/q:90/plain/https://cellphones.com.vn/media/catalog/product/i/p/iphone-15-128-gbden.png",
+    "is_primary": false,
+    "sort_order": 2
+  },
+  {
+    "product_id": 15,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:50:50/q:90/plain/https://cellphones.com.vn/media/catalog/product/i/p/iphone-15-128gb-xanh-la.png",
+    "is_primary": false,
+    "sort_order": 3
+  },
+  {
+    "product_id": 15,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:50:50/q:90/plain/https://cellphones.com.vn/media/catalog/product/i/p/iphone-15-128gb-vang.png",
+    "is_primary": false,
+    "sort_order": 4
+  },
+  {
+    "product_id": 15,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:56:56/q:90/plain/https://cellphones.com.vn/media/catalog/product/i/p/iphone-15-plus_1__1.png",
+    "is_primary": false,
+    "sort_order": 5
+  },
+  {
+    "product_id": 16,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:50:50/q:90/plain/https://cellphones.com.vn/media/catalog/product/i/p/iphone-16-pro-max-titan-den.png",
+    "is_primary": false,
+    "sort_order": 0
+  },
+  {
+    "product_id": 16,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:50:50/q:90/plain/https://cellphones.com.vn/media/catalog/product/i/p/iphone-16-pro-max-titan-tu-nhien.png",
+    "is_primary": false,
+    "sort_order": 1
+  },
+  {
+    "product_id": 16,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:50:50/q:90/plain/https://cellphones.com.vn/media/catalog/product/i/p/iphone-16-pro-max-titan-sa-mac.png",
+    "is_primary": false,
+    "sort_order": 2
+  },
+  {
+    "product_id": 16,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:50:50/q:90/plain/https://cellphones.com.vn/media/catalog/product/i/p/iphone-16-pro-max-titan-trang.png",
+    "is_primary": false,
+    "sort_order": 3
+  },
+  {
+    "product_id": 16,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:56:56/q:90/plain/https://cellphones.com.vn/media/catalog/product/i/p/iphone-16-pro-max.png",
+    "is_primary": false,
+    "sort_order": 4
+  },
+  {
+    "product_id": 17,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:50:50/q:90/plain/https://cellphones.com.vn/media/catalog/product/i/p/iphone_17_256gb_2.jpg",
+    "is_primary": false,
+    "sort_order": 0
+  },
+  {
+    "product_id": 17,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:50:50/q:90/plain/https://cellphones.com.vn/media/catalog/product/i/p/iphone_17_sage_pdp_image_position_1_sage_color__vn-vi_1.jpg",
+    "is_primary": false,
+    "sort_order": 1
+  },
+  {
+    "product_id": 17,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:50:50/q:90/plain/https://cellphones.com.vn/media/catalog/product/2/5/256gb_2.jpg",
+    "is_primary": false,
+    "sort_order": 2
+  },
+  {
+    "product_id": 17,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:50:50/q:90/plain/https://cellphones.com.vn/media/catalog/product/i/p/iphone_17_256gb-2.jpg",
+    "is_primary": false,
+    "sort_order": 3
+  },
+  {
+    "product_id": 17,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:50:50/q:90/plain/https://cellphones.com.vn/media/catalog/product/i/p/iphone_17_256gb-3.jpg",
+    "is_primary": false,
+    "sort_order": 4
+  },
+  {
+    "product_id": 17,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:56:56/q:90/plain/https://cellphones.com.vn/media/catalog/product/i/p/iphone_17_256gb-3_2.jpg",
+    "is_primary": false,
+    "sort_order": 5
+  },
+  {
+    "product_id": 18,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:50:50/q:90/plain/https://cellphones.com.vn/media/catalog/product/i/p/iphone-17-pro-max-1.jpg",
+    "is_primary": false,
+    "sort_order": 0
+  },
+  {
+    "product_id": 18,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:50:50/q:90/plain/https://cellphones.com.vn/media/catalog/product/i/p/iphone-17-pro-max-2.jpg",
+    "is_primary": false,
+    "sort_order": 1
+  },
+  {
+    "product_id": 18,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:50:50/q:90/plain/https://cellphones.com.vn/media/catalog/product/i/p/iphone-17-pro-max.jpg",
+    "is_primary": false,
+    "sort_order": 2
+  },
+  {
+    "product_id": 18,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:56:56/q:90/plain/https://cellphones.com.vn/media/catalog/product/i/p/iphone-17-pro-max_3.jpg",
+    "is_primary": false,
+    "sort_order": 3
+  },
+  {
+    "product_id": 19,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:50:50/q:90/plain/https://cellphones.com.vn/media/catalog/product/i/p/iphone-17-pro-2.jpg",
+    "is_primary": false,
+    "sort_order": 0
+  },
+  {
+    "product_id": 19,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:50:50/q:90/plain/https://cellphones.com.vn/media/catalog/product/i/p/iphone-17-pro-cam.jpg",
+    "is_primary": false,
+    "sort_order": 1
+  },
+  {
+    "product_id": 19,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:50:50/q:90/plain/https://cellphones.com.vn/media/catalog/product/i/p/iphone-17-pro-3.jpg",
+    "is_primary": false,
+    "sort_order": 2
+  },
+  {
+    "product_id": 19,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:56:56/q:90/plain/https://cellphones.com.vn/media/catalog/product/i/p/iphone-17-pro-256-gb.png",
+    "is_primary": false,
+    "sort_order": 3
+  },
+  {
+    "product_id": 20,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:50:50/q:90/plain/https://cellphones.com.vn/media/catalog/product/i/p/iphone_air-2.jpg",
+    "is_primary": false,
+    "sort_order": 0
+  },
+  {
+    "product_id": 20,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:50:50/q:90/plain/https://cellphones.com.vn/media/catalog/product/i/p/iphone_17_256gb-4.jpg",
+    "is_primary": false,
+    "sort_order": 1
+  },
+  {
+    "product_id": 20,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:50:50/q:90/plain/https://cellphones.com.vn/media/catalog/product/i/p/iphone_17_256gb-5.jpg",
+    "is_primary": false,
+    "sort_order": 2
+  },
+  {
+    "product_id": 20,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:50:50/q:90/plain/https://cellphones.com.vn/media/catalog/product/i/p/iphone_air.jpg",
+    "is_primary": false,
+    "sort_order": 3
+  },
+  {
+    "product_id": 20,
+    "variant_id": null,
+    "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:56:56/q:90/plain/https://cellphones.com.vn/media/catalog/product/i/p/iphone_air-3_2.jpg",
+    "is_primary": false,
+    "sort_order": 4
+  }
+]

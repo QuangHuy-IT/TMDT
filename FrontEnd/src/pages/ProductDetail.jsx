@@ -331,6 +331,9 @@ export const ProductDetail = () => {
 
   const images = galleryImages;
 
+  // Derived display name for the selected variant - MUST be declared before addToCart
+  const displayName = formatVariantName(product?.name, selectedVariant);
+
   const addToCart = () => {
     if (!product) return;
     if (!isAuthenticated) {
@@ -359,6 +362,7 @@ export const ProductDetail = () => {
         sku: selectedVariant?.sku || '',
         thumbnailUrl: product.thumbnailUrl || '',
         images: product.images,
+        brand: product.brand || '',
       },
     });
   };
@@ -385,7 +389,6 @@ export const ProductDetail = () => {
   }
 
   const hasMultipleVersions = (versionOptions?.length || 0) > 1;
-  const displayName = formatVariantName(product.name, selectedVariant);
   const selectedVersionLabel = activeVersion?.label || getVersionLabel(selectedVariant);
 
   return (
