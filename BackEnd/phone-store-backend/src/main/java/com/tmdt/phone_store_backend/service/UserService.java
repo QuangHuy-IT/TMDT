@@ -189,6 +189,10 @@ public class UserService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người dùng"));
         user.setPasswordHash(passwordEncoder.encode(newPassword));
+        if (user.getStatus() != UserStatus.BLOCKED) {
+            user.setStatus(UserStatus.ACTIVE);
+        }
+        user.setEnabled(true);
         user.setUpdatedAt(LocalDateTime.now());
         userRepository.save(user);
         log.info("Password changed successfully for user: {}", email);

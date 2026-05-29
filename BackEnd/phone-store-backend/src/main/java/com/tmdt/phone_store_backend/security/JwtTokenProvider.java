@@ -35,6 +35,15 @@ public class JwtTokenProvider {
     }
 
     /**
+     * Tạo token cho luồng đặt lại mật khẩu.
+     * Token này có claim riêng để không dùng lẫn với access token.
+     */
+    public String generatePasswordResetToken(String email) {
+        long resetTokenExpirationMs = 15 * 60 * 1000L;
+        return createToken(email, resetTokenExpirationMs, "RESET_PASSWORD");
+    }
+
+    /**
      * Tạo Refresh Token (có thời hạn lâu hơn)
      */
     public String generateRefreshToken(String email) {
@@ -47,17 +56,26 @@ public class JwtTokenProvider {
      * Tạo token từ email
      */
     private String createToken(String email, long expirationMs) {
+        return createToken(email, expirationMs, null);
+    }
+
+    private String createToken(String email, long expirationMs, String tokenType) {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + expirationMs);
 
         SecretKey key = getSigningKey();
 
-        return Jwts.builder()
+        var builder = Jwts.builder()
                 .setSubject(email)
                 .setIssuedAt(now)
                 .setExpiration(expiryDate)
-                .signWith(key, SignatureAlgorithm.HS512)
-                .compact();
+                .signWith(key, SignatureAlgorithm.HS512);
+
+        if (tokenType != null) {
+            builder.claim("tokenType", tokenType);
+        }
+
+        return builder.compact();
     }
 
     /**
@@ -90,6 +108,19 @@ public class JwtTokenProvider {
             log.error("JWT claims string is empty: {}", ex.getMessage());
         }
         return false;
+    }
+
+    /**
+     * Kiểm tra token reset mật khẩu có hợp lệ không.
+     */
+    public boolean validatePasswordResetToken(String token) {
+        try {
+            Claims claims = getAllClaimsFromToken(token);
+            return "RESET_PASSWORD".equals(claims.get("tokenType", String.class));
+        } catch (Exception ex) {
+            log.error("Invalid password reset token: {}", ex.getMessage());
+            return false;
+        }
     }
 
     /**

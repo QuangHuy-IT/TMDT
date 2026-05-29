@@ -37,6 +37,24 @@ public class EmailService {
         }
     }
 
+    @Async
+    public void sendPasswordResetEmail(String toEmail, String resetToken) {
+        log.info("Sending password reset email to: {}", toEmail);
+        try {
+            String resetLink = frontendUrl + "/reset-password?token=" + resetToken;
+
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setFrom(fromEmail);
+            message.setTo(toEmail);
+            message.setSubject("Đặt lại mật khẩu HHShop");
+            message.setText(buildPasswordResetEmailBody(resetLink));
+            mailSender.send(message);
+            log.info("Password reset email sent successfully to: {}", toEmail);
+        } catch (Exception e) {
+            log.error("Failed to send password reset email to {}: {}", toEmail, e.getMessage());
+        }
+    }
+
     private String buildOtpEmailBody(String otpCode) {
         return """
                 Xin chào quý khách,
@@ -50,5 +68,21 @@ public class EmailService {
                 Trân trọng,
                 HHShop
                 """.formatted(otpCode);
+    }
+
+    private String buildPasswordResetEmailBody(String resetLink) {
+        return """
+                Xin chào quý khách,
+
+                Chúng tôi đã nhận được yêu cầu đặt lại mật khẩu cho tài khoản của bạn.
+
+                Vui lòng nhấn vào liên kết bên dưới để tạo mật khẩu mới:
+                %s
+
+                Liên kết này sẽ hết hạn sau 15 phút. Nếu bạn không yêu cầu đặt lại mật khẩu, vui lòng bỏ qua email này.
+
+                Trân trọng,
+                HHShop
+                """.formatted(resetLink);
     }
 }

@@ -203,7 +203,7 @@ export const Login = () => {
               <input id="remember-me" type="checkbox" className="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded cursor-pointer" />
               <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-500 cursor-pointer">Ghi nhớ tôi</label>
             </div>
-            <a href="#" className="text-sm font-bold text-red-600 hover:text-red-700 transition-colors">Quên mật khẩu?</a>
+            <Link to="/forgot-password" className="text-sm font-bold text-red-600 hover:text-red-700 transition-colors">Quên mật khẩu?</Link>
           </div>
 
           <button type="submit" disabled={loading} className="group relative w-full flex justify-center py-4 px-4 border border-transparent text-sm font-black rounded-2xl text-white bg-red-600 hover:bg-red-700 focus:outline-none transition-all shadow-lg shadow-red-100 disabled:opacity-70 active:scale-95">
