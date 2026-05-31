@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { getProductThumbnail } from '../../utils/catalog';
+import { getSafeProductSlug } from '../../utils/slug';
 
 // ─── CartItem ─────────────────────────────────────────────────────────────────
 // Props:
@@ -18,12 +19,12 @@ const CartItem = ({ item, checked, onToggle, onQtyChange, onRemove }) => {
     || getProductThumbnail(item)
     || 'https://picsum.photos/80';
   const subtotal  = item.price * item.quantity;
-  const productSlug = item.slug
-    || item.variantSlug
-    || item.selectedVariant?.slug
-    || item.productSlug
-    || item._id
-    || item.id;
+  const productSlug = getSafeProductSlug(
+    item.variantSlug,
+    item.selectedVariant?.slug,
+    item.slug,
+    item.productSlug,
+  );
 
   const variantParts = [
     item.ram,
@@ -59,6 +60,7 @@ const CartItem = ({ item, checked, onToggle, onQtyChange, onRemove }) => {
 
       {/* ── Product info ── */}
       <div className="flex items-center gap-3 min-w-0">
+        {productSlug ? (
         <Link to={`/products/${productSlug}`} className="flex-shrink-0">
           <img
             src={thumbnail}
@@ -68,13 +70,27 @@ const CartItem = ({ item, checked, onToggle, onQtyChange, onRemove }) => {
             onError={(e) => { e.target.src = 'https://picsum.photos/80'; }}
           />
         </Link>
+        ) : (
+          <img
+            src={thumbnail}
+            alt={item.name}
+            className="w-[76px] h-[76px] object-contain rounded-lg border border-gray-200 bg-gray-50 p-1"
+            onError={(e) => { e.target.src = 'https://picsum.photos/80'; }}
+          />
+        )}
         <div className="min-w-0">
+          {productSlug ? (
           <Link to={`/products/${productSlug}`}>
             <p className="text-[13.5px] text-gray-800 leading-[1.45] line-clamp-2
                           hover:text-red-500 transition-colors font-medium">
               {item.name}
             </p>
           </Link>
+          ) : (
+            <p className="text-[13.5px] text-gray-800 leading-[1.45] line-clamp-2 font-medium">
+              {item.name}
+            </p>
+          )}
           <p className="text-[11px] text-gray-400 uppercase tracking-widest font-semibold mt-1">
             {item.brand}
           </p>

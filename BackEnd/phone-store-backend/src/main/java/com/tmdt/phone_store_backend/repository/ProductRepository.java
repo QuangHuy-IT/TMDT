@@ -11,13 +11,42 @@ import java.util.Optional;
 
 public interface ProductRepository extends JpaRepository<Product, Long> {
 
+    @Query("""
+            SELECT p FROM Product p
+            LEFT JOIN FETCH p.brand
+            LEFT JOIN FETCH p.series
+            WHERE p.deletedAt IS NULL
+            ORDER BY p.createdAt DESC
+            """)
     List<Product> findByDeletedAtIsNullOrderByCreatedAtDesc();
+
+    @Query("""
+            SELECT p FROM Product p
+            LEFT JOIN FETCH p.brand
+            LEFT JOIN FETCH p.series
+            WHERE p.deletedAt IS NULL
+              AND p.status = com.tmdt.phone_store_backend.domain.enums.ProductStatus.ACTIVE
+              AND (:brandSlug IS NULL OR LOWER(p.brand.slug) = LOWER(:brandSlug))
+              AND (:seriesSlug IS NULL OR LOWER(p.series.slug) = LOWER(:seriesSlug))
+            ORDER BY p.createdAt DESC
+            """)
+    List<Product> findPublicProducts(
+            @Param("brandSlug") String brandSlug,
+            @Param("seriesSlug") String seriesSlug);
 
     Optional<Product> findByIdAndDeletedAtIsNull(Long id);
 
     Optional<Product> findBySlugAndDeletedAtIsNull(String slug);
 
-    List<Product> findByNameIgnoreCaseAndDeletedAtIsNull(String name);
+    @Query("""
+            SELECT p FROM Product p
+            LEFT JOIN FETCH p.brand
+            LEFT JOIN FETCH p.series
+            WHERE p.deletedAt IS NULL
+              AND LOWER(p.name) = LOWER(:name)
+            ORDER BY p.createdAt DESC
+            """)
+    List<Product> findByNameIgnoreCaseAndDeletedAtIsNull(@Param("name") String name);
 
     @Query("SELECT p FROM Product p WHERE p.deletedAt IS NULL AND (p.slug = :slug OR p.slug LIKE CONCAT(:slugPrefix, '%')) ORDER BY p.createdAt DESC")
     Optional<Product> findBySlugOrPrefix(@Param("slug") String slug, @Param("slugPrefix") String slugPrefix);

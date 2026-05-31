@@ -2,6 +2,7 @@ package com.tmdt.phone_store_backend.repository;
 
 import com.tmdt.phone_store_backend.domain.entity.Review;
 import java.util.List;
+import java.util.Collection;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -25,6 +26,15 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
 
     @Query("SELECT COALESCE(AVG(r.rating), 0.0) FROM Review r WHERE r.product.id = :productId AND r.isApproved = true")
     Double getAverageRatingByProductId(@Param("productId") Long productId);
+
+    @Query("""
+            SELECT r.product.id, COALESCE(AVG(r.rating), 0.0), COUNT(r.id)
+            FROM Review r
+            WHERE r.product.id IN :productIds
+              AND r.isApproved = true
+            GROUP BY r.product.id
+            """)
+    List<Object[]> getReviewStatsByProductIds(@Param("productIds") Collection<Long> productIds);
 
     @Query("SELECT r.rating, COUNT(r) FROM Review r WHERE r.product.id = :productId AND r.isApproved = true GROUP BY r.rating")
     List<Object[]> getRatingDistributionByProductId(@Param("productId") Long productId);

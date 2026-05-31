@@ -27,8 +27,8 @@ public class IntentDetector {
             "máy nào", "cho tôi xem", "gợi ý", "nên mua", "tốt nhất", "điện thoại"
         ),
         IntentType.PRODUCT_COMPARE, List.of(
-            "so sánh", "so sanh", "vs", "với", "hay", "khác nhau", 
-            "nên chọn", "tốt hơn", "hơn", "thua", "ưu tiên", "nhược điểm"
+            "so sánh", "so sanh", " vs ", "khác nhau",
+            "tốt hơn", "nhược điểm"
         ),
         IntentType.PRODUCT_RECOMMENDATION, List.of(
             "recommend", "gợi ý cho tôi", "bạn nghĩ", "theo tôi", 
@@ -61,7 +61,7 @@ public class IntentDetector {
 
     // Pattern để detect câu hỏi so sánh điện thoại
     private static final Pattern COMPARE_PATTERN = Pattern.compile(
-        "so sánh|so sanh|vs|với|hay|nên chọn",
+        "so sánh|so sanh|\\bvs\\b|nên chọn .+ (với|hay) .+",
         Pattern.CASE_INSENSITIVE
     );
 

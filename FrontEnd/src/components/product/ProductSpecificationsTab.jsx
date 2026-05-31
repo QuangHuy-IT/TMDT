@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 
 const CATEGORY_ICONS = {
   'Màn hình': (
@@ -69,12 +69,71 @@ const CATEGORY_ORDER = [
   'Khác',
 ];
 
-export const ProductSpecificationsTab = ({ groupedSpecifications, specifications }) => {
+const isFilledSpec = ([key, value]) => String(key || '').trim() && String(value || '').trim();
+
+const normalizeFlatSpecs = (specs) => (
+  specs && typeof specs === 'object'
+    ? Object.fromEntries(Object.entries(specs).filter(isFilledSpec))
+    : {}
+);
+
+const normalizeGroupedSpecs = (groups) => {
+  if (!groups || typeof groups !== 'object') return {};
+
+  return Object.entries(groups).reduce((result, [category, specs]) => {
+    const cleanCategory = String(category || '').trim();
+    const cleanSpecs = normalizeFlatSpecs(specs);
+    if (cleanCategory && Object.keys(cleanSpecs).length > 0) {
+      result[cleanCategory] = cleanSpecs;
+    }
+    return result;
+  }, {});
+};
+
+const normalizeSpecificationRows = (rows) => (
+  Array.isArray(rows)
+    ? rows
+      .map((row, index) => ({
+        id: row?.id ?? `${row?.specCategory || 'spec'}-${row?.specKey || index}-${index}`,
+        specCategory: String(row?.specCategory || 'Khác').trim() || 'Khác',
+        specKey: String(row?.specKey || '').trim(),
+        specValue: String(row?.specValue || '').trim(),
+        sortOrder: Number.isFinite(Number(row?.sortOrder)) ? Number(row.sortOrder) : index,
+      }))
+      .filter((row) => row.specKey && row.specValue)
+      .sort((a, b) => a.sortOrder - b.sortOrder || String(a.id).localeCompare(String(b.id)))
+    : []
+);
+
+const groupRowsByCategory = (rows) => rows.reduce((result, row) => {
+  const category = row.specCategory || 'Khác';
+  if (!result[category]) result[category] = [];
+  result[category].push(row);
+  return result;
+}, {});
+
+export const ProductSpecificationsTab = ({ specificationRows, groupedSpecifications, specifications }) => {
   const [activeTab, setActiveTab] = useState(0);
+  const cleanSpecificationRows = useMemo(
+    () => normalizeSpecificationRows(specificationRows),
+    [specificationRows]
+  );
+  const rowsByCategory = useMemo(
+    () => groupRowsByCategory(cleanSpecificationRows),
+    [cleanSpecificationRows]
+  );
+  const cleanGroupedSpecifications = useMemo(
+    () => normalizeGroupedSpecs(groupedSpecifications),
+    [groupedSpecifications]
+  );
+  const cleanSpecifications = useMemo(
+    () => normalizeFlatSpecs(specifications),
+    [specifications]
+  );
 
   const categoryList = useMemo(() => {
-    if (groupedSpecifications && Object.keys(groupedSpecifications).length > 0) {
-      const cats = Object.keys(groupedSpecifications);
+    if (cleanSpecificationRows.length > 0) {
+      const cats = Object.keys(rowsByCategory);
       return cats.sort((a, b) => {
         const idxA = CATEGORY_ORDER.indexOf(a);
         const idxB = CATEGORY_ORDER.indexOf(b);
@@ -84,11 +143,27 @@ export const ProductSpecificationsTab = ({ groupedSpecifications, specifications
         return idxA - idxB;
       });
     }
-    if (specifications && Object.keys(specifications).length > 0) {
+    if (Object.keys(cleanGroupedSpecifications).length > 0) {
+      const cats = Object.keys(cleanGroupedSpecifications);
+      return cats.sort((a, b) => {
+        const idxA = CATEGORY_ORDER.indexOf(a);
+        const idxB = CATEGORY_ORDER.indexOf(b);
+        if (idxA === -1 && idxB === -1) return a.localeCompare(b);
+        if (idxA === -1) return 1;
+        if (idxB === -1) return -1;
+        return idxA - idxB;
+      });
+    }
+    if (Object.keys(cleanSpecifications).length > 0) {
       return ['Thông số'];
     }
     return [];
-  }, [groupedSpecifications, specifications]);
+  }, [cleanSpecificationRows, rowsByCategory, cleanGroupedSpecifications, cleanSpecifications]);
+  const categorySignature = categoryList.join('|');
+
+  useEffect(() => {
+    setActiveTab(0);
+  }, [categorySignature]);
 
   if (categoryList.length === 0) {
     return (
@@ -98,7 +173,9 @@ export const ProductSpecificationsTab = ({ groupedSpecifications, specifications
     );
   }
 
-  const hasGrouped = groupedSpecifications && Object.keys(groupedSpecifications).length > 0;
+  const hasRows = cleanSpecificationRows.length > 0;
+  const hasGrouped = Object.keys(cleanGroupedSpecifications).length > 0;
+  const activeCategory = categoryList[Math.min(activeTab, categoryList.length - 1)] || categoryList[0];
 
   return (
     <div className="rounded-2xl border border-gray-100 bg-white overflow-hidden">
@@ -110,7 +187,7 @@ export const ProductSpecificationsTab = ({ groupedSpecifications, specifications
       </div>
 
       {/* Tab bar */}
-      {hasGrouped && categoryList.length > 1 && (
+      {(hasRows || hasGrouped) && categoryList.length > 1 && (
         <div className="border-b border-gray-100 overflow-x-auto scrollbar-hide">
           <div className="flex min-w-max px-2">
             {categoryList.map((category, index) => (
@@ -138,16 +215,42 @@ export const ProductSpecificationsTab = ({ groupedSpecifications, specifications
 
       {/* Spec content */}
       <div className="p-4">
-        {hasGrouped ? (
+        {hasRows ? (
           <div className="animate-in fade-in duration-200">
             <h3 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
               <span className="text-gray-400">
-                {CATEGORY_ICONS[categoryList[activeTab]] || DEFAULT_ICON}
+                {CATEGORY_ICONS[activeCategory] || DEFAULT_ICON}
               </span>
-              {categoryList[activeTab]}
+              {activeCategory}
             </h3>
             <div className="bg-gray-50 rounded-xl overflow-hidden">
-              {Object.entries(groupedSpecifications[categoryList[activeTab]] || {}).map(
+              {(rowsByCategory[activeCategory] || []).map((row, idx, arr) => (
+                <div
+                  key={row.id}
+                  className={`flex justify-between gap-4 px-4 py-3 text-sm ${
+                    idx !== arr.length - 1 ? 'border-b border-gray-200' : ''
+                  }`}
+                >
+                  <span className="text-gray-500 shrink-0 w-36">{row.specKey}</span>
+                  <span className="text-gray-800 font-medium text-right leading-relaxed">{row.specValue}</span>
+                </div>
+              ))}
+            </div>
+
+            <p className="mt-2 text-xs text-gray-400 text-right">
+              {(rowsByCategory[activeCategory] || []).length} thông số
+            </p>
+          </div>
+        ) : hasGrouped ? (
+          <div className="animate-in fade-in duration-200">
+            <h3 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
+              <span className="text-gray-400">
+                {CATEGORY_ICONS[activeCategory] || DEFAULT_ICON}
+              </span>
+              {activeCategory}
+            </h3>
+            <div className="bg-gray-50 rounded-xl overflow-hidden">
+              {Object.entries(cleanGroupedSpecifications[activeCategory] || {}).map(
                 ([key, value], idx, arr) => (
                   <div
                     key={key}
@@ -164,12 +267,12 @@ export const ProductSpecificationsTab = ({ groupedSpecifications, specifications
 
             {/* Category count indicator */}
             <p className="mt-2 text-xs text-gray-400 text-right">
-              {Object.keys(groupedSpecifications[categoryList[activeTab]] || {}).length} thông số
+              {Object.keys(cleanGroupedSpecifications[activeCategory] || {}).length} thông số
             </p>
           </div>
         ) : (
           <div className="bg-gray-50 rounded-xl overflow-hidden">
-            {Object.entries(specifications || {}).map(([key, value], idx, arr) => (
+            {Object.entries(cleanSpecifications).map(([key, value], idx, arr) => (
               <div
                 key={key}
                 className={`flex justify-between gap-4 px-4 py-3 text-sm ${
@@ -186,14 +289,16 @@ export const ProductSpecificationsTab = ({ groupedSpecifications, specifications
         )}
 
         {/* Quick summary chips — show first 3 specs from each tab on mobile */}
-        {hasGrouped && categoryList.length > 1 && (
+        {(hasRows || hasGrouped) && categoryList.length > 1 && (
           <div className="mt-4 pt-4 border-t border-gray-100">
             <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-3">
               Xem nhanh thông số nổi bật
             </p>
             <div className="flex flex-wrap gap-2">
               {categoryList.slice(0, 4).map((category, idx) => {
-                const firstSpec = Object.entries(groupedSpecifications[category] || {})[0];
+                const firstSpec = hasRows
+                  ? rowsByCategory[category]?.[0]
+                  : Object.entries(cleanGroupedSpecifications[category] || {})[0];
                 return firstSpec ? (
                   <button
                     key={category}
@@ -204,7 +309,9 @@ export const ProductSpecificationsTab = ({ groupedSpecifications, specifications
                         : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'
                     }`}
                   >
-                    {category}: <span className="font-normal text-gray-500">{firstSpec[1]}</span>
+                    {category}: <span className="font-normal text-gray-500">
+                      {hasRows ? firstSpec.specValue : firstSpec[1]}
+                    </span>
                   </button>
                 ) : null;
               })}
@@ -214,7 +321,7 @@ export const ProductSpecificationsTab = ({ groupedSpecifications, specifications
       </div>
 
       {/* "View all" link — shown when not on last tab */}
-      {hasGrouped && activeTab < categoryList.length - 1 && (
+      {(hasRows || hasGrouped) && activeTab < categoryList.length - 1 && (
         <div className="px-4 pb-4">
           <button
             onClick={() => setActiveTab(activeTab + 1)}

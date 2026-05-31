@@ -14,12 +14,12 @@ const PaymentService = {
     return api.get(`/orders/${orderCode}`);
   },
 
-  cancelOrder: (orderCode, userId) => {
-    return api.patch(`/orders/${orderCode}/cancel?userId=${userId}`);
+  cancelOrder: (orderCode) => {
+    return api.patch(`/orders/${orderCode}/cancel`);
   },
 
-  deletePendingOrder: (orderCode, userId) => {
-    return api.delete(`/orders/${orderCode}?userId=${userId}`);
+  deletePendingOrder: (orderCode) => {
+    return api.delete(`/orders/${orderCode}`);
   },
 
   cancelPayOSPayment: (payosOrderCode) => {

@@ -1,6 +1,10 @@
 {
   "dependencies": {
+    "cheerio": "^1.1.0",
     "framer-motion": "^12.38.0",
+    "playwright-extra": "^4.3.6",
+    "playwright-extra-plugin-stealth": "^0.0.1",
+    "slugify": "^1.6.9",
     "swiper": "^12.1.4"
   }
 }

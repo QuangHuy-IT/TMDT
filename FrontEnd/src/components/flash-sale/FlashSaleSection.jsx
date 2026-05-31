@@ -1,14 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Zap, Gift, Flame, AlertCircle, ShoppingBag, ArrowRight } from 'lucide-react';
-import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import CountdownTimer from './CountdownTimer';
 import FlashSaleTabs from './FlashSaleTabs';
 import FlashSaleDateSelector from './FlashSaleDateSelector';
-import FlashSaleTimeSelector from './FlashSaleTimeSelector';
 import FlashSaleProductCard from './FlashSaleProductCard';
 import ProductSlider from './ProductSlider';
 import ProductCardSkeleton from '../ui/ProductCardSkeleton';
+import {
+  formatFlashSaleDate,
+  formatFlashSaleTime,
+  withFlashSaleStatus,
+} from '../../utils/flashSaleTime';
 
 // ===== SKELETON =====
 const FlashSaleSkeleton = () => (
@@ -108,27 +111,44 @@ const EmptyState = () => {
 
 // ===== MAIN COMPONENT =====
 const FlashSaleSection = ({ flashSaleData, isLoading }) => {
-  const navigate = useNavigate();
   const [activeCampaignIdx, setActiveCampaignIdx] = useState(0);
   const [activeSessionId, setActiveSessionId] = useState(null);
   const [activeProducts, setActiveProducts] = useState([]);
   const [featuredSession, setFeaturedSession] = useState(null);
+  const [nowMs, setNowMs] = useState(() => Date.now());
 
-  const campaigns = flashSaleData?.campaigns || [];
+  const baseCampaigns = useMemo(() => flashSaleData?.campaigns || [], [flashSaleData]);
+  const campaigns = useMemo(() => (
+    baseCampaigns.map((campaign) => ({
+      ...withFlashSaleStatus(campaign, nowMs),
+      sessions: (campaign.sessions || []).map((session) => withFlashSaleStatus(session, nowMs)),
+    }))
+  ), [baseCampaigns, nowMs]);
+
+  useEffect(() => {
+    const timer = setInterval(() => setNowMs(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   // Find initial featured session
   useEffect(() => {
-    if (campaigns.length > 0) {
-      const firstCampaign = campaigns[activeCampaignIdx];
-      if (firstCampaign?.sessions?.length > 0) {
-        const runningSession = firstCampaign.sessions.find(s => s.isRunning);
-        const upcomingSession = firstCampaign.sessions.find(s => s.isUpcoming);
-        const selectedSession = runningSession || upcomingSession || firstCampaign.sessions[0];
-        setActiveSessionId(selectedSession.id);
-        setFeaturedSession(selectedSession);
-        setActiveProducts(selectedSession.products || []);
-      }
+    const activeCampaign = campaigns[activeCampaignIdx];
+    if (!activeCampaign?.sessions?.length) {
+      setActiveSessionId(null);
+      setFeaturedSession(null);
+      setActiveProducts([]);
+      return;
     }
+
+    setActiveSessionId((currentId) => {
+      if (activeCampaign.sessions.some((session) => session.id === currentId)) {
+        return currentId;
+      }
+
+      const runningSession = activeCampaign.sessions.find(s => s.isRunning);
+      const upcomingSession = activeCampaign.sessions.find(s => s.isUpcoming);
+      return (runningSession || upcomingSession || activeCampaign.sessions[0]).id;
+    });
   }, [campaigns, activeCampaignIdx]);
 
   // Update products when session changes
@@ -168,10 +188,7 @@ const FlashSaleSection = ({ flashSaleData, isLoading }) => {
 
   return (
     <section className="container mx-auto px-4 pt-6 pb-12">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: 'easeOut' }}
+      <div
         className="rounded-[24px] overflow-hidden shadow-2xl shadow-red-200/50"
       >
         {/* ===== HEADER ===== */}
@@ -220,11 +237,11 @@ const FlashSaleSection = ({ flashSaleData, isLoading }) => {
                 </p>
                 {featuredSession && (
                   <p className="text-white/50 text-[9px] md:text-[10px] font-semibold mt-0.5">
-                    {new Date(featuredSession.startAt).toLocaleDateString('vi-VN', { weekday: 'short', day: 'numeric', month: 'short' })}
+                    {formatFlashSaleDate(featuredSession.startAt, { weekday: 'short', day: 'numeric', month: 'short' })}
                     {' · '}
-                    {new Date(featuredSession.startAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                    {formatFlashSaleTime(featuredSession.startAt)}
                     {' – '}
-                    {new Date(featuredSession.endAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                    {formatFlashSaleTime(featuredSession.endAt)}
                   </p>
                 )}
               </div>
@@ -311,7 +328,7 @@ const FlashSaleSection = ({ flashSaleData, isLoading }) => {
                     `}
                   >
                     <span className="uppercase font-black tracking-wide">
-                      {new Date(session.startAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                      {formatFlashSaleTime(session.startAt)}
                     </span>
                     {isRunning && <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse flex-shrink-0" />}
                     {isEnded && <span className="w-2 h-2 rounded-full bg-slate-400 flex-shrink-0" />}
@@ -325,9 +342,7 @@ const FlashSaleSection = ({ flashSaleData, isLoading }) => {
           {activeProducts.length > 0 ? (
             <ProductSlider products={activeProducts} />
           ) : (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
+            <div
               className="flex flex-col items-center justify-center py-20 gap-4"
             >
               <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center">
@@ -336,10 +351,10 @@ const FlashSaleSection = ({ flashSaleData, isLoading }) => {
               <p className="text-white/50 font-bold text-sm text-center">
                 Không có sản phẩm nào trong khung giờ này
               </p>
-            </motion.div>
+            </div>
           )}
         </div>
-      </motion.div>
+      </div>
     </section>
   );
 };

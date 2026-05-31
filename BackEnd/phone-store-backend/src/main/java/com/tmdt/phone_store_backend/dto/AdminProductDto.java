@@ -52,6 +52,7 @@ public class AdminProductDto {
     private List<String> images;
     private String thumbnailUrl;
     private Map<String, String> specifications;
+    private List<ProductSpecificationDto> specificationRows;
 
     /**
      * Thông số kỹ thuật theo nhóm (CellphoneS-style).

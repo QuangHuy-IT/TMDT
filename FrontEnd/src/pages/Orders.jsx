@@ -39,19 +39,15 @@ export const Orders = () => {
   const userId = state?.user?.id;
 
   useEffect(() => {
-    if (!userId) {
-      setLoading(false);
-      return;
-    }
     setLoading(true);
     const endpoint = activeTab === 'ALL'
-      ? `/orders/user/${userId}`
-      : `/orders/user/${userId}/status/${activeTab}`;
+      ? '/orders/my'
+      : `/orders/my/status/${activeTab}`;
     api.get(endpoint)
       .then(res => setOrders(res.data))
       .catch(err => console.error('Lỗi khi tải đơn hàng:', err))
       .finally(() => setLoading(false));
-  }, [userId, activeTab]);
+  }, [activeTab]);
 
   useEffect(() => {
     if (!userId) return;
@@ -83,7 +79,7 @@ export const Orders = () => {
     setCancelingId(orderToCancel.id);
     setShowCancelModal(false);
     try {
-      const res = await api.patch(`/orders/${orderToCancel.orderCode}/cancel?userId=${userId}`);
+      const res = await api.patch(`/orders/${orderToCancel.orderCode}/cancel`);
       setOrders(prev => prev.map(o => o.id === orderToCancel.id ? res.data : o));
     } catch (err) {
       console.error('Lỗi khi hủy đơn hàng:', err);

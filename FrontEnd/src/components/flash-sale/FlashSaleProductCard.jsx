@@ -3,14 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Heart, Zap, Flame, TrendingUp } from 'lucide-react';
 import { cn } from '../../utils/cn';
+import { getSafeProductSlug } from '../../utils/slug';
 import ProgressBar from './ProgressBar';
 
 const FlashSaleProductCard = ({ product, className }) => {
   const navigate = useNavigate();
   const [isFav, setIsFav] = React.useState(false);
 
-  const productId = product.id || product._id;
-  const productSlug = product.slug || product.productSlug || productId;
+  const productSlug = getSafeProductSlug(product.slug, product.productSlug);
   const name = product.name || product.productName || 'Sản phẩm';
   const thumbnail =
     product.thumbnail ||
@@ -36,7 +36,7 @@ const FlashSaleProductCard = ({ product, className }) => {
   const isHot = soldPercent >= 60 && !isSoldOut;
 
   const handleCardClick = () => {
-    if (!isSoldOut) navigate(`/products/${productSlug}`);
+    if (!isSoldOut && productSlug) navigate(`/products/${productSlug}`);
   };
 
   const handleFavClick = (e) => {
@@ -175,7 +175,7 @@ const FlashSaleProductCard = ({ product, className }) => {
       </div>
 
       {/* ===== BUY BUTTON ===== */}
-      {!isSoldOut && (
+      {!isSoldOut && productSlug && (
         <div className="px-3.5 pb-3.5 -mt-1">
           <button
             onClick={(e) => {

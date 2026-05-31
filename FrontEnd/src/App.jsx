@@ -189,6 +189,7 @@ function App() {
                         <Route path="/chinh-sach-doi-tra" element={<ReturnPolicy />} />
                         <Route path="/chinh-sach-bao-mat" element={<PrivacyPolicy />} />
                         <Route path="/chinh-sach-giao-hang" element={<ShippingPolicy />} />
+                        <Route path="/brands/:brandSlug/:seriesSlug" element={<BrandProducts />} />
                         <Route path="/brands/:brandSlug" element={<BrandProducts />} />
                         <Route path="/cart" element={<ProtectedRoute><Cart /></ProtectedRoute>} />
                         <Route path="/checkout" element={<ProtectedRoute><Checkout /></ProtectedRoute>} />

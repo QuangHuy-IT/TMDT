@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { X, Send, Bot, User, Sparkles, AlertCircle } from 'lucide-react';
 import { sendChatMessage, getOrCreateSessionId } from '../../api/chatService';
+import { CompactRecommendationList } from '../ui/RecommendationCards';
 
 // Enhanced suggested questions với icons
 const SUGGESTED_QUESTIONS = [
@@ -159,11 +160,6 @@ Bạn cần tôi hỗ trợ gì hôm nay?`,
   const handleSuggestedQuestion = (question) => {
     setInputValue(question.text);
     setTimeout(() => inputRef.current?.focus(), 50);
-  };
-
-  const formatPrice = (price) => {
-    if (!price) return 'Liên hệ';
-    return new Intl.NumberFormat('vi-VN').format(price) + ' đ';
   };
 
   return (
@@ -352,34 +348,11 @@ const ChatBubble = ({ message }) => {
 
         {/* Product Cards — hiển thị trong cùng bubble */}
         {hasProducts && (
-          <div className="mt-3 grid grid-cols-2 gap-2">
-            {message.products.slice(0, 4).map((product) => (
-              <a
-                key={product.productId}
-                href={`/product/${product.slug}`}
-                className="block bg-gray-50 rounded-lg border border-gray-100 p-2 hover:shadow-md hover:border-blue-200 transition-all no-underline"
-              >
-                <img
-                  src={product.thumbnail || '/placeholder.png'}
-                  alt={product.productName}
-                  className="w-full aspect-square object-contain rounded bg-white"
-                  onError={(e) => { e.target.src = '/placeholder.png'; }}
-                />
-                <h5 className="text-xs font-medium text-gray-800 mt-1 line-clamp-2">
-                  {product.productName}
-                </h5>
-                <p className="text-xs font-bold text-blue-600 mt-0.5">
-                  {product.minPrice
-                    ? new Intl.NumberFormat('vi-VN').format(product.minPrice) + ' đ'
-                    : 'Liên hệ'}
-                </p>
-                {product.salePercent && (
-                  <span className="inline-block mt-0.5 text-[10px] px-1.5 py-0.5 rounded bg-red-50 text-red-500 font-medium">
-                    -{Math.round(product.salePercent)}%
-                  </span>
-                )}
-              </a>
-            ))}
+          <div className="mt-3">
+            <CompactRecommendationList
+              recommendations={message.products}
+              maxItems={4}
+            />
           </div>
         )}
 

@@ -92,6 +92,7 @@ export const Cart = () => {
 
   // ── Selection state ──────────────────────────────────────────────────────────
   const [selectedIds, setSelectedIds] = useState(() => new Set());
+  const [appliedVoucher, setAppliedVoucher] = useState(null);
 
   // Prune stale ids when cart items are removed
   useEffect(() => {
@@ -109,9 +110,6 @@ export const Cart = () => {
 
   // Group by brand for shop-style sections
   const brands = [...new Set(enriched.map((i) => i.brand))];
-
-  // ── Voucher state ─────────────────────────────────────────────────────────
-  const [appliedVoucher, setAppliedVoucher] = useState(null);
 
   // ── Handlers ─────────────────────────────────────────────────────────────────
   const handleToggleAll = (checked) =>

@@ -5,10 +5,12 @@ import { Autoplay, Navigation } from 'swiper/modules';
 import 'swiper/css';
 import 'swiper/css/navigation';
 import { priceToNumber, getProductThumbnail } from '../../utils/catalog';
+import { getSafeProductSlug } from '../../utils/slug';
 import HomeSectionShell from './HomeSectionShell';
 
 const FlashSaleCard = ({ product }) => {
   const navigate = useNavigate();
+  const productSlug = getSafeProductSlug(product.slug, product.productSlug);
   const price = priceToNumber(product.price);
   const sale = Number(product.sale || 0);
   const originalPrice = sale > 0 ? Math.round(price * 100 / (100 - sale)) : price;
@@ -18,7 +20,7 @@ const FlashSaleCard = ({ product }) => {
   return (
     <button
       type="button"
-      onClick={() => navigate(`/product/${product.slug || product.id || product._id}`)}
+      onClick={() => productSlug && navigate(`/products/${productSlug}`)}
       className="group h-full w-full rounded-[28px] border border-red-100 bg-white p-4 text-left shadow-[0_16px_38px_rgba(248,113,113,0.14)] transition-all hover:-translate-y-1 hover:shadow-[0_22px_48px_rgba(248,113,113,0.18)]"
     >
       <div className="mb-4 flex items-center justify-between">

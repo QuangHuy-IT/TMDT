@@ -10,13 +10,13 @@ import { applyCatalogFilters, deriveCatalogOptions } from '../utils/catalog';
 const ITEMS_PER_PAGE = 20;
 
 export const BrandProducts = () => {
-  const { brandSlug } = useParams();
+  const { brandSlug, seriesSlug } = useParams();
   const activeBrandKey = brandSlug || '';
   const navigate = useNavigate();
 
   const { products, loading: loadingProducts } = usePublicProducts({ brand: activeBrandKey });
   const { brands } = usePublicBrands();
-  const { series, loading: loadingSeries } = useBrandSeries(activeBrandKey);
+  const { series } = useBrandSeries(activeBrandKey);
 
   const [currentPage, setCurrentPage] = useState(1);
   const [sortBy, setSortBy] = useState('featured');
@@ -27,8 +27,8 @@ export const BrandProducts = () => {
   useEffect(() => {
     setCurrentPage(1);
     setFilters(DEFAULT_FILTERS);
-    setSelectedSeries(null);
-  }, [activeBrandKey]);
+    setSelectedSeries(seriesSlug || null);
+  }, [activeBrandKey, seriesSlug]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -65,8 +65,10 @@ export const BrandProducts = () => {
   const handleSeriesClick = (seriesSlug) => {
     if (selectedSeries === seriesSlug) {
       setSelectedSeries(null);
+      navigate(`/brands/${activeBrandKey}`);
     } else {
       setSelectedSeries(seriesSlug);
+      navigate(`/brands/${activeBrandKey}/${seriesSlug}`);
     }
     setCurrentPage(1);
   };
@@ -92,7 +94,7 @@ export const BrandProducts = () => {
             </div>
             <div className="flex flex-wrap gap-2">
               <button
-                onClick={() => { setSelectedSeries(null); setCurrentPage(1); }}
+                onClick={() => { setSelectedSeries(null); setCurrentPage(1); navigate(`/brands/${activeBrandKey}`); }}
                 className={`rounded-xl border px-4 py-2 text-sm font-bold transition-all ${
                   selectedSeries === null
                     ? 'border-red-500 bg-red-50 text-red-600 shadow-sm'
@@ -236,7 +238,7 @@ export const BrandProducts = () => {
                 <div className="mb-4 text-6xl">?</div>
                 <p className="text-sm font-bold uppercase tracking-widest text-gray-400">Không tìm thấy sản phẩm</p>
                 <button
-                  onClick={() => { setFilters(DEFAULT_FILTERS); setSelectedSeries(null); }}
+                  onClick={() => { setFilters(DEFAULT_FILTERS); setSelectedSeries(null); navigate(`/brands/${activeBrandKey}`); }}
                   className="mt-4 rounded-xl bg-gray-900 px-6 py-2.5 text-xs font-bold text-white transition-all hover:bg-red-600"
                 >
                   Xóa bộ lọc

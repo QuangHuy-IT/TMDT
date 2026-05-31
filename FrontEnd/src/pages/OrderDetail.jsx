@@ -49,7 +49,7 @@ export const OrderDetail = () => {
   const handleCancel = async () => {
     setActionLoading(true);
     try {
-      const res = await api.patch(`/orders/${orderInfo.orderCode}/cancel?userId=${userId}`);
+      const res = await api.patch(`/orders/${orderInfo.orderCode}/cancel`);
       setOrderInfo(res.data);
       setShowModal(null);
     } catch (err) {
@@ -62,7 +62,7 @@ export const OrderDetail = () => {
   const handleReturn = async () => {
     setActionLoading(true);
     try {
-      const res = await api.patch(`/orders/${orderInfo.orderCode}/return?userId=${userId}`);
+      const res = await api.patch(`/orders/${orderInfo.orderCode}/return`);
       setOrderInfo(res.data);
       setShowModal(null);
     } catch (err) {
@@ -118,6 +118,8 @@ export const OrderDetail = () => {
             imageUrl: item.imageUrl || '',
             thumbnailUrl: item.imageUrl || '',
             images: item.imageUrl ? [item.imageUrl] : [],
+            // Brand is fetched from order level - use from orderInfo if available
+            brand: orderInfo.brand || 'Khác',
           },
         });
       }

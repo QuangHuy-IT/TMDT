@@ -28,7 +28,7 @@ public class ProductController {
             @RequestParam(required = false) Integer limit,
             @RequestParam(required = false) String series) {
         if (brand == null && price == null && storage == null && sort == null && limit == null && series == null) {
-            return ResponseEntity.ok(productAdminService.getAllProducts());
+            return ResponseEntity.ok(productAdminService.getPublicAllProducts());
         }
         return ResponseEntity.ok(productAdminService.getPublicProducts(brand, price, storage, sort, limit, series));
     }
