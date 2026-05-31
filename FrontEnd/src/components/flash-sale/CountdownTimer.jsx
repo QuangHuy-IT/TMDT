@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { cn } from '../../utils/cn';
+import { parseLocalDateTime } from '../../utils/flashSaleTime';
 
 const FlipDigit = ({ value, label, glow }) => {
   const [prevValue, setPrevValue] = useState(value);
@@ -102,8 +103,8 @@ const CountdownTimer = ({ remainingSeconds, endAt, compact = false, glow = false
       let total;
       if (endAt) {
         const now = Date.now();
-        const end = new Date(endAt).getTime();
-        total = Math.max(0, Math.floor((end - now) / 1000));
+        const end = parseLocalDateTime(endAt)?.getTime();
+        total = end ? Math.max(0, Math.floor((end - now) / 1000)) : 0;
       } else {
         total = remainingSeconds;
       }

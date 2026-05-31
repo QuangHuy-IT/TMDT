@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Heart, Eye, Zap, Star } from 'lucide-react';
 import { cn } from '../../utils/cn';
+import { getSafeProductSlug } from '../../utils/slug';
 import ProgressBar from '../flash-sale/ProgressBar';
 
 export const ProductCard = ({ product, variant = 'default', className }) => {
@@ -12,15 +13,10 @@ export const ProductCard = ({ product, variant = 'default', className }) => {
   const isFlashSale = variant === 'flash-sale';
 
   // === Shared mappings ===
-  const productId = product.id || product._id;
   const selectedVariant = product.selectedVariant && typeof product.selectedVariant === 'object'
     ? product.selectedVariant
     : null;
-  const variantSlug = selectedVariant?.slug
-    || product.slug
-    || product.productSlug
-    || productId
-    || '';
+  const variantSlug = getSafeProductSlug(selectedVariant?.slug, product.slug, product.productSlug);
 
   const variantSpec = product.variantName || '';
   const displayName = product.name || product.productName || 'Sản phẩm';
@@ -64,7 +60,7 @@ export const ProductCard = ({ product, variant = 'default', className }) => {
   const hasDiscount = sale > 0;
 
   const handleCardClick = () => {
-    navigate(`/products/${variantSlug}`);
+    if (variantSlug) navigate(`/products/${variantSlug}`);
   };
 
   const handleFavClick = (e) => {

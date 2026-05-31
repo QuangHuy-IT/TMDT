@@ -1,6 +1,15 @@
 import api from '../api/axiosInstance';
 import adminApi from '../api/adminAxiosInstance';
 
+const pendingProductListRequests = new Map();
+const pendingProductDetailRequests = new Map();
+
+const getRequestKey = (params = {}) => JSON.stringify(
+  Object.entries(params)
+    .filter(([, value]) => value !== undefined && value !== null && value !== '')
+    .sort(([left], [right]) => left.localeCompare(right))
+);
+
 const ProductService = {
   getAdminProducts: () => adminApi.get('/admin/products'),
   getAdminProduct: (id) => adminApi.get(`/admin/products/${id}`),
@@ -21,8 +30,24 @@ const ProductService = {
       },
     });
   },
-  getProducts: (params = {}) => api.get('/products', { params }),
-  getProductDetail: (idOrSlug) => api.get(`/products/${idOrSlug}`),
+  getProducts: (params = {}) => {
+    const key = getRequestKey(params);
+    if (!pendingProductListRequests.has(key)) {
+      const request = api.get('/products', { params })
+        .finally(() => pendingProductListRequests.delete(key));
+      pendingProductListRequests.set(key, request);
+    }
+    return pendingProductListRequests.get(key);
+  },
+  getProductDetail: (idOrSlug) => {
+    const key = String(idOrSlug || '');
+    if (!pendingProductDetailRequests.has(key)) {
+      const request = api.get(`/products/${idOrSlug}`)
+        .finally(() => pendingProductDetailRequests.delete(key));
+      pendingProductDetailRequests.set(key, request);
+    }
+    return pendingProductDetailRequests.get(key);
+  },
   getRelatedProducts: (productName) => api.get(`/products/related/${encodeURIComponent(productName)}`),
   getFeaturedProducts: (limit = 8) => api.get('/products/featured', { params: { limit } }),
   getLatestProducts: (limit = 12) => api.get('/products/featured/latest', { params: { limit } }),

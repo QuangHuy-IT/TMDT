@@ -20,6 +20,7 @@ import com.tmdt.phone_store_backend.dto.AdminProductVariantDto;
 import com.tmdt.phone_store_backend.dto.AdminProductVariantRequestDto;
 import com.tmdt.phone_store_backend.dto.BrandDto;
 import com.tmdt.phone_store_backend.dto.HomeBrandSectionDto;
+import com.tmdt.phone_store_backend.dto.ProductSpecificationDto;
 import com.tmdt.phone_store_backend.dto.ProductVariantColorDto;
 import com.tmdt.phone_store_backend.dto.ProductVariantOptionDto;
 import com.tmdt.phone_store_backend.exception.ResourceAlreadyExistsException;
@@ -40,6 +41,7 @@ import com.tmdt.phone_store_backend.repository.ProductDiscountRepository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -58,6 +60,12 @@ import org.springframework.transaction.annotation.Transactional;
 @AllArgsConstructor
 @Transactional
 public class ProductAdminService {
+
+    private static final ZoneId VIETNAM_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
+
+    private LocalDateTime now() {
+        return LocalDateTime.now(VIETNAM_ZONE);
+    }
 
     private final ProductRepository productRepository;
     private final BrandRepository brandRepository;
@@ -78,10 +86,15 @@ public class ProductAdminService {
     // ══════════════════════════════════════════════════════════════
 
     public List<AdminProductDto> getAllProducts() {
-        // Admin listing: one row per product (not expanded)
-        return productRepository.findByDeletedAtIsNullOrderByCreatedAtDesc().stream()
-                .map(this::toSingleDto)
+        List<Product> products = productRepository.findByDeletedAtIsNullOrderByCreatedAtDesc();
+        ProductListContext context = buildProductListContext(products);
+        return products.stream()
+                .map(product -> toSingleDto(product, context))
                 .toList();
+    }
+
+    public List<AdminProductDto> getPublicAllProducts() {
+        return getPublicProducts(null, null, null, null, null, null);
     }
 
     public AdminProductDto getProductById(Long id) {
@@ -95,17 +108,11 @@ public class ProductAdminService {
 
     public List<AdminProductDto> getPublicProducts(String brandSlug, String price,
             String storage, String sort, Integer limit, String seriesSlug) {
-        List<Product> products = productRepository.findByDeletedAtIsNullOrderByCreatedAtDesc();
-
-        if (seriesSlug != null && !seriesSlug.isBlank()) {
-            products = products.stream()
-                    .filter(p -> p.getSeries() != null && seriesSlug.equalsIgnoreCase(p.getSeries().getSlug()))
-                    .toList();
-        }
+        List<Product> products = productRepository.findPublicProducts(normalizeOptionalParam(brandSlug), normalizeOptionalParam(seriesSlug));
+        ProductListContext context = buildProductListContext(products);
 
         return products.stream()
-                .filter(product -> matchesBrand(product, brandSlug))
-                .flatMap(p -> toListDto(p).stream())
+                .flatMap(p -> toListDto(p, context).stream())
                 .filter(dto -> matchesPrice(dto, price))
                 .filter(dto -> matchesStorage(dto, storage))
                 .sorted(resolveComparator(sort))
@@ -116,9 +123,11 @@ public class ProductAdminService {
         public List<AdminProductDto> getFeaturedProducts(Integer limit) {
         int maxItems = limit != null && limit > 0 ? limit : 8;
 
-        return productRepository.findByDeletedAtIsNullOrderByCreatedAtDesc().stream()
-            .filter(p -> p.getStatus() == ProductStatus.ACTIVE)
-            .map(this::toSingleDto)
+        List<Product> products = productRepository.findPublicProducts(null, null);
+        ProductListContext context = buildProductListContext(products);
+
+        return products.stream()
+            .map(product -> toSinglePublicDto(product, context))
             .filter(dto -> dto.getReviewCount() != null && dto.getReviewCount() > 0)
             .sorted(Comparator.comparing(AdminProductDto::getAverageRating, Comparator.nullsLast(Comparator.reverseOrder()))
                 .thenComparing(AdminProductDto::getReviewCount, Comparator.nullsLast(Comparator.reverseOrder()))
@@ -136,28 +145,42 @@ public class ProductAdminService {
             return List.of();
         }
         // Related = other products with same name (in old model) or same name (new model)
-        return productRepository.findByNameIgnoreCaseAndDeletedAtIsNull(baseName).stream()
+        List<Product> products = productRepository.findByNameIgnoreCaseAndDeletedAtIsNull(baseName).stream()
                 .filter(p -> p.getStatus() == ProductStatus.ACTIVE)
-                .flatMap(p -> toListDto(p).stream())
+                .toList();
+        ProductListContext context = buildProductListContext(products);
+        return products.stream()
+                .flatMap(p -> toListDto(p, context).stream())
                 .toList();
     }
 
     public List<AdminProductDto> getFlashSaleProducts(Integer limit) {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = now();
         List<FlashSaleCampaign> activeCampaigns = flashSaleCampaignRepository.findAllActiveCampaigns(now);
-        if (activeCampaigns.isEmpty()) {
-            return List.of();
-        }
+        if (activeCampaigns.isEmpty()) return List.of();
 
         FlashSaleCampaign campaign = activeCampaigns.get(0);
-        return campaign.getSessions().stream()
-                .filter(s -> "RUNNING".equals(s.getStatus().name()))
-                .flatMap(session -> flashSaleProductRepository.findBySessionIdOrderBySortOrderAsc(session.getId()).stream())
+        List<FlashSaleProduct> flashSaleProducts = flashSaleProductRepository
+                .findRunningActiveByCampaignIdWithProductDetails(campaign.getId(), now);
+        if (flashSaleProducts.isEmpty()) return List.of();
+
+        List<Product> products = flashSaleProducts.stream()
+                .map(fp -> fp.getVariant() != null ? fp.getVariant().getProduct() : null)
+                .filter(Objects::nonNull)
+                .filter(product -> product.getDeletedAt() == null)
+                .filter(product -> product.getStatus() == ProductStatus.ACTIVE)
+                .collect(Collectors.collectingAndThen(
+                        Collectors.toMap(Product::getId, product -> product, (left, right) -> left, LinkedHashMap::new),
+                        map -> new ArrayList<>(map.values())
+                ));
+        ProductListContext context = buildProductListContext(products);
+
+        return flashSaleProducts.stream()
                 .filter(fp -> fp.getVariant() != null && fp.getVariant().getProduct() != null)
                 .filter(fp -> fp.getVariant().getProduct().getDeletedAt() == null)
                 .filter(fp -> fp.getVariant().getProduct().getStatus() == ProductStatus.ACTIVE)
                 .filter(fp -> fp.getQuantity() == null || fp.getQuantity() > 0)
-                .map(fp -> toDtoFromFlashSaleProduct(fp))
+                .map(fp -> toDtoFromFlashSaleProduct(fp, context))
                 .limit(limit != null && limit > 0 ? limit : 12L)
                 .toList();
     }
@@ -167,24 +190,57 @@ public class ProductAdminService {
      * Flow: find variant by slug → get product → get all variants of that product
      */
     public AdminProductDto getPublicProductDetail(String variantSlug) {
-        ProductVariant variant = productVariantRepository.findBySlug(variantSlug)
-                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy phiên bản: " + variantSlug));
+        ProductVariant variant = productVariantRepository.findBySlug(variantSlug).orElse(null);
+        if (variant == null) {
+            repairInvalidVariantSlugs();
+            String normalizedSlug = sanitizeSlug(variantSlug);
+            if (!normalizedSlug.equals(variantSlug)) {
+                variant = productVariantRepository.findBySlug(normalizedSlug).orElse(null);
+            }
+        } else if (!isValidSlug(variant.getSlug())) {
+            repairInvalidVariantSlugs(List.of(variant));
+        }
 
-        Product product = variant.getProduct();
+        Product productFromSlug = null;
+        List<ProductVariant> productSlugVariants = null;
+        if (variant == null) {
+            String productSlug = isValidSlug(variantSlug) ? variantSlug : sanitizeSlug(variantSlug);
+            productFromSlug = productRepository.findBySlugAndDeletedAtIsNull(productSlug).orElse(null);
+            if (productFromSlug != null) {
+                productSlugVariants = productVariantRepository.findByProductIdAndDeletedAtIsNull(productFromSlug.getId());
+                repairInvalidVariantSlugs(productSlugVariants);
+                variant = productSlugVariants.stream().findFirst().orElse(null);
+            }
+        }
+
+        if (variant == null) {
+            throw new ResourceNotFoundException("Không tìm thấy phiên bản: " + variantSlug);
+        }
+
+        Product product = productFromSlug != null ? productFromSlug : variant.getProduct();
         if (product == null || product.getDeletedAt() != null) {
             throw new ResourceNotFoundException("Không tìm thấy sản phẩm cho phiên bản: " + variantSlug);
         }
 
-        AdminProductDto dto = toDetailDto(product, variant);
+        List<ProductVariant> allVariants = productSlugVariants != null
+                ? productSlugVariants
+                : productVariantRepository.findByProductIdAndDeletedAtIsNull(product.getId());
+        repairInvalidVariantSlugs(allVariants);
+        ProductVariant selectedVariant = variant;
+        Long selectedVariantId = variant.getId();
+        if (selectedVariantId != null) {
+            selectedVariant = allVariants.stream()
+                    .filter(v -> selectedVariantId.equals(v.getId()))
+                    .findFirst()
+                    .orElse(variant);
+        }
+        List<ProductDiscount> activeDiscounts = discountRepository.findAllActiveNow(LocalDateTime.now());
+        List<FlashSaleProduct> activeFlashSales = getActiveFlashSales(allVariants);
+        AdminProductDto dto = toDetailDto(product, selectedVariant, allVariants, activeDiscounts, true);
 
         // Check flash sale
         BigDecimal minFlashPrice = null;
         Long flashSaleSessionId = null;
-        List<ProductVariant> allVariants = productVariantRepository.findByProductIdAndDeletedAtIsNull(product.getId());
-
-        // Load active product discounts for all variants
-        List<ProductDiscount> activeDiscounts = discountRepository.findAllActiveNow(LocalDateTime.now());
-
         for (ProductVariant v : allVariants) {
             // Apply product discount first
             ProductDiscount discount = getActiveDiscount(v.getId(), activeDiscounts);
@@ -209,9 +265,8 @@ public class ProductAdminService {
             }
 
             // Then check flash sale (flash sale overrides product discount)
-            List<FlashSaleProduct> activeFlashSales = flashSaleProductRepository.findActiveByVariantId(v.getId());
-            if (activeFlashSales != null && !activeFlashSales.isEmpty()) {
-                FlashSaleProduct fp = activeFlashSales.get(0);
+            FlashSaleProduct fp = getActiveFlashSale(v.getId(), activeFlashSales);
+            if (fp != null) {
                 BigDecimal flashPrice = fp.getFlashPrice();
                 if (minFlashPrice == null || flashPrice.compareTo(minFlashPrice) < 0) {
                     minFlashPrice = flashPrice;
@@ -303,8 +358,7 @@ public class ProductAdminService {
         product.setThumbnailUrl(requestDto.getThumbnailUrl());
         Product savedProduct = productRepository.save(product);
 
-        // Save images and specs ONCE (shared)
-        saveImages(savedProduct, requestDto.getImages(), now);
+        // Product-level image is thumbnail only; gallery images belong to variants.
         saveSpecifications(savedProduct, requestDto.getSpecifications(), now);
 
         // Create variants
@@ -312,7 +366,9 @@ public class ProductAdminService {
         for (int i = 0; i < normalizedVariants.size(); i++) {
             AdminProductVariantRequestDto variantReq = normalizedVariants.get(i);
             ProductVariant variant = createVariant(savedProduct, variantReq, now, i + 1);
-            savedVariants.add(productVariantRepository.save(variant));
+            ProductVariant savedVariant = productVariantRepository.save(variant);
+            saveVariantImages(savedProduct, savedVariant, variantReq.getImages(), now);
+            savedVariants.add(savedVariant);
         }
 
         return toDetailDto(savedProduct, savedVariants.get(0));
@@ -377,11 +433,13 @@ public class ProductAdminService {
                 ProductVariant existing = existingById.get(variantReq.getId());
                 idsToKeep.remove(variantReq.getId());
                 updateVariant(existing, variantReq, product, now);
-                savedVariants.add(productVariantRepository.save(existing));
+                ProductVariant savedVariant = productVariantRepository.save(existing);
+                savedVariants.add(savedVariant);
             } else {
                 // Create new variant
                 ProductVariant newVariant = createVariant(product, variantReq, now, i + 1);
-                savedVariants.add(productVariantRepository.save(newVariant));
+                ProductVariant savedVariant = productVariantRepository.save(newVariant);
+                savedVariants.add(savedVariant);
             }
         }
 
@@ -400,7 +458,9 @@ public class ProductAdminService {
 
         // Update images and specs
         productImageRepository.deleteByProductId(productId);
-        saveImages(product, requestDto.getImages(), now);
+        for (int i = 0; i < normalizedVariants.size() && i < savedVariants.size(); i++) {
+            saveVariantImages(product, savedVariants.get(i), normalizedVariants.get(i).getImages(), now);
+        }
 
         productSpecificationRepository.deleteByProductId(productId);
         saveSpecifications(product, requestDto.getSpecifications(), now);
@@ -443,29 +503,23 @@ public class ProductAdminService {
      * DTO for admin product listing (one row per product, not expanded).
      */
     private AdminProductDto toSingleDto(Product product) {
-        List<ProductVariant> variants = productVariantRepository.findByProductIdAndDeletedAtIsNull(product.getId());
+        return toSingleDto(product, buildProductListContext(List.of(product)));
+    }
+
+    private AdminProductDto toSingleDto(Product product, ProductListContext context) {
+        List<ProductVariant> variants = context.variantsByProductId().getOrDefault(product.getId(), List.of());
 
         int totalStock = 0;
         BigDecimal minPrice = BigDecimal.ZERO;
         List<AdminProductVariantDto> variantItemDtos = new ArrayList<>();
         for (ProductVariant variant : variants) {
-            int variantStock = inventoryRepository.findByVariantId(variant.getId())
-                    .map(Inventory::getQuantityOnHand).orElse(0);
+            int variantStock = context.stockByVariantId().getOrDefault(variant.getId(), 0);
             totalStock += variantStock;
-            variantItemDtos.add(toVariantDto(variant));
+            variantItemDtos.add(toVariantDto(variant, variantStock));
             BigDecimal vp = variant.getPrice() != null ? variant.getPrice() : BigDecimal.ZERO;
             if (minPrice.compareTo(BigDecimal.ZERO) == 0 || vp.compareTo(minPrice) < 0) {
                 minPrice = vp;
             }
-        }
-
-        List<ProductImage> images = productImageRepository.findByProductIdOrderBySortOrderAscIdAsc(product.getId());
-
-        // Build flat specs map
-        Map<String, String> specs = new HashMap<>();
-        for (ProductSpecification specification : productSpecificationRepository
-                .findByProductIdOrderBySortOrderAscIdAsc(product.getId())) {
-            specs.put(specification.getSpecKey(), specification.getSpecValue());
         }
 
         AdminProductDto dto = new AdminProductDto();
@@ -484,31 +538,28 @@ public class ProductAdminService {
         dto.setPrice(minPrice);
         dto.setStock(totalStock);
         dto.setSale(0);
-        applyReviewStats(dto, product.getId());
+        applyReviewStats(dto, context.reviewStatsByProductId().getOrDefault(product.getId(), ReviewStats.empty()));
         dto.setThumbnailUrl(product.getThumbnailUrl());
-        dto.setImages(images.stream().map(ProductImage::getImageUrl).toList());
+        dto.setImages(context.imageUrlsByProductId().getOrDefault(product.getId(), List.of()));
         dto.setIsFeatured(product.getIsFeatured());
         dto.setCreatedAt(product.getCreatedAt());
         dto.setReleaseDate(product.getCreatedAt());
-        dto.setSpecifications(specs);
-        dto.setSelectedVariant(!variants.isEmpty() ? toVariantDto(variants.get(0)) : null);
+        dto.setSpecifications(context.specsByProductId().getOrDefault(product.getId(), Map.of()));
+        dto.setSelectedVariant(!variants.isEmpty()
+                ? toVariantDto(variants.get(0), context.stockByVariantId().getOrDefault(variants.get(0).getId(), 0))
+                : null);
         dto.setVariants(variantItemDtos);
         dto.setVariantItems(variantItemDtos);
         return dto;
     }
 
-    /**
-     * DTO for product listing pages (home, search, brand page).
-     * Expands each product into N cards — one per variant — so each storage/RAM/color
-     * option appears as a separate listing card.
-     */
-    private List<AdminProductDto> toListDto(Product product) {
-        List<ProductVariant> variants = productVariantRepository.findByProductIdAndDeletedAtIsNull(product.getId());
+    private List<AdminProductDto> toListDto(Product product, ProductListContext context) {
+        List<ProductVariant> variants = context.variantsByProductId().getOrDefault(product.getId(), List.of());
         if (variants.isEmpty()) {
             return List.of();
         }
 
-        List<ProductImage> images = productImageRepository.findByProductIdOrderBySortOrderAscIdAsc(product.getId());
+        List<String> imageUrls = context.imageUrlsByProductId().getOrDefault(product.getId(), List.of());
         String productName = product.getName();
         String brandName = product.getBrand() != null ? product.getBrand().getName() : "";
         String brandSlug = product.getBrand() != null ? product.getBrand().getSlug() : "";
@@ -517,27 +568,26 @@ public class ProductAdminService {
         String seriesSlug = product.getSeries() != null ? product.getSeries().getSlug() : null;
         Boolean isFeatured = product.getIsFeatured();
         LocalDateTime createdAt = product.getCreatedAt();
-        List<String> imageUrls = images.stream().map(ProductImage::getImageUrl).toList();
         String thumbnailUrl = product.getThumbnailUrl();
-
-        // Load active product discounts
-        List<ProductDiscount> activeDiscounts = discountRepository.findAllActiveNow(LocalDateTime.now());
+        ReviewStats reviewStats = context.reviewStatsByProductId().getOrDefault(product.getId(), ReviewStats.empty());
 
         Map<String, List<ProductVariant>> groupedVariants = new LinkedHashMap<>();
         for (ProductVariant variant : variants) {
             groupedVariants.computeIfAbsent(buildListingVariantGroupKey(variant), k -> new ArrayList<>())
-                .add(variant);
+                    .add(variant);
         }
 
         return groupedVariants.values().stream().map(group -> {
             ProductVariant variant = group.getFirst();
             int groupStock = group.stream()
-                .mapToInt(v -> inventoryRepository.findByVariantId(v.getId())
-                    .map(Inventory::getQuantityOnHand).orElse(0))
-                .sum();
+                    .mapToInt(v -> context.stockByVariantId().getOrDefault(v.getId(), 0))
+                    .sum();
             BigDecimal basePrice = variant.getPrice() != null ? variant.getPrice() : BigDecimal.ZERO;
-            ProductDiscount discount = getActiveDiscount(variant.getId(), activeDiscounts);
+            ProductDiscount discount = getActiveDiscount(variant.getId(), context.activeDiscounts());
             BigDecimal displayPrice = applyDiscount(basePrice, discount);
+            List<AdminProductVariantDto> groupVariantDtos = group.stream()
+                    .map(v -> toVariantDto(v, context.stockByVariantId().getOrDefault(v.getId(), 0)))
+                    .toList();
 
             AdminProductDto dto = new AdminProductDto();
             dto.setId(product.getId());
@@ -550,24 +600,41 @@ public class ProductAdminService {
             dto.setSeriesId(seriesId);
             dto.setSeriesName(seriesName);
             dto.setSeriesSlug(seriesSlug);
-
             dto.setStock(groupStock);
-
             dto.setPrice(displayPrice);
             dto.setOriginalPrice(basePrice);
             dto.setSale(getDiscountPercent(basePrice, discount));
-            applyReviewStats(dto, product.getId());
-
+            dto.setAverageRating(reviewStats.averageRating());
+            dto.setReviewCount(reviewStats.reviewCount());
             dto.setThumbnailUrl(thumbnailUrl);
             dto.setImages(imageUrls);
             dto.setIsFeatured(isFeatured);
             dto.setCreatedAt(createdAt);
             dto.setReleaseDate(createdAt);
-            dto.setSelectedVariant(toVariantDto(variant));
-            dto.setVariants(group.stream().map(this::toVariantDto).toList());
-            dto.setVariantItems(group.stream().map(this::toVariantDto).toList());
+            dto.setSelectedVariant(toVariantDto(variant, context.stockByVariantId().getOrDefault(variant.getId(), 0)));
+            dto.setVariants(groupVariantDtos);
+            dto.setVariantItems(groupVariantDtos);
             return dto;
         }).toList();
+    }
+
+    private AdminProductDto toSinglePublicDto(Product product, ProductListContext context) {
+        return toListDto(product, context).stream().findFirst().orElseGet(() -> {
+            AdminProductDto dto = new AdminProductDto();
+            dto.setId(product.getId());
+            dto.setName(product.getName());
+            dto.setBrand(product.getBrand() != null ? product.getBrand().getName() : "");
+            dto.setBrandSlug(product.getBrand() != null ? product.getBrand().getSlug() : "");
+            dto.setThumbnailUrl(product.getThumbnailUrl());
+            dto.setImages(context.imageUrlsByProductId().getOrDefault(product.getId(), List.of()));
+            dto.setIsFeatured(product.getIsFeatured());
+            dto.setCreatedAt(product.getCreatedAt());
+            dto.setReleaseDate(product.getCreatedAt());
+            ReviewStats reviewStats = context.reviewStatsByProductId().getOrDefault(product.getId(), ReviewStats.empty());
+            dto.setAverageRating(reviewStats.averageRating());
+            dto.setReviewCount(reviewStats.reviewCount());
+            return dto;
+        });
     }
 
     /**
@@ -575,20 +642,24 @@ public class ProductAdminService {
      * Returns: product (shared data) + selectedVariant + allVariants[]
      */
     private AdminProductDto toDetailDto(Product product, ProductVariant selectedVariant) {
-        List<ProductVariant> allVariants = productVariantRepository.findByProductIdAndDeletedAtIsNull(product.getId());
+        return toDetailDto(product, selectedVariant,
+                productVariantRepository.findByProductIdAndDeletedAtIsNull(product.getId()),
+                discountRepository.findAllActiveNow(LocalDateTime.now()),
+                false);
+    }
 
+    private AdminProductDto toDetailDto(Product product, ProductVariant selectedVariant,
+            List<ProductVariant> allVariants, List<ProductDiscount> activeDiscounts,
+            boolean selectedVariantImagesOnly) {
         int totalStock = 0;
         BigDecimal minPrice = BigDecimal.ZERO;
         Map<String, BigDecimal> storagePrices = new LinkedHashMap<>();
         Map<String, ProductVariantColorDto> colorMap = new LinkedHashMap<>();
         List<AdminProductVariantDto> variantDtos = new ArrayList<>();
-
-        // Load active product discounts
-        List<ProductDiscount> activeDiscounts = discountRepository.findAllActiveNow(LocalDateTime.now());
+        Map<Long, Integer> stockByVariantId = getStockByVariantId(allVariants);
 
         for (ProductVariant variant : allVariants) {
-            int variantStock = inventoryRepository.findByVariantId(variant.getId())
-                    .map(Inventory::getQuantityOnHand).orElse(0);
+            int variantStock = stockByVariantId.getOrDefault(variant.getId(), 0);
             totalStock += variantStock;
             BigDecimal vp = variant.getPrice() != null ? variant.getPrice() : BigDecimal.ZERO;
             BigDecimal discountedVp = applyDiscount(vp, getActiveDiscount(variant.getId(), activeDiscounts));
@@ -616,7 +687,7 @@ public class ProductAdminService {
                 }
             }
 
-            variantDtos.add(toVariantDto(variant));
+            variantDtos.add(toVariantDto(variant, variantStock));
             // Set saleAmount for this variant
             AdminProductVariantDto vdto = variantDtos.get(variantDtos.size() - 1);
             ProductDiscount vd = getActiveDiscount(variant.getId(), activeDiscounts);
@@ -631,14 +702,60 @@ public class ProductAdminService {
 
         ProductVariantOptionDto variantOptions = new ProductVariantOptionDto();
         variantOptions.setStorages(sortedStorages);
-        variantOptions.setColors(new ArrayList<>(colorMap.values()));
         variantOptions.setBasePrices(storagePrices);
 
-        List<ProductImage> images = productImageRepository.findByProductIdOrderBySortOrderAscIdAsc(product.getId());
+        List<ProductImage> allImages = productImageRepository.findByProductIdOrderBySortOrderAscIdAsc(product.getId());
+        Map<Long, List<String>> imagesByVariantId = allImages.stream()
+                .filter(image -> image.getVariant() != null && image.getVariant().getId() != null)
+                .collect(Collectors.groupingBy(
+                        image -> image.getVariant().getId(),
+                        LinkedHashMap::new,
+                        Collectors.mapping(ProductImage::getImageUrl, Collectors.toList())
+                ));
+        for (AdminProductVariantDto variantDto : variantDtos) {
+            variantDto.setImages(getVariantImages(variantDto.getId(), imagesByVariantId));
+        }
+        for (ProductVariant variant : allVariants) {
+            String color = normalizeColor(variant.getColor());
+            if (color.isBlank()) continue;
+
+            ProductVariantColorDto existing = colorMap.get(color);
+            if (existing != null && existing.getImageUrl() != null && !existing.getImageUrl().isBlank()) {
+                continue;
+            }
+
+            String fallbackImage = getFirstVariantImage(variant.getId(), imagesByVariantId);
+            if (fallbackImage != null && !fallbackImage.isBlank()) {
+                colorMap.put(color, new ProductVariantColorDto(color, mapColorHex(color), fallbackImage));
+            }
+        }
+        variantOptions.setColors(new ArrayList<>(colorMap.values()));
+
+        List<ProductImage> images = selectedVariantImagesOnly && selectedVariant != null
+                ? allImages.stream()
+                        .filter(image -> image.getVariant() != null
+                                && selectedVariant.getId().equals(image.getVariant().getId()))
+                        .toList()
+                : allImages;
         Map<String, String> specs = new HashMap<>();
         Map<String, Map<String, String>> groupedSpecs = new LinkedHashMap<>();
+        List<ProductSpecificationDto> specificationRows = new ArrayList<>();
         for (ProductSpecification specification : productSpecificationRepository
                 .findByProductIdOrderBySortOrderAscIdAsc(product.getId())) {
+            String key = specification.getSpecKey();
+            String value = specification.getSpecValue();
+            if (key == null || key.isBlank() || value == null || value.isBlank()) {
+                continue;
+            }
+
+            ProductSpecificationDto row = new ProductSpecificationDto();
+            row.setId(specification.getId());
+            row.setSpecCategory(specification.getSpecCategory());
+            row.setSpecKey(key);
+            row.setSpecValue(value);
+            row.setSortOrder(specification.getSortOrder());
+            specificationRows.add(row);
+
             specs.put(specification.getSpecKey(), specification.getSpecValue());
 
             String category = specification.getSpecCategory();
@@ -652,7 +769,7 @@ public class ProductAdminService {
         }
 
         AdminProductVariantDto selectedDto = selectedVariant != null
-                ? toVariantDto(selectedVariant)
+                ? toVariantDto(selectedVariant, stockByVariantId.getOrDefault(selectedVariant.getId(), 0))
                 : (variantDtos.isEmpty() ? null : variantDtos.get(0));
 
         // Override selectedDto price with discounted price if applicable
@@ -662,6 +779,7 @@ public class ProductAdminService {
             selectedDto.setPrice(discountedPrice);
             selectedDto.setCompareAtPrice(selectedVariant.getPrice());
             selectedDto.setSaleAmount(getDiscountSavedAmount(selectedVariant.getPrice(), selectedDiscount));
+            selectedDto.setImages(getVariantImages(selectedVariant.getId(), imagesByVariantId));
         }
 
         AdminProductDto dto = new AdminProductDto();
@@ -689,6 +807,7 @@ public class ProductAdminService {
         dto.setImages(images.stream().map(ProductImage::getImageUrl).toList());
         applyReviewStats(dto, product.getId());
         dto.setSpecifications(specs);
+        dto.setSpecificationRows(specificationRows);
         dto.setGroupedSpecifications(groupedSpecs);
         dto.setVariantOptions(variantOptions);
         dto.setVariants(variantDtos);
@@ -699,9 +818,7 @@ public class ProductAdminService {
         return dto;
     }
 
-    private AdminProductVariantDto toVariantDto(ProductVariant variant) {
-        int stock = inventoryRepository.findByVariantId(variant.getId())
-                .map(Inventory::getQuantityOnHand).orElse(0);
+    private AdminProductVariantDto toVariantDto(ProductVariant variant, int stock) {
         AdminProductVariantDto dto = new AdminProductVariantDto();
         dto.setId(variant.getId());
         dto.setSku(variant.getSku());
@@ -717,11 +834,169 @@ public class ProductAdminService {
         return dto;
     }
 
+    private List<String> getVariantImages(Long variantId, Map<Long, List<String>> imagesByVariantId) {
+        if (variantId == null || imagesByVariantId == null || imagesByVariantId.isEmpty()) {
+            return List.of();
+        }
+        return imagesByVariantId.getOrDefault(variantId, List.of()).stream()
+                .filter(url -> url != null && !url.isBlank())
+                .toList();
+    }
+
+    private String getFirstVariantImage(Long variantId, Map<Long, List<String>> imagesByVariantId) {
+        return getVariantImages(variantId, imagesByVariantId).stream()
+                .findFirst()
+                .orElse(null);
+    }
+
+    private Map<Long, Integer> getStockByVariantId(List<ProductVariant> variants) {
+        if (variants == null || variants.isEmpty()) return Map.of();
+        List<Long> variantIds = variants.stream()
+                .map(ProductVariant::getId)
+                .filter(Objects::nonNull)
+                .toList();
+        if (variantIds.isEmpty()) return Map.of();
+
+        return inventoryRepository.findByVariantIdIn(variantIds)
+                .stream()
+                .filter(inventory -> inventory.getVariant() != null && inventory.getVariant().getId() != null)
+                .collect(Collectors.toMap(
+                        inventory -> inventory.getVariant().getId(),
+                        inventory -> inventory.getQuantityOnHand() == null ? 0 : inventory.getQuantityOnHand(),
+                        (left, right) -> left
+                ));
+    }
+
+    private ProductListContext buildProductListContext(List<Product> products) {
+        if (products == null || products.isEmpty()) {
+            return ProductListContext.empty();
+        }
+
+        List<Long> productIds = products.stream()
+                .map(Product::getId)
+                .filter(Objects::nonNull)
+                .toList();
+        if (productIds.isEmpty()) {
+            return ProductListContext.empty();
+        }
+
+        List<ProductVariant> variants = productVariantRepository.findByProductIdInAndDeletedAtIsNull(productIds);
+        repairInvalidVariantSlugs(variants);
+        Map<Long, List<ProductVariant>> variantsByProductId = variants.stream()
+                .filter(variant -> variant.getProduct() != null && variant.getProduct().getId() != null)
+                .collect(Collectors.groupingBy(
+                        variant -> variant.getProduct().getId(),
+                        LinkedHashMap::new,
+                        Collectors.toList()
+                ));
+
+        Map<Long, Integer> stockByVariantId = getStockByVariantId(variants);
+        Map<Long, List<String>> imageUrlsByProductId = getImageUrlsByProductId(productIds);
+        Map<Long, Map<String, String>> specsByProductId = getSpecsByProductId(productIds);
+        Map<Long, ReviewStats> reviewStatsByProductId = getReviewStatsByProductId(productIds);
+        List<ProductDiscount> activeDiscounts = discountRepository.findAllActiveNow(LocalDateTime.now());
+
+        return new ProductListContext(
+                variantsByProductId,
+                stockByVariantId,
+                imageUrlsByProductId,
+                specsByProductId,
+                reviewStatsByProductId,
+                activeDiscounts
+        );
+    }
+
+    private Map<Long, List<String>> getImageUrlsByProductId(List<Long> productIds) {
+        if (productIds == null || productIds.isEmpty()) return Map.of();
+        return productImageRepository.findByProductIdInOrderBySortOrderAscIdAsc(productIds)
+                .stream()
+                .filter(image -> image.getProduct() != null && image.getProduct().getId() != null)
+                .filter(image -> image.getImageUrl() != null && !image.getImageUrl().isBlank())
+                .collect(Collectors.groupingBy(
+                        image -> image.getProduct().getId(),
+                        LinkedHashMap::new,
+                        Collectors.mapping(ProductImage::getImageUrl, Collectors.toList())
+                ));
+    }
+
+    private Map<Long, ReviewStats> getReviewStatsByProductId(List<Long> productIds) {
+        if (productIds == null || productIds.isEmpty()) return Map.of();
+
+        Map<Long, ReviewStats> stats = new HashMap<>();
+        for (Object[] row : reviewRepository.getReviewStatsByProductIds(productIds)) {
+            if (row == null || row.length < 3 || row[0] == null) continue;
+            Long productId = ((Number) row[0]).longValue();
+            double average = row[1] == null ? 0.0 : ((Number) row[1]).doubleValue();
+            long count = row[2] == null ? 0L : ((Number) row[2]).longValue();
+            stats.put(productId, new ReviewStats(Math.round(average * 10.0) / 10.0, count));
+        }
+        return stats;
+    }
+
+    private Map<Long, Map<String, String>> getSpecsByProductId(List<Long> productIds) {
+        if (productIds == null || productIds.isEmpty()) return Map.of();
+
+        Map<Long, Map<String, String>> specsByProductId = new LinkedHashMap<>();
+        for (ProductSpecification specification : productSpecificationRepository.findByProductIdInOrderBySortOrderAscIdAsc(productIds)) {
+            if (specification.getProduct() == null || specification.getProduct().getId() == null) continue;
+            specsByProductId
+                    .computeIfAbsent(specification.getProduct().getId(), id -> new LinkedHashMap<>())
+                    .put(specification.getSpecKey(), specification.getSpecValue());
+        }
+        return specsByProductId;
+    }
+
+    private String normalizeOptionalParam(String value) {
+        if (value == null || value.isBlank()) return null;
+        return value.trim();
+    }
+
+    private List<FlashSaleProduct> getActiveFlashSales(List<ProductVariant> variants) {
+        if (variants == null || variants.isEmpty()) return List.of();
+        List<Long> variantIds = variants.stream()
+                .map(ProductVariant::getId)
+                .filter(Objects::nonNull)
+                .toList();
+        if (variantIds.isEmpty()) return List.of();
+        return flashSaleProductRepository.findActiveByVariantIds(variantIds, now());
+    }
+
+    private FlashSaleProduct getActiveFlashSale(Long variantId, List<FlashSaleProduct> activeFlashSales) {
+        if (variantId == null || activeFlashSales == null || activeFlashSales.isEmpty()) return null;
+        return activeFlashSales.stream()
+                .filter(fp -> fp.getVariant() != null && variantId.equals(fp.getVariant().getId()))
+                .findFirst()
+                .orElse(null);
+    }
+
+    private record ProductListContext(
+            Map<Long, List<ProductVariant>> variantsByProductId,
+            Map<Long, Integer> stockByVariantId,
+            Map<Long, List<String>> imageUrlsByProductId,
+            Map<Long, Map<String, String>> specsByProductId,
+            Map<Long, ReviewStats> reviewStatsByProductId,
+            List<ProductDiscount> activeDiscounts
+    ) {
+        static ProductListContext empty() {
+            return new ProductListContext(Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), List.of());
+        }
+    }
+
+    private record ReviewStats(Double averageRating, Long reviewCount) {
+        static ReviewStats empty() {
+            return new ReviewStats(0.0, 0L);
+        }
+    }
+
     private AdminProductDto toDtoFromFlashSaleProduct(FlashSaleProduct fp) {
         Product product = fp.getVariant().getProduct();
-        ProductVariant variant = fp.getVariant();
+        return toDtoFromFlashSaleProduct(fp, buildProductListContext(List.of(product)));
+    }
 
-        List<ProductImage> images = productImageRepository.findByProductIdOrderBySortOrderAscIdAsc(product.getId());
+    private AdminProductDto toDtoFromFlashSaleProduct(FlashSaleProduct fp, ProductListContext context) {
+        Product product = fp.getVariant().getProduct();
+        ProductVariant variant = fp.getVariant();
+        int flashStock = fp.getQuantity() != null ? fp.getQuantity() : 0;
 
         AdminProductDto dto = new AdminProductDto();
         dto.setId(product.getId());
@@ -747,14 +1022,14 @@ public class ProductAdminService {
         }
         dto.setPrice(flashPrice);
         dto.setSale(salePercent);
-        dto.setStock(fp.getQuantity() != null ? fp.getQuantity() : 0);
-        applyReviewStats(dto, product.getId());
+        dto.setStock(flashStock);
+        applyReviewStats(dto, context.reviewStatsByProductId().getOrDefault(product.getId(), ReviewStats.empty()));
         dto.setThumbnailUrl(product.getThumbnailUrl());
-        dto.setImages(images.stream().map(ProductImage::getImageUrl).toList());
+        dto.setImages(context.imageUrlsByProductId().getOrDefault(product.getId(), List.of()));
         dto.setIsFeatured(product.getIsFeatured());
         dto.setCreatedAt(product.getCreatedAt());
         dto.setReleaseDate(product.getCreatedAt());
-        dto.setSelectedVariant(toVariantDto(variant));
+        dto.setSelectedVariant(toVariantDto(variant, flashStock));
         dto.setIsFlashSale(true);
         dto.setFlashSalePrice(flashPrice);
         return dto;
@@ -796,6 +1071,13 @@ public class ProductAdminService {
         dto.setReviewCount(reviewCount != null ? reviewCount : 0L);
     }
 
+    private void applyReviewStats(AdminProductDto dto, ReviewStats reviewStats) {
+        if (dto == null) return;
+        ReviewStats stats = reviewStats != null ? reviewStats : ReviewStats.empty();
+        dto.setAverageRating(stats.averageRating());
+        dto.setReviewCount(stats.reviewCount());
+    }
+
     private BrandDto toBrandDto(Brand brand) {
         BrandDto dto = new BrandDto();
         dto.setId(brand.getId());
@@ -824,7 +1106,7 @@ public class ProductAdminService {
         variant.setIsActive(Boolean.TRUE);
         variant.setCreatedAt(now);
         variant.setUpdatedAt(now);
-        variant.setColorImageUrl(variantReq.getColorImageUrl());
+        variant.setColorImageUrl(resolveColorImageUrl(variantReq));
         ProductVariant savedVariant = productVariantRepository.save(variant);
 
         // Create inventory
@@ -840,10 +1122,34 @@ public class ProductAdminService {
         return savedVariant;
     }
 
+    private void repairInvalidVariantSlugs() {
+        repairInvalidVariantSlugs(productVariantRepository.findActiveWithProductForSlugRepair());
+    }
+
+    private void repairInvalidVariantSlugs(List<ProductVariant> variants) {
+        if (variants == null || variants.isEmpty()) return;
+
+        List<ProductVariant> changedVariants = new ArrayList<>();
+        LocalDateTime now = LocalDateTime.now();
+        for (ProductVariant variant : variants) {
+            if (variant == null) continue;
+            String currentSlug = variant.getSlug();
+            if (isValidSlug(currentSlug)) continue;
+
+            String nextSlug = generateVariantSlug(variant.getProduct(), variant, currentSlug);
+            variant.setSlug(nextSlug);
+            variant.setUpdatedAt(now);
+            changedVariants.add(variant);
+        }
+
+        if (!changedVariants.isEmpty()) {
+            productVariantRepository.saveAll(changedVariants);
+        }
+    }
+
     private void updateVariant(ProductVariant variant, AdminProductVariantRequestDto variantReq,
             Product product, LocalDateTime now) {
         variant.setSku(generateVariantSku(product.getId(), variantReq, variant.getId().intValue()));
-        variant.setSlug(generateVariantSlug(product, variantReq));
         variant.setColor(normalizeColor(variantReq.getColor()));
         variant.setRamGb(variantReq.getRamGb());
         variant.setStorageGb(variantReq.getStorageGb());
@@ -851,7 +1157,8 @@ public class ProductAdminService {
         variant.setPrice(resolveVariantPrice(variantReq, null));
         variant.setCostPrice(variantReq.getCostPrice());
         variant.setUpdatedAt(now);
-        variant.setColorImageUrl(variantReq.getColorImageUrl());
+        variant.setColorImageUrl(resolveColorImageUrl(variantReq));
+        variant.setSlug(generateVariantSlug(product, variant, variant.getSlug()));
 
         // Update inventory stock
         int quantityOnHand = Math.max(0, resolveVariantStock(variantReq, 0));
@@ -869,7 +1176,7 @@ public class ProductAdminService {
     }
 
     private String generateVariantSlug(Product product, AdminProductVariantRequestDto variantReq) {
-        StringBuilder sb = new StringBuilder(product.getSlug());
+        StringBuilder sb = new StringBuilder(sanitizeSlug(product.getSlug()));
 
         if (variantReq.getRamGb() != null && variantReq.getRamGb() > 0) {
             sb.append("-").append(variantReq.getRamGb()).append("gb");
@@ -881,11 +1188,47 @@ public class ProductAdminService {
             sb.append("-").append(normalizeColorForSlug(variantReq.getColor()));
         }
 
-        String baseSlug = sb.toString();
+        String baseSlug = sanitizeSlug(sb.toString());
         // Ensure uniqueness
         String finalSlug = baseSlug;
         int counter = 1;
         while (productVariantRepository.findBySlug(finalSlug).isPresent()) {
+            finalSlug = baseSlug + "-" + counter;
+            counter++;
+        }
+        return finalSlug;
+    }
+
+    private String generateVariantSlug(Product product, ProductVariant variant, String currentSlug) {
+        StringBuilder sb = new StringBuilder();
+        if (product != null && product.getSlug() != null && isValidSlug(product.getSlug())) {
+            sb.append(product.getSlug());
+        } else if (product != null && product.getName() != null && !product.getName().isBlank()) {
+            sb.append(product.getName());
+        } else if (currentSlug != null && !currentSlug.isBlank()) {
+            sb.append(currentSlug);
+        } else {
+            sb.append("san-pham");
+        }
+
+        if (variant.getRamGb() != null && variant.getRamGb() > 0) {
+            sb.append("-").append(variant.getRamGb()).append("gb");
+        }
+        if (variant.getStorageLabel() != null && !variant.getStorageLabel().isBlank()) {
+            sb.append("-").append(variant.getStorageLabel());
+        } else if (variant.getStorageGb() != null && variant.getStorageGb() > 0) {
+            sb.append("-").append(formatStorageGb(variant.getStorageGb()));
+        }
+        if (variant.getColor() != null && !variant.getColor().isBlank()) {
+            sb.append("-").append(variant.getColor());
+        }
+
+        String baseSlug = sanitizeSlug(sb.toString());
+        if (baseSlug.isBlank()) baseSlug = "san-pham";
+
+        String finalSlug = baseSlug;
+        int counter = 1;
+        while (productVariantRepository.findBySlugAndIdNot(finalSlug, variant.getId()).isPresent()) {
             finalSlug = baseSlug + "-" + counter;
             counter++;
         }
@@ -1017,19 +1360,7 @@ public class ProductAdminService {
     }
 
     private String generateProductSlug(String value) {
-        String baseSlug = value == null ? "san-pham"
-                : value.toLowerCase(Locale.ROOT)
-                        .replaceAll("[àáạảãâầấậẩẫăằắặẳẵ]", "a")
-                        .replaceAll("[èéẹẻẽêềếệểễ]", "e")
-                        .replaceAll("[ìíịỉĩ]", "i")
-                        .replaceAll("[òóọỏõôồốộổỗơờớợởỡ]", "o")
-                        .replaceAll("[ùúụủũưừứựửữ]", "u")
-                        .replaceAll("[ỳýỵỷỹ]", "y")
-                        .replaceAll("đ", "d")
-                        .replaceAll("[^a-z0-9\\s-]", "")
-                        .replaceAll("\\s+", "-")
-                        .replaceAll("-+", "-")
-                        .replaceAll("(^-|-$)", "");
+        String baseSlug = sanitizeSlug(value);
         if (baseSlug.isBlank()) baseSlug = "san-pham";
 
         // Ensure uniqueness — append timestamp suffix if slug already exists
@@ -1040,6 +1371,27 @@ public class ProductAdminService {
             counter++;
         }
         return finalSlug;
+    }
+
+    private boolean isValidSlug(String value) {
+        return value != null && value.matches("^[a-z0-9]+(?:-[a-z0-9]+)*$");
+    }
+
+    private String sanitizeSlug(String value) {
+        if (value == null) return "san-pham";
+        String slug = value.toLowerCase(Locale.ROOT)
+                .replaceAll("[àáạảãâầấậẩẫăằắặẳẵ]", "a")
+                .replaceAll("[èéẹẻẽêềếệểễ]", "e")
+                .replaceAll("[ìíịỉĩ]", "i")
+                .replaceAll("[òóọỏõôồốộổỗơờớợởỡ]", "o")
+                .replaceAll("[ùúụủũưừứựửữ]", "u")
+                .replaceAll("[ỳýỵỷỹ]", "y")
+                .replaceAll("đ", "d")
+                .replaceAll("[^a-z0-9\\s-]", "")
+                .replaceAll("\\s+", "-")
+                .replaceAll("-+", "-")
+                .replaceAll("(^-|-$)", "");
+        return slug.isBlank() ? "san-pham" : slug;
     }
 
     private String getStorageLabel(ProductVariant variant) {
@@ -1234,7 +1586,18 @@ public class ProductAdminService {
         return ramKey + "|" + storageKey;
     }
 
-    private void saveImages(Product product, List<String> imageUrls, LocalDateTime now) {
+    private String resolveColorImageUrl(AdminProductVariantRequestDto variantReq) {
+        if (variantReq.getImages() != null) {
+            for (String imageUrl : variantReq.getImages()) {
+                if (imageUrl != null && !imageUrl.isBlank()) {
+                    return imageUrl.trim();
+                }
+            }
+        }
+        return variantReq.getColorImageUrl();
+    }
+
+    private void saveVariantImages(Product product, ProductVariant variant, List<String> imageUrls, LocalDateTime now) {
         if (imageUrls == null || imageUrls.isEmpty()) return;
         List<ProductImage> images = new ArrayList<>();
         for (int i = 0; i < imageUrls.size(); i++) {
@@ -1242,6 +1605,7 @@ public class ProductAdminService {
             if (url == null || url.isBlank()) continue;
             ProductImage image = new ProductImage();
             image.setProduct(product);
+            image.setVariant(variant);
             image.setImageUrl(url.trim());
             image.setSortOrder(i);
             image.setIsPrimary(i == 0);

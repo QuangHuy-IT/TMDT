@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import AdminService from '../../services/adminService';
 import ProductService from '../../services/productService';
+import { getSafeProductSlug } from '../../utils/slug';
 
 const BANNER_POSITIONS = [
   { value: 'home_hero', label: 'Trang chủ (Hero Slider)' },
@@ -209,7 +210,7 @@ const AdminBanners = () => {
   };
 
   const buildLinkUrl = () => {
-    const { linkType, brandId, productId, promotionSlug } = form;
+    const { linkType, brandId, promotionSlug } = form;
     if (linkType === 'none') return '';
     if (linkType === 'brand' && brandId) {
       const b = brands.find((x) => String(x.id) === String(brandId));
@@ -217,9 +218,8 @@ const AdminBanners = () => {
     }
     if (linkType === 'promotion' && promotionSlug) return `/khuyen-mai/${promotionSlug}`;
     if (linkType === 'product') {
-      // Ưu tiên: product slug (URL cần slug, không phải id)
-      if (selectedProduct) return `/products/${selectedProduct.slug || selectedProduct.id}`;
-      if (form.productId) return `/products/${form.productId}`;
+      const productSlug = getSafeProductSlug(selectedVariant?.slug, selectedProduct?.slug, form.productId);
+      if (productSlug) return `/products/${productSlug}`;
       return '';
     }
     return '';
@@ -264,15 +264,17 @@ const AdminBanners = () => {
   const selectProduct = (p) => {
     setSelectedProduct(p);
     setSelectedVariant(null);
-    setForm((prev) => ({ ...prev, productId: p.slug || p.id }));
+    setForm((prev) => ({ ...prev, productId: getSafeProductSlug(p.slug) }));
     setProductSearch(p.name);
     setProductDropdown(false);
   };
 
   const selectVariant = (v) => {
     setSelectedVariant(v);
-    // Luôn lưu product slug (không phải variant id) vì route /products/:slug cần slug
-    setForm((prev) => ({ ...prev, productId: selectedProduct?.slug || selectedProduct?.id || form.productId }));
+    setForm((prev) => ({
+      ...prev,
+      productId: getSafeProductSlug(v.slug, selectedProduct?.slug, form.productId),
+    }));
   };
 
   const selectPromotion = (p) => {

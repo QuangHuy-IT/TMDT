@@ -26,8 +26,8 @@ public class PromptBuilder {
         GIỌNG VĂN: Thân thiện, chuyên nghiệp, nhiệt tình.
         
         ĐỊNH DẠNG TRẢ LỜI:
-        - Mỗi sản phẩm: Tên, Giá, Thương hiệu, Điểm nổi bật.
-        - Dùng bullet points và emoji để dễ đọc.
+        - Nếu response có danh sách sản phẩm đi kèm, không liệt kê lại tên, giá, thương hiệu từng sản phẩm trong text.
+        - Chỉ viết phần tư vấn ngắn: vì sao nhóm sản phẩm phù hợp và nên lọc thêm theo tiêu chí nào.
         - Kết thúc bằng câu hỏi mở để tiếp tục tư vấn.
         """;
 
@@ -49,10 +49,10 @@ public class PromptBuilder {
             %s
             
             YÊU CẦU:
-            - Tìm và giới thiệu sản phẩm phù hợp với yêu cầu
-            - Trình bày: tên, giá, thương hiệu, thông số chính
-            - Nếu có giảm giá, nhắc rõ phần trăm
-            - Gợi ý mua hàng phù hợp
+            - Không liệt kê tên, giá hoặc thương hiệu từng sản phẩm trong text.
+            - Chỉ tóm tắt tiêu chí chọn sản phẩm phù hợp với yêu cầu.
+            - Nếu có lựa chọn giảm giá trong context, chỉ nhắc chung rằng có sản phẩm đang giảm giá.
+            - Gợi ý mua hàng phù hợp ở mức khái quát.
             - Đặt câu hỏi để hiểu rõ hơn nhu cầu
             """, 
             SYSTEM_PROMPT, 
@@ -165,10 +165,10 @@ public class PromptBuilder {
             %s
             
             YÊU CẦU:
-            - Đề xuất 3-5 sản phẩm phù hợp nhất
-            - Giải thích tại sao sản phẩm phù hợp với nhu cầu
-            - Trình bày rõ: tên, giá, điểm nổi bật
-            - Sắp xếp theo mức độ phù hợp
+            - Không liệt kê 3-5 sản phẩm bằng text.
+            - Chỉ giải thích ngắn gọn lý do nhóm sản phẩm được gợi ý phù hợp với nhu cầu.
+            - Không nhắc lại tên, giá hoặc thông số từng sản phẩm vì frontend sẽ hiển thị bằng product card.
+            - Đặt một câu hỏi tiếp theo để lọc nhu cầu nếu cần.
             """, 
             SYSTEM_PROMPT, 
             userQuery, 

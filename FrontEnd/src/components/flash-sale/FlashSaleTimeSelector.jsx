@@ -1,13 +1,13 @@
 import React from 'react';
 import { cn } from '../../utils/cn';
 import { Flame, Clock } from 'lucide-react';
+import { formatFlashSaleTime } from '../../utils/flashSaleTime';
 
 const FlashSaleTimeSelector = ({ sessions, activeSessionId, onSessionClick, className }) => {
   if (!sessions || sessions.length === 0) return null;
 
   const formatTime = (dateStr) => {
-    const date = new Date(dateStr);
-    return date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+    return formatFlashSaleTime(dateStr);
   };
 
   const getSessionStyle = (session) => {

@@ -1,10 +1,11 @@
-import React, { useContext, useEffect, useMemo, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ShopContext } from '../context/ShopContext';
 import ProductService from '../services/productService';
 import ReviewSection from '../components/review/ReviewSection';
 import QuestionSection from '../components/question/QuestionSection';
 import { ProductSpecificationsTab } from '../components/product/ProductSpecificationsTab';
+import { getSafeProductSlug } from '../utils/slug';
 
 const inferColorHex = (value) => {
   const normalized = String(value || '')
@@ -62,6 +63,20 @@ const getVersionLabel = (variant) => {
   return parts.length > 0 ? parts.join('/') : 'Mặc định';
 };
 
+const normalizeImages = (images) => (
+  Array.isArray(images)
+    ? images
+      .map((image) => (typeof image === 'string' ? image : image?.imageUrl))
+      .filter((image) => typeof image === 'string' && image.trim())
+    : []
+);
+
+const normalizeVariantImages = (variant) => {
+  const images = normalizeImages(variant?.images);
+  if (images.length > 0) return images;
+  return variant?.colorImageUrl && variant.colorImageUrl.trim() ? [variant.colorImageUrl] : [];
+};
+
 /**
  * Normalize API response to unified structure.
  *
@@ -77,19 +92,21 @@ const getVersionLabel = (variant) => {
 const normalizeProduct = (raw) => {
   if (!raw || typeof raw !== 'object') return null;
 
-  let images = [];
-  if (Array.isArray(raw.images)) {
-    images = raw.images.filter(Boolean);
-  }
+  let images = normalizeImages(raw.images);
   if (images.length === 0 && raw.thumbnailUrl && raw.thumbnailUrl.trim()) {
     images = [raw.thumbnailUrl];
   }
 
-  const allVariants = Array.isArray(raw.variants) ? raw.variants : [];
+  const allVariants = Array.isArray(raw.variants)
+    ? raw.variants.map((variant) => ({
+      ...variant,
+      images: normalizeVariantImages(variant),
+    }))
+    : [];
   const variantOptions = raw.variantOptions && typeof raw.variantOptions === 'object'
     ? raw.variantOptions : {};
   const selectedVariant = raw.selectedVariant && typeof raw.selectedVariant === 'object'
-    ? raw.selectedVariant : null;
+    ? { ...raw.selectedVariant, images: normalizeVariantImages(raw.selectedVariant) } : null;
 
   const storages = Array.isArray(variantOptions.storages) ? variantOptions.storages : [];
   const basePrices = variantOptions.basePrices || {};
@@ -105,6 +122,11 @@ const normalizeProduct = (raw) => {
   }
 
   const totalStock = allVariants.reduce((sum, v) => sum + Number(v?.stock || 0), 0);
+  const specifications = raw.specifications && typeof raw.specifications === 'object'
+    ? raw.specifications : {};
+  const groupedSpecifications = raw.groupedSpecifications && typeof raw.groupedSpecifications === 'object'
+    ? raw.groupedSpecifications : {};
+  const specificationRows = Array.isArray(raw.specificationRows) ? raw.specificationRows : [];
 
   return {
     ...raw,
@@ -112,10 +134,9 @@ const normalizeProduct = (raw) => {
     name: raw.name || 'Sản phẩm',
     images,
     stock: totalStock,
-    specifications: raw.specifications && typeof raw.specifications === 'object'
-      ? raw.specifications : {},
-    groupedSpecifications: raw.groupedSpecifications && typeof raw.groupedSpecifications === 'object'
-      ? raw.groupedSpecifications : {},
+    specifications,
+    specificationRows,
+    groupedSpecifications,
     allVariants,
     variantOptions,
     selectedVariant,
@@ -136,12 +157,14 @@ export const ProductDetail = () => {
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
 
   // UI state
   const [activeImage, setActiveImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
-  const [selectedColorImageOverride, setSelectedColorImageOverride] = useState(null);
   const productIdParam = searchParams.get('product_id');
+  const productIdParamRef = useRef(productIdParam);
+  productIdParamRef.current = productIdParam;
 
   useEffect(() => {
     let mounted = true;
@@ -151,6 +174,7 @@ export const ProductDetail = () => {
       setError('');
         setActiveImage(0);
         setQuantity(1);
+        setIsDescriptionExpanded(false);
 
       try {
         // slug here IS the variant slug
@@ -160,11 +184,18 @@ export const ProductDetail = () => {
         setProduct(normalized);
 
         // Read ?product_id from URL and switch color if present
-        if (productIdParam && normalized?.allVariants) {
-          const targetVariant = normalized.allVariants.find(v => String(v.id) === productIdParam);
-          if (targetVariant?.slug && targetVariant.slug !== slug) {
-            navigate(`/products/${targetVariant.slug}`, { replace: true });
+        const currentProductIdParam = productIdParamRef.current;
+        const canonicalSlug = getSafeProductSlug(normalized?.selectedVariant?.slug, normalized?.slug);
+        if (currentProductIdParam && normalized?.allVariants) {
+          const targetVariant = normalized.allVariants.find(v => String(v.id) === currentProductIdParam);
+          const targetSlug = getSafeProductSlug(targetVariant?.slug);
+          if (targetSlug) {
+            navigate(`/products/${targetSlug}`, { replace: true });
+          } else if (canonicalSlug) {
+            navigate(`/products/${canonicalSlug}`, { replace: true });
           }
+        } else if (canonicalSlug && canonicalSlug !== slug) {
+          navigate(`/products/${canonicalSlug}`, { replace: true });
         }
       } catch {
         if (!mounted) return;
@@ -177,7 +208,7 @@ export const ProductDetail = () => {
 
     fetchDetail();
     return () => { mounted = false; };
-  }, [slug, searchParams, productIdParam]);
+  }, [slug, navigate]);
 
   // Derived state
   const selectedVariant = product?.selectedVariant || null;
@@ -224,7 +255,7 @@ export const ProductDetail = () => {
           label: getVersionLabel(variant),
           ramGb: variant.ramGb || null,
           storageLabel: variant.storageLabel || '',
-          slug: variant.slug,
+          slug: getSafeProductSlug(variant.slug),
           price: variant.price || 0,
           stock: variantStock,
           variants: [variant],
@@ -234,7 +265,7 @@ export const ProductDetail = () => {
 
       existing.variants.push(variant);
       existing.stock += variantStock;
-      if (!existing.slug) existing.slug = variant.slug;
+      if (!existing.slug) existing.slug = getSafeProductSlug(variant.slug);
       if (!existing.price || Number(variant.price || 0) < Number(existing.price || 0)) {
         existing.price = variant.price || 0;
       }
@@ -272,64 +303,24 @@ export const ProductDetail = () => {
     return colors;
   }, [product, activeVersion]);
 
-  // Selected color state (synced with selectedVariant)
-  const [selectedColor, setSelectedColor] = useState(null);
-  useEffect(() => {
-    if (selectedVariant?.color) {
-      const colorNameLower = selectedVariant.color.toLowerCase();
-      const colorImage = product?.colorImages?.[colorNameLower] || selectedVariant.colorImageUrl || null;
-      setSelectedColor({ name: selectedVariant.color, hex: inferColorHex(selectedVariant.color), imageUrl: colorImage });
-    }
-  }, [product, selectedVariant?.id]);
+  // Selected color (synced with selectedVariant)
+  const selectedColor = useMemo(() => {
+    if (!selectedVariant?.color) return null;
+    const colorNameLower = selectedVariant.color.toLowerCase();
+    const colorImage = product?.colorImages?.[colorNameLower] || selectedVariant.colorImageUrl || null;
+    return { name: selectedVariant.color, hex: inferColorHex(selectedVariant.color), imageUrl: colorImage };
+  }, [product?.colorImages, selectedVariant?.color, selectedVariant?.colorImageUrl]);
 
-  const selectedColorImage = useMemo(() => {
-    if (selectedColorImageOverride) return selectedColorImageOverride;
-    if (!product || !productIdParam || !product?.allVariants) return null;
-    const targetVariant = product.allVariants.find(v => String(v.id) === productIdParam);
-    if (!targetVariant?.color) return null;
-    const colorNameLower = targetVariant.color.toLowerCase();
-    return product.colorImages?.[colorNameLower] || targetVariant.colorImageUrl || null;
-  }, [product, productIdParam, selectedColorImageOverride]);
-
-  // When a color image is available, jump to it after the gallery images are ready
-  useEffect(() => {
-    if (!selectedColorImage || !product?.images) return;
-    const allImages = product.images;
-    const thumbnail = product.thumbnailUrl;
-    let gallery = allImages;
-    if (thumbnail && allImages.length > 0 && allImages[0] === thumbnail) {
-      gallery = allImages.slice(1);
-    }
-    const filtered = gallery.filter(img => img !== selectedColorImage);
-    const colorImageIndex = filtered.length; // color image is appended at the end
-    setActiveImage(colorImageIndex);
-  }, [selectedColorImage, product?.images, product?.thumbnailUrl]);
-
-  // Dynamic gallery:
-  // - Gallery images (product.images) — exclude thumbnail from front to avoid duplication
-  // - When a variant has a color image, it's always appended to the end of the gallery
-  // - Thumbnails strip uses this array; main display uses galleryImages[0]
+  // Dynamic gallery: chỉ dùng ảnh gắn với variant/màu đang chọn.
   const galleryImages = useMemo(() => {
-    const allImages = product?.images || [];
-    const thumbnail = product?.thumbnailUrl;
-
-    // Remove thumbnail from front of gallery to avoid showing it twice
-    let gallery = allImages;
-    if (thumbnail && allImages.length > 0 && allImages[0] === thumbnail) {
-      gallery = allImages.slice(1);
-    }
-
-    // Append color image to the END when user actively selected a color with an image
-    if (selectedColorImage) {
-      // Avoid duplicate if somehow already in gallery
-      const filtered = gallery.filter(img => img !== selectedColorImage);
-      return [...filtered, selectedColorImage];
-    }
-
-    return gallery;
-  }, [product?.images, product?.thumbnailUrl, selectedColorImage]);
+    return normalizeImages(selectedVariant?.images);
+  }, [selectedVariant?.images]);
 
   const images = galleryImages;
+
+  useEffect(() => {
+    setActiveImage(0);
+  }, [selectedVariant?.id, images.length]);
 
   // Derived display name for the selected variant - MUST be declared before addToCart
   const displayName = formatVariantName(product?.name, selectedVariant);
@@ -347,8 +338,8 @@ export const ProductDetail = () => {
       payload: {
         ...product,
         variantId: selectedVariant?.id || null,
-        slug: selectedVariant?.slug || slug || product.slug || product.productSlug || '',
-        variantSlug: selectedVariant?.slug || '',
+        slug: getSafeProductSlug(selectedVariant?.slug, slug, product.slug, product.productSlug),
+        variantSlug: getSafeProductSlug(selectedVariant?.slug),
         id: String(selectedVariant?.id || product.id),
         productId: String(product.id),
         cartKey: String(selectedVariant?.id || selectedVariant?.slug || selectedVariant?.storageLabel || selectedVariant?.color || product.id),
@@ -360,8 +351,8 @@ export const ProductDetail = () => {
         storage: selectedVariant?.storageLabel || '',
         color: selectedColor?.name || selectedVariant?.color || '',
         sku: selectedVariant?.sku || '',
-        thumbnailUrl: product.thumbnailUrl || '',
-        images: product.images,
+        thumbnailUrl: images[0] || '',
+        images,
         brand: product.brand || '',
       },
     });
@@ -390,6 +381,10 @@ export const ProductDetail = () => {
 
   const hasMultipleVersions = (versionOptions?.length || 0) > 1;
   const selectedVersionLabel = activeVersion?.label || getVersionLabel(selectedVariant);
+  const brandSlug = product.brandSlug || product.brand;
+  const seriesSlug = product.seriesSlug || product.seriesName;
+  const hasSeries = Boolean(seriesSlug);
+  const shouldClampDescription = String(product.description || '').length > 900;
 
   return (
     <main className="min-h-screen bg-[#f8f8f6] pb-20">
@@ -400,6 +395,13 @@ export const ProductDetail = () => {
           <span>/</span>
           <button onClick={() => navigate(`/brands/${product.brandSlug || product.brand}`)}
             className="hover:text-red-600">{product.brand || 'Khác'}</button>
+          {hasSeries && (
+            <>
+              <span>/</span>
+              <button onClick={() => navigate(`/brands/${brandSlug}/${seriesSlug}`)}
+                className="hover:text-red-600">{product.seriesName || product.seriesSlug}</button>
+            </>
+          )}
           <span>/</span>
           <span className="text-gray-700">{displayName}</span>
         </nav>
@@ -465,10 +467,28 @@ export const ProductDetail = () => {
             <div className="rounded-2xl border border-gray-100 bg-white p-4">
               <h2 className="mb-2 text-sm font-black uppercase tracking-wide text-gray-900">Mô tả</h2>
               {product.description ? (
-                <div
-                  className="prose prose-sm max-w-none text-sm leading-relaxed text-gray-600 [&_img]:rounded-lg [&_img]:max-w-full [&_h1]:text-lg [&_h1]:font-bold [&_h2]:text-base [&_h2]:font-bold [&_h3]:text-sm [&_h3]:font-bold [&_p]:mb-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_a]:text-red-600 [&_a]:underline"
-                  dangerouslySetInnerHTML={{ __html: product.description }}
-                />
+                <>
+                  <div className="relative">
+                    <div
+                      className={`prose prose-sm max-w-none text-sm leading-relaxed text-gray-600 [&_img]:rounded-lg [&_img]:max-w-full [&_h1]:text-lg [&_h1]:font-bold [&_h2]:text-base [&_h2]:font-bold [&_h3]:text-sm [&_h3]:font-bold [&_p]:mb-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_a]:text-red-600 [&_a]:underline ${
+                        shouldClampDescription && !isDescriptionExpanded ? 'max-h-[360px] overflow-hidden' : ''
+                      }`}
+                      dangerouslySetInnerHTML={{ __html: product.description }}
+                    />
+                    {shouldClampDescription && !isDescriptionExpanded && (
+                      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-white to-white/0" />
+                    )}
+                  </div>
+                  {shouldClampDescription && (
+                    <button
+                      type="button"
+                      onClick={() => setIsDescriptionExpanded((expanded) => !expanded)}
+                      className="relative z-10 mt-3 w-full rounded-xl border border-red-200 bg-white px-4 py-2 text-sm font-bold text-red-600 transition-all hover:border-red-400 hover:bg-red-50"
+                    >
+                      {isDescriptionExpanded ? 'Thu gọn' : 'Đọc thêm'}
+                    </button>
+                  )}
+                </>
               ) : (
                 <p className="text-sm leading-relaxed text-gray-500">Sản phẩm đang được cập nhật mô tả.</p>
               )}
@@ -523,7 +543,6 @@ export const ProductDetail = () => {
                         key={version.key}
                         onClick={() => {
                           if (!isActive && version.slug) {
-                            setSelectedColorImageOverride(null);
                             setActiveImage(0);
                             navigate(`/products/${version.slug}`);
                           }
@@ -574,12 +593,10 @@ export const ProductDetail = () => {
                       <button
                         key={color.name}
                         onClick={() => {
-                          if (!isActive && variantOfColor?.slug) {
-                            setSelectedColorImageOverride(color.imageUrl || variantOfColor.colorImageUrl || null);
+                          const targetSlug = getSafeProductSlug(variantOfColor?.slug);
+                          if (!isActive && targetSlug) {
                             setActiveImage(0);
-                            navigate(`/products/${variantOfColor.slug}?product_id=${variantOfColor.id}`);
-                          } else {
-                            setSelectedColorImageOverride(color.imageUrl || variantOfColor?.colorImageUrl || null);
+                            navigate(`/products/${targetSlug}?product_id=${variantOfColor.id}`);
                           }
                         }}
                         title={color.name}
@@ -664,12 +681,11 @@ export const ProductDetail = () => {
             )}
 
             {/* Specifications — CellphoneS-style tabbed */}
-            {(Object.keys(product.specifications || {}).length > 0 || Object.keys(product.groupedSpecifications || {}).length > 0) && (
-              <ProductSpecificationsTab
-                groupedSpecifications={product.groupedSpecifications}
-                specifications={product.specifications}
-              />
-            )}
+            <ProductSpecificationsTab
+              specificationRows={product.specificationRows}
+              groupedSpecifications={product.groupedSpecifications}
+              specifications={product.specifications}
+            />
           </section>
         </div>
       </div>
@@ -688,7 +704,10 @@ export const ProductDetail = () => {
               return (
                 <button
                   key={v.id}
-                  onClick={() => !isCurrent && navigate(`/products/${v.slug}`)}
+                  onClick={() => {
+                    const targetSlug = getSafeProductSlug(v.slug);
+                    if (!isCurrent && targetSlug) navigate(`/products/${targetSlug}`);
+                  }}
                   disabled={isCurrent}
                   className={`rounded-2xl border bg-white p-3 text-left transition-all hover:border-red-300 hover:shadow-md ${
                     isCurrent ? 'opacity-40 cursor-default' : ''

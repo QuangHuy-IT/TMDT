@@ -1,0 +1,82 @@
+[
+  {
+    "brand_name": "Apple",
+    "slug": "apple",
+    "brand_logo_url": "https://cdn2.fptshop.com.vn/unsafe/180x0/filters:format(webp):quality(75)/small/logo_apple_ngang_1810642801.png"
+  },
+  {
+    "brand_name": "Samsung",
+    "slug": "samsung",
+    "brand_logo_url": "https://cdn2.fptshop.com.vn/unsafe/180x0/filters:format(webp):quality(75)/small/logo_samsung_ngang_1624d75bd8.png"
+  },
+  {
+    "brand_name": "Xiaomi",
+    "slug": "xiaomi",
+    "brand_logo_url": "https://cdn2.fptshop.com.vn/unsafe/180x0/filters:format(webp):quality(75)/small/logo_xiaomi_ngang_0faf267234.png"
+  },
+  {
+    "brand_name": "OPPO",
+    "slug": "oppo",
+    "brand_logo_url": "https://cdn2.fptshop.com.vn/unsafe/180x0/filters:format(webp):quality(75)/small/logo_oppo_ngang_68d31fcd73.png"
+  },
+  {
+    "brand_name": "HONOR",
+    "slug": "honor",
+    "brand_logo_url": "https://cdn2.fptshop.com.vn/unsafe/180x0/filters:format(webp):quality(75)/small/logo_honor_ngang_814fca59e4.png"
+  },
+  {
+    "brand_name": "Tecno",
+    "slug": "tecno",
+    "brand_logo_url": "https://cdn2.fptshop.com.vn/unsafe/180x0/filters:format(webp):quality(75)/small/logo_tecno_ngang_c587e5f1fa.png"
+  },
+  {
+    "brand_name": "Mobell",
+    "slug": "mobell",
+    "brand_logo_url": "https://cdn2.fptshop.com.vn/unsafe/180x0/filters:format(webp):quality(75)/small/logo_mobell_ngang_27f930cc0a.png"
+  },
+  {
+    "brand_name": "Nokia",
+    "slug": "nokia",
+    "brand_logo_url": "https://cdn2.fptshop.com.vn/unsafe/180x0/filters:format(webp):quality(75)/small/logo_nokia_ngang_15416db151.png"
+  },
+  {
+    "brand_name": "Inoi",
+    "slug": "inoi",
+    "brand_logo_url": "https://cdn2.fptshop.com.vn/unsafe/180x0/filters:format(webp):quality(75)/small/logo_inoi_ngang_61080bdeb9.png"
+  },
+  {
+    "brand_name": "Realme",
+    "slug": "realme",
+    "brand_logo_url": "https://cdn2.fptshop.com.vn/unsafe/180x0/filters:format(webp):quality(75)/small/logo_realme_ngang_0185815a13.png"
+  },
+  {
+    "brand_name": "Masstel",
+    "slug": "masstel",
+    "brand_logo_url": "https://cdn2.fptshop.com.vn/unsafe/180x0/filters:format(webp):quality(75)/small/logo_masstel_ngang_2a96b9898c.png"
+  },
+  {
+    "brand_name": "Itel",
+    "slug": "itel",
+    "brand_logo_url": "https://cdn2.fptshop.com.vn/unsafe/180x0/filters:format(webp):quality(75)/small/logo_itel_ngang_acd1031b09.png"
+  },
+  {
+    "brand_name": "Benco",
+    "slug": "benco",
+    "brand_logo_url": "https://cdn2.fptshop.com.vn/unsafe/180x0/filters:format(webp):quality(75)/small/logo_benco_ngang_d31d9c3b77.png"
+  },
+  {
+    "brand_name": "Nubia - ZTE",
+    "slug": "nubia-zte",
+    "brand_logo_url": "https://cdn2.fptshop.com.vn/unsafe/180x0/filters:format(webp):quality(75)/small/logo_zte_ngang_2e0d8b4de1.png"
+  },
+  {
+    "brand_name": "TCL",
+    "slug": "tcl",
+    "brand_logo_url": "https://cdn2.fptshop.com.vn/unsafe/180x0/filters:format(webp):quality(75)/small/logo_tcl_ngang_0ed4175607.png"
+  },
+  {
+    "brand_name": "Viettel",
+    "slug": "viettel",
+    "brand_logo_url": "https://cdn2.fptshop.com.vn/unsafe/180x0/filters:format(webp):quality(75)/small/logo_viettel_ngang_95c33a2faa.png"
+  }
+]

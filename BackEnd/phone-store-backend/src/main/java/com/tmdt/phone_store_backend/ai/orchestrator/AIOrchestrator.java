@@ -29,6 +29,8 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -61,11 +63,6 @@ public class AIOrchestrator {
     private final ProductVariantRepository variantRepository;
 
     /**
-     * Products hiện tại cho response — được set trong mỗi xử lý intent.
-     */
-    private List<ChatProductDto> currentProducts = new ArrayList<>();
-
-    /**
      * Xử lý tin nhắn từ người dùng.
      */
     @Transactional
@@ -74,8 +71,6 @@ public class AIOrchestrator {
         long startTime = System.currentTimeMillis();
 
         log.info("Processing message for session {}: {}", sessionId, userMessage);
-
-        currentProducts = new ArrayList<>();
         
         // Step 1: Get or create session
         ChatSession session = getOrCreateSession(sessionId, ipAddress, userAgent);
@@ -88,13 +83,13 @@ public class AIOrchestrator {
         saveMessage(session, userMessage, "USER");
         
         // Step 4: Process based on intent
-        String response = processByIntent(userMessage, intent, sessionId);
+        ProcessResult result = processByIntent(userMessage, intent, sessionId);
         
         // Step 5: Save bot response
-        saveMessage(session, response, "BOT");
+        saveMessage(session, result.responseText(), "BOT");
         
         // Step 6: Update memory
-        memoryService.updateMemory(sessionId, userMessage, response);
+        memoryService.updateMemory(sessionId, userMessage, result.responseText());
         
         // Step 7: Update session
         session.incrementMessageCount();
@@ -104,23 +99,23 @@ public class AIOrchestrator {
         long processingTime = System.currentTimeMillis() - startTime;
         log.info("Message processed in {}ms", processingTime);
         
-        return buildChatResponse(session, response, intent.getIntent().name());
+        return buildChatResponse(session, result.responseText(), intent.getIntent().name(), result.products());
     }
 
     /**
      * Xử lý theo intent đã detect.
      */
-    private String processByIntent(String message, IntentResult intent, String sessionId) {
+    private ProcessResult processByIntent(String message, IntentResult intent, String sessionId) {
         IntentType intentType = intent.getIntent();
         
         return switch (intentType) {
-            case GREETING -> handleGreeting(sessionId);
-            case PRODUCT_COMPARE -> handleCompare(message);
+            case GREETING -> ProcessResult.textOnly(handleGreeting(sessionId));
+            case PRODUCT_COMPARE -> ProcessResult.textOnly(handleCompare(message));
             case FAQ_BAOHANH, FAQ_GIAOHANG, FAQ_DOITRA, FAQ_TRAGOP, FAQ_GENERAL -> 
-                handleFAQ(message, intentType);
+                ProcessResult.textOnly(handleFAQ(message, intentType));
             case PRODUCT_RECOMMENDATION -> handleRecommendation(message, sessionId);
             case PRODUCT_SEARCH, PRICE_QUERY, SPEC_QUERY -> handleProductSearch(message, sessionId);
-            default -> handleGeneralChat(message, sessionId);
+            default -> ProcessResult.textOnly(handleGeneralChat(message, sessionId));
         };
     }
 
@@ -194,37 +189,33 @@ public class AIOrchestrator {
     /**
      * Xử lý tìm kiếm sản phẩm.
      */
-    private String handleProductSearch(String message, String sessionId) {
+    private ProcessResult handleProductSearch(String message, String sessionId) {
         List<Product> products = productContextBuilder.searchProducts(message, 8);
-        this.currentProducts = products.stream()
-                .limit(5)
-                .map(this::toChatProductDto)
-                .collect(Collectors.toList());
+        List<ChatProductDto> productCards = toChatProductDtos(products, 5);
 
         String productContext = productContextBuilder.buildContext(message, sessionId, 8);
         String memoryContext = memoryService.getMemoryContext(sessionId);
 
         String prompt = promptBuilder.buildProductSearchPrompt(message, productContext, memoryContext);
 
-        return geminiService.sendMessage(promptBuilder.buildSimplePrompt(message, null), prompt);
+        String response = geminiService.sendMessage(promptBuilder.buildSimplePrompt(message, null), prompt);
+        return new ProcessResult(response, productCards);
     }
 
     /**
      * Xử lý recommendation.
      */
-    private String handleRecommendation(String message, String sessionId) {
+    private ProcessResult handleRecommendation(String message, String sessionId) {
         List<Product> products = productContextBuilder.searchProducts(message, 8);
-        this.currentProducts = products.stream()
-                .limit(5)
-                .map(this::toChatProductDto)
-                .collect(Collectors.toList());
+        List<ChatProductDto> productCards = toChatProductDtos(products, 5);
 
         String productContext = productContextBuilder.buildContext(message, sessionId, 8);
         String memoryContext = memoryService.getMemoryContext(sessionId);
 
         String prompt = promptBuilder.buildRecommendationPrompt(message, productContext, memoryContext);
 
-        return geminiService.sendMessage(promptBuilder.buildSimplePrompt(message, null), prompt);
+        String response = geminiService.sendMessage(promptBuilder.buildSimplePrompt(message, null), prompt);
+        return new ProcessResult(response, productCards);
     }
 
     /**
@@ -320,16 +311,39 @@ public class AIOrchestrator {
         return String.format("%,.0f VNĐ", price);
     }
 
-    private ChatProductDto toChatProductDto(Product p) {
-        List<ProductVariant> variants = variantRepository
-                .findByProductIdAndDeletedAtIsNullOrderByPriceAsc(p.getId());
+    private List<ChatProductDto> toChatProductDtos(List<Product> products, int limit) {
+        if (products == null || products.isEmpty()) {
+            return List.of();
+        }
 
+        List<Product> limitedProducts = products.stream()
+                .filter(Objects::nonNull)
+                .limit(limit)
+                .toList();
+
+        List<Long> productIds = limitedProducts.stream()
+                .map(Product::getId)
+                .filter(Objects::nonNull)
+                .toList();
+
+        Map<Long, List<ProductVariant>> variantsByProductId = productIds.isEmpty()
+                ? Map.of()
+                : variantRepository.findByProductIdInAndDeletedAtIsNull(productIds).stream()
+                    .filter(v -> v.getProduct() != null && v.getProduct().getId() != null)
+                    .collect(Collectors.groupingBy(v -> v.getProduct().getId()));
+
+        return limitedProducts.stream()
+                .map(product -> toChatProductDto(product, variantsByProductId.getOrDefault(product.getId(), List.of())))
+                .toList();
+    }
+
+    private ChatProductDto toChatProductDto(Product p, List<ProductVariant> variants) {
         BigDecimal minPrice = null;
         BigDecimal maxPrice = null;
-        if (!variants.isEmpty()) {
-            minPrice = variants.stream().map(ProductVariant::getPrice)
+        if (variants != null && !variants.isEmpty()) {
+            minPrice = variants.stream().map(ProductVariant::getPrice).filter(Objects::nonNull)
                     .min(Comparator.naturalOrder()).orElse(null);
-            maxPrice = variants.stream().map(ProductVariant::getPrice)
+            maxPrice = variants.stream().map(ProductVariant::getPrice).filter(Objects::nonNull)
                     .max(Comparator.naturalOrder()).orElse(null);
         }
 
@@ -382,7 +396,11 @@ public class AIOrchestrator {
     /**
      * Build ChatResponseDto.
      */
-    private ChatResponseDto buildChatResponse(ChatSession session, String botMessage, String intent) {
+    private ChatResponseDto buildChatResponse(
+            ChatSession session,
+            String botMessage,
+            String intent,
+            List<ChatProductDto> products) {
         List<ChatMessage> messages = messageRepository
             .findBySessionSessionIdOrderByCreatedAtAsc(session.getSessionId());
 
@@ -394,10 +412,16 @@ public class AIOrchestrator {
             .sessionId(session.getSessionId())
             .botMessage(botMessage)
             .intent(intent)
-            .products(this.currentProducts.isEmpty() ? null : this.currentProducts)
+            .products(products == null || products.isEmpty() ? null : products)
             .messages(messageDtos)
             .timestamp(LocalDateTime.now())
             .totalMessages(session.getMessageCount())
             .build();
+    }
+
+    private record ProcessResult(String responseText, List<ChatProductDto> products) {
+        private static ProcessResult textOnly(String responseText) {
+            return new ProcessResult(responseText, List.of());
+        }
     }
 }

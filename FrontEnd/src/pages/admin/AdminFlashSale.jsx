@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import AdminService from '../../services/adminService';
+import { getFlashSaleStatus } from '../../utils/flashSaleTime';
 
 const DATETIME_LOCAL_RE = /^(\d{4})-(\d{2})-(\d{2})[T\s](\d{2}):(\d{2})(?::(\d{2}))?/;
 
@@ -97,6 +98,8 @@ const getCampaignStatus = (campaign) => {
   if (now <= endAt.getTime()) return 'RUNNING';
   return 'ENDED';
 };
+
+const getSessionStatus = (session) => getFlashSaleStatus(session).status;
 
 const TABS = [
   { key: 'campaigns', label: 'Chiến dịch' },
@@ -357,7 +360,7 @@ const ProductModal = ({ product, sessions, onClose, onSave, saving }) => {
               <option value="">Chọn phiên</option>
               {sessions.map((s) => (
                 <option key={s.id} value={s.id}>
-                  {statusLabel(s.status)} | {toDatetimeLocal(s.startAt).replace('T', ' ')} → {toDatetimeLocal(s.endAt).replace('T', ' ')}
+                  {statusLabel(getSessionStatus(s))} | {toDatetimeLocal(s.startAt).replace('T', ' ')} → {toDatetimeLocal(s.endAt).replace('T', ' ')}
                 </option>
               ))}
             </select>
@@ -937,8 +940,8 @@ const AdminFlashSale = () => {
                           <p className="text-xs text-gray-500">→ {toDatetimeLocal(s.endAt).replace('T', ' ')}</p>
                         </td>
                         <td className="px-6 py-4 text-center">
-                          <span className={`text-[11px] font-bold px-2 py-1 rounded-full ${statusColor(s.status)}`}>
-                            {statusLabel(s.status)}
+                          <span className={`text-[11px] font-bold px-2 py-1 rounded-full ${statusColor(getSessionStatus(s))}`}>
+                            {statusLabel(getSessionStatus(s))}
                           </span>
                         </td>
                         <td className="px-6 py-4 text-center">
@@ -1015,7 +1018,7 @@ const AdminFlashSale = () => {
                     <option value="">Chọn phiên</option>
                     {sessions.map((s) => (
                       <option key={s.id} value={s.id}>
-                        #{s.sessionNumber || s.id} - {statusLabel(s.status)} ({toDatetimeLocal(s.startAt).replace('T', ' ')})
+                        #{s.sessionNumber || s.id} - {statusLabel(getSessionStatus(s))} ({toDatetimeLocal(s.startAt).replace('T', ' ')})
                       </option>
                     ))}
                   </select>

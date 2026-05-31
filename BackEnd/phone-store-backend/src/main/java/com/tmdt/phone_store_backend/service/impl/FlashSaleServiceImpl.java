@@ -19,7 +19,10 @@ import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -301,8 +304,10 @@ public class FlashSaleServiceImpl implements FlashSaleService {
         if (!sessionRepository.existsById(sessionId)) {
             throw new ResourceNotFoundException("Không tìm thấy session: " + sessionId);
         }
-        return flashSaleProductRepository.findBySessionIdOrderBySortOrderAsc(sessionId).stream()
-                .map(this::toProductDto)
+        List<FlashSaleProduct> products = flashSaleProductRepository.findBySessionIdWithVariantAndProductOrderBySortOrderAsc(sessionId);
+        Map<Long, String> thumbnailByProductId = getPrimaryImageUrlByProductId(products);
+        return products.stream()
+                .map(product -> toProductDto(product, thumbnailByProductId))
                 .collect(Collectors.toList());
     }
 
@@ -496,8 +501,9 @@ public class FlashSaleServiceImpl implements FlashSaleService {
         }
 
         List<FlashSaleProduct> products = flashSaleProductRepository.findActiveBySessionIdWithVariantAndProduct(session.getId());
+        Map<Long, String> thumbnailByProductId = getPrimaryImageUrlByProductId(products);
         List<FlashSaleProductDto> productDtos = products.stream()
-                .map(this::toProductDto)
+                .map(product -> toProductDto(product, thumbnailByProductId))
                 .collect(Collectors.toList());
 
         return FlashSaleSessionDto.builder()
@@ -517,6 +523,10 @@ public class FlashSaleServiceImpl implements FlashSaleService {
     }
 
     private FlashSaleProductDto toProductDto(FlashSaleProduct fp) {
+        return toProductDto(fp, Map.of());
+    }
+
+    private FlashSaleProductDto toProductDto(FlashSaleProduct fp, Map<Long, String> thumbnailByProductId) {
         ProductVariant variant = fp.getVariant();
         Product product = variant.getProduct();
 
@@ -535,7 +545,10 @@ public class FlashSaleServiceImpl implements FlashSaleService {
             progressPercent = (int) ((fp.getSoldQuantity() * 100.0) / fp.getQuantity());
         }
 
-        String thumbnail = getPrimaryImageUrl(product);
+        String thumbnail = thumbnailByProductId.get(product.getId());
+        if (thumbnail == null) {
+            thumbnail = getPrimaryImageUrl(product);
+        }
 
         return FlashSaleProductDto.builder()
                 .id(fp.getId())
@@ -576,6 +589,44 @@ public class FlashSaleServiceImpl implements FlashSaleService {
                 .findFirst()
                 .map(ProductImage::getImageUrl)
                 .orElse(images.get(0).getImageUrl());
+    }
+
+    private Map<Long, String> getPrimaryImageUrlByProductId(List<FlashSaleProduct> flashSaleProducts) {
+        if (flashSaleProducts == null || flashSaleProducts.isEmpty()) return Map.of();
+
+        List<Long> productIds = flashSaleProducts.stream()
+                .map(fp -> fp.getVariant() != null ? fp.getVariant().getProduct() : null)
+                .filter(Objects::nonNull)
+                .map(Product::getId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        if (productIds.isEmpty()) return Map.of();
+
+        Map<Long, List<ProductImage>> imagesByProductId = productImageRepository
+                .findByProductIdInOrderBySortOrderAscIdAsc(productIds)
+                .stream()
+                .filter(image -> image.getProduct() != null && image.getProduct().getId() != null)
+                .collect(Collectors.groupingBy(
+                        image -> image.getProduct().getId(),
+                        LinkedHashMap::new,
+                        Collectors.toList()
+                ));
+
+        Map<Long, String> thumbnailByProductId = new LinkedHashMap<>();
+        for (Map.Entry<Long, List<ProductImage>> entry : imagesByProductId.entrySet()) {
+            List<ProductImage> images = entry.getValue();
+            if (images == null || images.isEmpty()) continue;
+            String imageUrl = images.stream()
+                    .filter(image -> Boolean.TRUE.equals(image.getIsPrimary()))
+                    .findFirst()
+                    .map(ProductImage::getImageUrl)
+                    .orElse(images.get(0).getImageUrl());
+            if (imageUrl != null && !imageUrl.isBlank()) {
+                thumbnailByProductId.put(entry.getKey(), imageUrl);
+            }
+        }
+        return thumbnailByProductId;
     }
 
     private void validateCampaignDates(LocalDateTime startAt, LocalDateTime endAt) {

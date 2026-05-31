@@ -1,6 +1,7 @@
 package com.tmdt.phone_store_backend.dto;
 
 import java.math.BigDecimal;
+import java.util.List;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -26,6 +27,7 @@ public class AdminProductVariantDto {
     private Integer stock;
     private BigDecimal compareAtPrice;
     private String colorImageUrl;
+    private List<String> images;
 
     /** Số tiền đã giảm (hiện tại: discountAmount = số tiền giảm trực tiếp) */
     private BigDecimal saleAmount;

@@ -40,7 +40,7 @@ const VALIDATORS = {
     if (!/[a-z]/.test(v)) return 'Mật khẩu phải chứa ít nhất 1 chữ thường';
     if (!/[A-Z]/.test(v)) return 'Mật khẩu phải chứa ít nhất 1 chữ in hoa';
     if (!/\d/.test(v)) return 'Mật khẩu phải chứa ít nhất 1 chữ số';
-    if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>/?]/.test(v)) return 'Mật khẩu phải chứa ít nhất 1 ký tự đặc biệt';
+    if (!/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(v)) return 'Mật khẩu phải chứa ít nhất 1 ký tự đặc biệt';
     return '';
   },
 };

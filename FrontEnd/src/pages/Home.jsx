@@ -28,6 +28,8 @@ export const Home = () => {
     queryKey: ['flashSaleData'],
     queryFn: flashSaleService.getFlashSaleData,
     staleTime: 30 * 1000,
+    refetchInterval: 30 * 1000,
+    refetchIntervalInBackground: true,
   });
 
   // 3. Featured Products
@@ -53,6 +55,9 @@ export const Home = () => {
     queryFn: brandService.getBrands,
     staleTime: 30 * 60 * 1000,
   });
+
+  const visibleBrands = (apiBrands || [])
+    .filter(b => b.is_active !== false);
 
   return (
     <main className="min-h-screen bg-slate-50/50 pb-20 space-y-6">
@@ -109,8 +114,8 @@ export const Home = () => {
                 ))}
               </div>
             ) : (
-              apiBrands?.filter(b => b.is_active !== false).map((brand) => (
-                <BrandSection key={brand.id || brand.slug} brand={brand} />
+              visibleBrands.map((brand, index) => (
+                <BrandSection key={brand.id || brand.slug} brand={brand} eager={index < 2} />
               ))
             )}
 

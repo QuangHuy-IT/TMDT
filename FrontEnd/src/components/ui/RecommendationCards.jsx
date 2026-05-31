@@ -3,6 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Heart, TrendingUp, Sparkles, ThumbsUp, Zap } from 'lucide-react';
 import { cn } from '../../utils/cn';
+import { getSafeProductSlug } from '../../utils/slug';
+
+const PRODUCT_PLACEHOLDER =
+  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 80 80'%3E%3Crect width='80' height='80' rx='10' fill='%23f8fafc'/%3E%3Cpath d='M20 54h40L48 38l-9 11-6-7-13 12z' fill='%23cbd5e1'/%3E%3Ccircle cx='31' cy='30' r='5' fill='%23cbd5e1'/%3E%3C/svg%3E";
 
 /**
  * RecommendationCards - Hiển thị sản phẩm được gợi ý từ AI Chatbot
@@ -74,8 +78,8 @@ export const RecommendationCards = ({
   };
 
   const handleProductClick = (product) => {
-    const slug = product.slug || product.productSlug || product.productId;
-    navigate(`/product/${slug}`);
+    const slug = getSafeProductSlug(product.slug, product.productSlug);
+    if (slug) navigate(`/products/${slug}`);
   };
 
   if (loading) {
@@ -139,7 +143,7 @@ export const RecommendationCards = ({
         {recommendations.slice(0, 8).map((product, index) => {
           const productId = product.productId || product.id || product._id;
           const name = product.productName || product.name || 'Sản phẩm';
-          const thumbnail = product.thumbnail || product.imageUrl || '/placeholder-product.png';
+          const thumbnail = product.thumbnail || product.thumbnailUrl || product.imageUrl || PRODUCT_PLACEHOLDER;
           const price = product.minPrice || product.price || 0;
           const brandName = product.brandName || product.brand?.name || 'Mobile';
           const reason = product.reason;
@@ -184,7 +188,8 @@ export const RecommendationCards = ({
                   className="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110"
                   loading="lazy"
                   onError={(e) => {
-                    e.target.src = 'https://placehold.co/300x300/purple/white?text=Product';
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.src = PRODUCT_PLACEHOLDER;
                   }}
                 />
               </div>
@@ -257,7 +262,18 @@ export const CompactRecommendationList = ({
   onProductClick,
   maxItems = 3 
 }) => {
+  const navigate = useNavigate();
+
   if (recommendations.length === 0) return null;
+
+  const handleClick = (slug) => {
+    if (!slug) return;
+    if (onProductClick) {
+      onProductClick(slug);
+      return;
+    }
+    navigate(`/products/${slug}`);
+  };
 
   return (
     <div className="space-y-2">
@@ -267,23 +283,25 @@ export const CompactRecommendationList = ({
       <div className="space-y-2">
         {recommendations.slice(0, maxItems).map((product) => {
           const productId = product.productId || product.id || product._id;
-          const slug = product.slug || product.productSlug || product.productId;
+          const slug = getSafeProductSlug(product.slug, product.productSlug);
           const name = product.productName || product.name || 'Sản phẩm';
-          const thumbnail = product.thumbnail || product.imageUrl || '/placeholder-product.png';
+          const thumbnail = product.thumbnail || product.thumbnailUrl || product.imageUrl || PRODUCT_PLACEHOLDER;
           const price = product.minPrice || product.price || 0;
+          const salePercent = Number(product.salePercent || 0);
 
           return (
             <div
               key={productId}
-              onClick={() => onProductClick?.(slug || productId)}
-              className="flex items-center gap-3 p-2 bg-slate-50 rounded-xl cursor-pointer hover:bg-purple-50 transition-colors group"
+              onClick={() => handleClick(slug)}
+              className={`flex items-center gap-3 p-2 bg-slate-50 rounded-xl hover:bg-purple-50 transition-colors group ${slug ? 'cursor-pointer' : 'cursor-default'}`}
             >
               <img
                 src={thumbnail}
                 alt={name}
-                className="w-12 h-12 rounded-lg object-cover bg-slate-100"
+                className="w-12 h-12 rounded-lg object-contain bg-white border border-slate-100"
                 onError={(e) => {
-                  e.target.src = 'https://placehold.co/48x48/purple/white?text=?';
+                  e.currentTarget.onerror = null;
+                  e.currentTarget.src = PRODUCT_PLACEHOLDER;
                 }}
               />
               <div className="flex-1 min-w-0">
@@ -291,8 +309,13 @@ export const CompactRecommendationList = ({
                   {name}
                 </p>
                 <p className="text-xs font-bold text-red-600">
-                  {Number(price).toLocaleString('vi-VN')}₫
+                  {price ? `${Number(price).toLocaleString('vi-VN')}₫` : 'Liên hệ'}
                 </p>
+                {salePercent > 0 && (
+                  <span className="inline-block rounded bg-red-50 px-1.5 py-0.5 text-[10px] font-bold text-red-500">
+                    -{Math.round(salePercent)}%
+                  </span>
+                )}
               </div>
             </div>
           );

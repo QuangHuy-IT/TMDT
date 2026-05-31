@@ -1,21 +1,20 @@
 import React from 'react';
 import { cn } from '../../utils/cn';
 import { Clock } from 'lucide-react';
+import { formatFlashSaleDate, formatFlashSaleTime } from '../../utils/flashSaleTime';
 
 const FlashSaleDateSelector = ({ sessions, activeSessionId, onSessionClick, className }) => {
   if (!sessions || sessions.length === 0) return null;
 
   const formatDate = (dateStr) => {
-    const date = new Date(dateStr);
-    const day = date.toLocaleDateString('vi-VN', { day: 'numeric' });
-    const month = date.toLocaleDateString('vi-VN', { month: 'short' });
-    const weekday = date.toLocaleDateString('vi-VN', { weekday: 'short' });
+    const day = formatFlashSaleDate(dateStr, { day: 'numeric' });
+    const month = formatFlashSaleDate(dateStr, { month: 'short' });
+    const weekday = formatFlashSaleDate(dateStr, { weekday: 'short' });
     return { day, month, weekday };
   };
 
   const formatTime = (dateStr) => {
-    const date = new Date(dateStr);
-    return date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+    return formatFlashSaleTime(dateStr);
   };
 
   const getCardStyle = (session) => {
@@ -121,7 +120,7 @@ const FlashSaleDateSelector = ({ sessions, activeSessionId, onSessionClick, clas
               "text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider w-full text-center",
               status.class
             )}>
-              {session.isRunning && !session.id !== activeSessionId && (
+              {session.isRunning && session.id !== activeSessionId && (
                 <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse mr-1" />
               )}
               {status.label}

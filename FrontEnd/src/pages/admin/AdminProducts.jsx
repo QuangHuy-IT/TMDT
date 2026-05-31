@@ -5,6 +5,32 @@ import SeriesService from '../../services/seriesService';
 
 const ITEMS_PER_PAGE = 8;
 
+// Format number to VND currency display (e.g., "24.990.000")
+const formatCurrency = (value) => {
+  if (!value && value !== 0) return '';
+  const num = Number(value);
+  if (isNaN(num)) return '';
+  return num.toLocaleString('vi-VN');
+};
+
+// Format input value as user types (add dots for thousands)
+const formatCurrencyInput = (value) => {
+  if (!value && value !== 0) return '';
+  // Remove all non-digits
+  const digits = String(value).replace(/\D/g, '');
+  if (!digits) return '';
+  // Add dots for thousands
+  return parseInt(digits, 10).toLocaleString('vi-VN');
+};
+
+// Parse currency to plain number (remove dots, return number)
+const parseCurrencyToNumber = (str) => {
+  if (!str) return 0;
+  const cleaned = String(str).replace(/\./g, '');
+  const num = parseInt(cleaned, 10);
+  return isNaN(num) ? 0 : Math.max(0, num);
+};
+
 // Fixed spec groups — each group has a list of fixed spec keys
 // Used for phone/tablet products. Users can add custom groups for accessories.
 const SPEC_GROUPS = [
@@ -132,6 +158,7 @@ const createEmptyVariant = () => ({
   costPrice: '',
   stock: '',
   colorImageUrl: '',
+  images: [],
 });
 
 // SpecGroup — fixed template keys + optional extra rows, collapsible
@@ -403,6 +430,8 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
   const [pickerStorage, setPickerStorage] = useState('');
   const [pickerRam, setPickerRam] = useState('');
   const [pickerColor, setPickerColor] = useState('Đen');
+  const [pickerPrice, setPickerPrice] = useState('');
+  const [pickerCostPrice, setPickerCostPrice] = useState('');
 
   const [brands, setBrands] = useState([]);
   const [showBrandInput, setShowBrandInput] = useState(false);
@@ -449,7 +478,6 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
     !brandSearch || b.name?.toLowerCase().includes(brandSearch.toLowerCase())
   );
 
-  const fileInputRef = useRef(null);
   const thumbnailInputRef = useRef(null);
 
   // Fetch product detail for editing
@@ -473,20 +501,26 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
           seriesId: data.seriesId || '',
           description: data.description || '',
           thumbnailUrl: data.thumbnailUrl || '',
-          images: data.images || [],
+          images: [],
           specifications: data.specifications || {},
           hiddenSpecKeys: [],
           extraGroups: [],
-          variants: (data.variants || []).map(v => ({
-            id: v.id || null,
-            color: v.color || 'Đen',
-            storageLabel: v.storageLabel || '',
-            ramGb: v.ramGb ?? '',
-            price: v.price ?? '',
-            costPrice: v.costPrice ?? '',
-            stock: v.stock ?? '',
-            colorImageUrl: v.colorImageUrl || '',
-          })),
+          variants: (data.variants || []).map(v => {
+            const variantImages = Array.isArray(v.images) && v.images.length > 0
+              ? v.images
+              : (v.colorImageUrl ? [v.colorImageUrl] : []);
+            return {
+              id: v.id || null,
+              color: v.color || 'Đen',
+              storageLabel: v.storageLabel || '',
+              ramGb: v.ramGb ?? '',
+              price: v.price ?? '',
+              costPrice: v.costPrice ?? '',
+              stock: v.stock ?? '',
+              colorImageUrl: variantImages[0] || v.colorImageUrl || '',
+              images: variantImages,
+            };
+          }),
         });
         setPickerColor('Đen');
         setPickerStorage('');
@@ -560,42 +594,49 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
     }
   };
 
-  const handleGalleryUpload = async (e) => {
+  const handleVariantImagesUpload = async (e, variantIndex) => {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
-    setUploading(true);
+    setUploadingVariantIndex(variantIndex);
     try {
       const urls = [];
       for (const file of files) {
         const response = await ProductService.uploadImage(file);
         urls.push(response.data.imageUrl);
       }
-      updateForm((prev) => ({ ...prev, images: [...prev.images, ...urls] }));
+      updateForm((prev) => ({
+        ...prev,
+        variants: (prev.variants || []).map((variant, index) => {
+          if (index !== variantIndex) return variant;
+          const images = [...(variant.images || []), ...urls];
+          return {
+            ...variant,
+            images,
+            colorImageUrl: images[0] || variant.colorImageUrl || '',
+          };
+        }),
+      }));
     } catch (error) {
       alert('Upload ảnh thất bại');
-    } finally {
-      setUploading(false);
-      e.target.value = '';
-    }
-  };
-
-  const handleVariantColorImageUpload = async (e, variantIndex) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploadingVariantIndex(variantIndex);
-    try {
-      const response = await ProductService.uploadImage(file);
-      updateVariantField(variantIndex, 'colorImageUrl', response.data.imageUrl);
-    } catch (error) {
-      alert('Upload ảnh màu thất bại');
     } finally {
       setUploadingVariantIndex(null);
       e.target.value = '';
     }
   };
 
-  const removeImage = (index) => {
-    updateForm((prev) => ({ ...prev, images: prev.images.filter((_, i) => i !== index) }));
+  const removeVariantImage = (variantIndex, imageIndex) => {
+    updateForm((prev) => ({
+      ...prev,
+      variants: (prev.variants || []).map((variant, index) => {
+        if (index !== variantIndex) return variant;
+        const images = (variant.images || []).filter((_, i) => i !== imageIndex);
+        return {
+          ...variant,
+          images,
+          colorImageUrl: images[0] || '',
+        };
+      }),
+    }));
   };
 
   const removeThumbnail = () => updateForm({ thumbnailUrl: '' });
@@ -605,9 +646,17 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
       alert('Vui lòng chọn Dung lượng trước khi thêm phiên bản.');
       return;
     }
-    appendVariant({ color: pickerColor, storageLabel: pickerStorage, ramGb: pickerRam || null });
+    appendVariant({
+      color: pickerColor,
+      storageLabel: pickerStorage,
+      ramGb: pickerRam || null,
+      price: pickerPrice || 0,
+      costPrice: pickerCostPrice || 0,
+      stock: 0,
+    });
     setPickerStorage('');
     setPickerRam('');
+    setPickerColor('Đen');
   };
 
   const handlePickerStorage = (value) => setPickerStorage(prev => prev === value ? '' : value);
@@ -696,9 +745,10 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
       seriesId: form.seriesId || null,
       description: form.description,
       thumbnailUrl: form.thumbnailUrl || null,
-      images: form.images,
+      images: [],
       specifications: flatSpecs,
       variants: validVariants.map(v => {
+        const images = (v.images || []).filter(img => img && img.trim());
         const label = (v.storageLabel || '').trim();
         return {
           id: v.id || null,
@@ -709,7 +759,8 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
           price: Number(v.price || 0),
           costPrice: Number(v.costPrice || 0),
           stock: Number(v.stock || 0),
-          colorImageUrl: v.colorImageUrl || null,
+          colorImageUrl: images[0] || null,
+          images,
         };
       }),
     };
@@ -933,62 +984,31 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
             {/* Images */}
             <section className="bg-[#13151e] border border-white/5 rounded-2xl p-6 space-y-5">
               <h3 className="text-sm font-black text-white uppercase tracking-wider">Hình ảnh</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">Ảnh Thumbnail</label>
-                  <p className="text-[10px] text-gray-600 mb-2">Ảnh đại diện trong danh sách.</p>
-                  {form.thumbnailUrl ? (
-                    <div className="relative group w-28 h-28">
-                      <img src={form.thumbnailUrl && form.thumbnailUrl.trim() ? form.thumbnailUrl : undefined}
-                        alt="Thumbnail"
-                        className="w-full h-full object-contain bg-white/5 rounded-xl border border-white/10 p-1"
-                        onError={(e) => { e.target.src = 'https://picsum.photos/seed/fallback/80/80'; }} />
-                      <button onClick={removeThumbnail}
-                        className="absolute -top-2 -right-2 w-6 h-6 bg-red-600 rounded-full text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity font-bold">×</button>
-                      <span className="absolute bottom-1 left-1 text-[8px] bg-blue-600 text-white px-1 rounded font-bold">THUMB</span>
-                    </div>
-                  ) : (
-                    <button type="button" onClick={() => thumbnailInputRef.current?.click()}
-                      disabled={uploading}
-                      className="w-28 h-28 border-2 border-dashed border-white/10 rounded-xl flex flex-col items-center justify-center gap-2 text-gray-500 hover:border-red-500/40 hover:text-gray-300 transition-all">
-                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
-                      </svg>
-                      <span className="text-[11px]">{uploading ? '...' : 'Chọn ảnh'}</span>
-                    </button>
-                  )}
-                  <input ref={thumbnailInputRef} type="file" accept="image/*" className="hidden" onChange={handleThumbnailUpload} />
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">Ảnh Gallery</label>
-                  <p className="text-[10px] text-gray-600 mb-2">Nhiều ảnh trong trang chi tiết.</p>
-                  <button type="button" onClick={() => fileInputRef.current?.click()}
+              <div>
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">Ảnh Thumbnail</label>
+                <p className="text-[10px] text-gray-600 mb-2">Chỉ lưu vào products.thumbnail_url. Ảnh chi tiết sẽ thêm trong từng phiên bản.</p>
+                {form.thumbnailUrl ? (
+                  <div className="relative group w-28 h-28">
+                    <img src={form.thumbnailUrl && form.thumbnailUrl.trim() ? form.thumbnailUrl : undefined}
+                      alt="Thumbnail"
+                      className="w-full h-full object-contain bg-white/5 rounded-xl border border-white/10 p-1"
+                      onError={(e) => { e.target.src = 'https://picsum.photos/seed/fallback/80/80'; }} />
+                    <button onClick={removeThumbnail}
+                      className="absolute -top-2 -right-2 w-6 h-6 bg-red-600 rounded-full text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity font-bold">×</button>
+                    <span className="absolute bottom-1 left-1 text-[8px] bg-blue-600 text-white px-1 rounded font-bold">THUMB</span>
+                  </div>
+                ) : (
+                  <button type="button" onClick={() => thumbnailInputRef.current?.click()}
                     disabled={uploading}
                     className="w-28 h-28 border-2 border-dashed border-white/10 rounded-xl flex flex-col items-center justify-center gap-2 text-gray-500 hover:border-red-500/40 hover:text-gray-300 transition-all">
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
                     </svg>
-                    <span className="text-[11px]">{uploading ? '...' : 'Upload'}</span>
+                    <span className="text-[11px]">{uploading ? '...' : 'Chọn ảnh'}</span>
                   </button>
-                  <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleGalleryUpload} />
-                </div>
+                )}
+                <input ref={thumbnailInputRef} type="file" accept="image/*" className="hidden" onChange={handleThumbnailUpload} />
               </div>
-
-              {form.images.length > 0 && (
-                <div className="flex flex-wrap gap-3">
-                  {form.images.map((img, index) => img && img.trim() && (
-                    <div key={index} className="relative group">
-                      <img src={img} alt=""
-                        className="w-20 h-20 object-contain bg-white/5 rounded-xl border border-white/10 p-1"
-                        onError={(e) => { e.target.src = 'https://picsum.photos/seed/fallback/80/80'; }} />
-                      <button onClick={() => removeImage(index)}
-                        className="absolute -top-2 -right-2 w-5 h-5 bg-red-600 rounded-full text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity font-bold">×</button>
-                      {index === 0 && <span className="absolute bottom-1 left-1 text-[8px] bg-red-600 text-white px-1 rounded font-bold">CHÍNH</span>}
-                    </div>
-                  ))}
-                </div>
-              )}
             </section>
 
             {/* Variants */}
@@ -1046,6 +1066,24 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
                       {COLOR_PRESETS.map(c => <option key={c} value={c} />)}
                     </datalist>
                   </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <p className="text-[10px] text-gray-500 uppercase font-bold tracking-widest mb-1">Giá bán</p>
+                      <input type="text" inputMode="numeric"
+                        value={formatCurrencyInput(pickerPrice)}
+                        onChange={(e) => setPickerPrice(parseCurrencyToNumber(e.target.value))}
+                        placeholder="VD: 24.990.000"
+                        className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-gray-300 placeholder-gray-600 focus:outline-none focus:border-red-500/50" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-gray-500 uppercase font-bold tracking-widest mb-1">Giá vốn</p>
+                      <input type="text" inputMode="numeric"
+                        value={formatCurrencyInput(pickerCostPrice)}
+                        onChange={(e) => setPickerCostPrice(parseCurrencyToNumber(e.target.value))}
+                        placeholder="VD: 20.000.000"
+                        className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-gray-300 placeholder-gray-600 focus:outline-none focus:border-red-500/50" />
+                    </div>
+                  </div>
                   <button type="button" onClick={handleAddVariant} disabled={!pickerStorage}
                     className="w-full py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-xs font-bold text-white transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed">
                     + Thêm phiên bản
@@ -1085,60 +1123,71 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
                       </div>
                       <div className="col-span-2">
                         <label className="text-[10px] text-gray-500 block mb-1">RAM (GB)</label>
-                        <input type="number" value={variant.ramGb || ''}
-                          onChange={(e) => updateVariantField(index, 'ramGb', e.target.value)}
+                        <input type="number" min="0" value={variant.ramGb || ''}
+                          onChange={(e) => updateVariantField(index, 'ramGb', e.target.value === '' ? '' : Math.max(0, Number(e.target.value)))}
                           placeholder="8"
                           className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-2 text-xs text-gray-300" />
                       </div>
                       <div className="col-span-2">
                         <label className="text-[10px] text-gray-500 block mb-1">Giá nhập (VNĐ)</label>
-                        <input type="number" value={variant.costPrice || ''}
-                          onChange={(e) => updateVariantField(index, 'costPrice', e.target.value)}
-                          placeholder="25000000"
+                        <input type="text" inputMode="numeric"
+                          value={formatCurrencyInput(variant.costPrice)}
+                          onChange={(e) => updateVariantField(index, 'costPrice', parseCurrencyToNumber(e.target.value))}
+                          placeholder="25.000.000"
                           className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-2 text-xs text-gray-300 placeholder-gray-600 focus:outline-none focus:border-red-500/50" />
                       </div>
                       <div className="col-span-2">
                         <label className="text-[10px] text-gray-500 block mb-1">Giá bán (VNĐ)</label>
-                        <input type="number" value={variant.price || ''}
-                          onChange={(e) => updateVariantField(index, 'price', e.target.value)}
-                          placeholder="29990000"
+                        <input type="text" inputMode="numeric"
+                          value={formatCurrencyInput(variant.price)}
+                          onChange={(e) => updateVariantField(index, 'price', parseCurrencyToNumber(e.target.value))}
+                          placeholder="29.990.000"
                           className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-2 text-xs text-gray-300 placeholder-gray-600 focus:outline-none focus:border-red-500/50" />
                       </div>
                       <div className="col-span-2">
                         <label className="text-[10px] text-gray-500 block mb-1">Tồn kho</label>
-                        <input type="number" value={variant.stock || ''}
-                          onChange={(e) => updateVariantField(index, 'stock', e.target.value)}
+                        <input type="number" min="0" value={variant.stock || ''}
+                          onChange={(e) => updateVariantField(index, 'stock', e.target.value === '' ? '' : Math.max(0, Number(e.target.value)))}
                           placeholder="10"
                           className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-2 text-xs text-gray-300" />
                       </div>
                     </div>
 
                     <div>
-                      <label className="text-[10px] text-gray-500 block mb-1">Ảnh màu sắc</label>
-                      <div className="flex items-center gap-3">
-                        {variant.colorImageUrl ? (
-                          <div className="relative group w-14 h-14">
-                            <img src={variant.colorImageUrl} alt="Color"
+                      <label className="text-[10px] text-gray-500 block mb-1">Ảnh phiên bản</label>
+                      <p className="text-[9px] text-gray-600 mb-2">Upload nhiều ảnh cho phiên bản này. Ảnh đầu tiên sẽ lưu vào variant.color_image_url.</p>
+                      <div className="flex flex-wrap items-center gap-3">
+                        {(variant.images || []).map((img, imageIndex) => img && img.trim() && (
+                          <div key={`${img}-${imageIndex}`} className="relative group w-16 h-16">
+                            <img
+                              src={img}
+                              alt={`Variant ${imageIndex + 1}`}
                               className="w-full h-full object-contain bg-white/5 rounded-lg border border-white/10 p-0.5"
-                              onError={(e) => { e.target.src = 'https://picsum.photos/seed/fallback/80/80'; }} />
-                            <button type="button"
-                              onClick={() => updateVariantField(index, 'colorImageUrl', '')}
-                              className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-red-600 rounded-full text-white text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity font-bold">×</button>
-                          </div>
-                        ) : (
-                          <label className="w-14 h-14 border-2 border-dashed border-white/10 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-red-500/40 transition-all">
-                            {uploadingVariantIndex === index ? (
-                              <span className="text-[10px] text-gray-500">...</span>
-                            ) : (
-                              <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
-                              </svg>
+                              onError={(e) => { e.target.src = 'https://picsum.photos/seed/fallback/80/80'; }}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => removeVariantImage(index, imageIndex)}
+                              className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-red-600 rounded-full text-white text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity font-bold"
+                            >
+                              ×
+                            </button>
+                            {imageIndex === 0 && (
+                              <span className="absolute bottom-1 left-1 text-[8px] bg-red-600 text-white px-1 rounded font-bold">MÀU</span>
                             )}
-                            <input type="file" accept="image/*" className="hidden"
-                              onChange={(e) => handleVariantColorImageUpload(e, index)} />
-                          </label>
-                        )}
-                        <p className="text-[9px] text-gray-600">Ảnh hiển thị khi chọn màu {variant.color || 'này'}</p>
+                          </div>
+                        ))}
+                        <label className="w-16 h-16 border-2 border-dashed border-white/10 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-red-500/40 transition-all">
+                          {uploadingVariantIndex === index ? (
+                            <span className="text-[10px] text-gray-500">...</span>
+                          ) : (
+                            <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
+                            </svg>
+                          )}
+                          <input type="file" accept="image/*" multiple className="hidden"
+                            onChange={(e) => handleVariantImagesUpload(e, index)} />
+                        </label>
                       </div>
                     </div>
                   </div>

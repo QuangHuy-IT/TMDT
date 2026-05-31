@@ -3,6 +3,7 @@ package com.tmdt.phone_store_backend.dto;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
 import java.math.BigDecimal;
+import java.util.List;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -35,4 +36,6 @@ public class AdminProductVariantRequestDto {
     private Integer stock;
 
     private String colorImageUrl;
+
+    private List<String> images;
 }

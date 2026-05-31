@@ -14,6 +14,8 @@ export const FlashSalePage = () => {
     queryKey: ['flashSalePageData'],
     queryFn: flashSaleService.getFlashSaleData,
     staleTime: 30 * 1000,
+    refetchInterval: 30 * 1000,
+    refetchIntervalInBackground: true,
   });
 
   return (

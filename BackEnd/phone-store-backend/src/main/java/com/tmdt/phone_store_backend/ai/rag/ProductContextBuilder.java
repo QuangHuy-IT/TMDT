@@ -10,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
+import java.text.Normalizer;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -34,7 +35,7 @@ public class ProductContextBuilder {
         // Query sản phẩm
         List<Product> products = queryProducts(criteria, limit);
         
-        if (products.isEmpty()) {
+        if (products.isEmpty() && !criteria.hasSpecificConstraints()) {
             // Fallback: lấy sản phẩm trending/featured
             products = getFallbackProducts(limit);
         }
@@ -59,22 +60,23 @@ public class ProductContextBuilder {
      */
     public SearchCriteria extractSearchCriteria(String query) {
         String lower = query.toLowerCase();
+        String plain = removeVietnameseAccents(lower);
         SearchCriteria criteria = new SearchCriteria();
         
         // Extract budget
-        extractBudget(lower, criteria);
+        extractBudget(plain, criteria);
         
         // Detect brand
-        criteria.setBrand(detectBrand(lower));
+        criteria.setBrand(detectBrand(plain));
         
         // Detect categories/features
-        detectCategories(lower, criteria);
+        detectCategories(lower + " " + plain, criteria);
         
         // Detect RAM
-        extractRam(lower, criteria);
+        extractRam(plain, criteria);
         
         // Detect storage
-        extractStorage(lower, criteria);
+        extractStorage(plain, criteria);
         
         // Set original query
         criteria.setOriginalQuery(query);
@@ -85,7 +87,7 @@ public class ProductContextBuilder {
     private void extractBudget(String query, SearchCriteria criteria) {
         // Pattern: "dưới X triệu"
         java.util.regex.Pattern underPattern = 
-            java.util.regex.Pattern.compile("dưới\\s*(\\d+)");
+            java.util.regex.Pattern.compile("duoi\\s*(\\d+)");
         java.util.regex.Matcher underMatcher = underPattern.matcher(query);
         if (underMatcher.find()) {
             criteria.setMaxBudget(new BigDecimal(underMatcher.group(1)).multiply(new BigDecimal("1000000")));
@@ -93,7 +95,7 @@ public class ProductContextBuilder {
         
         // Pattern: "trên X triệu"
         java.util.regex.Pattern abovePattern = 
-            java.util.regex.Pattern.compile("trên\\s*(\\d+)");
+            java.util.regex.Pattern.compile("tren\\s*(\\d+)");
         java.util.regex.Matcher aboveMatcher = abovePattern.matcher(query);
         if (aboveMatcher.find()) {
             criteria.setMinBudget(new BigDecimal(aboveMatcher.group(1)).multiply(new BigDecimal("1000000")));
@@ -101,7 +103,7 @@ public class ProductContextBuilder {
         
         // Pattern: "X triệu" (exact)
         java.util.regex.Pattern exactPattern = 
-            java.util.regex.Pattern.compile("(\\d+)\\s*triệu(?!\\s*từ|\\s*đến)");
+            java.util.regex.Pattern.compile("(\\d+)\\s*trieu(?!\\s*tu|\\s*den)");
         java.util.regex.Matcher exactMatcher = exactPattern.matcher(query);
         if (exactMatcher.find() && criteria.getMaxBudget() == null) {
             criteria.setMaxBudget(new BigDecimal(exactMatcher.group(1)).multiply(new BigDecimal("1000000")));
@@ -122,19 +124,23 @@ public class ProductContextBuilder {
     private void detectCategories(String query, SearchCriteria criteria) {
         List<String> features = new ArrayList<>();
         
-        if (containsAny(query, "gaming", "chơi game", "chiến game", "hiệu năng cao")) {
+        if (containsAny(query, "gaming", "chơi game", "choi game", "chiến game", "chien game",
+                "hiệu năng cao", "hieu nang cao")) {
             features.add("gaming");
         }
-        if (containsAny(query, "camera", "chụp ảnh", "chụp hình", "nhiếp ảnh", "selfie")) {
+        if (containsAny(query, "camera", "chụp ảnh", "chup anh", "chụp hình", "chup hinh",
+                "nhiếp ảnh", "nhiep anh", "selfie")) {
             features.add("camera");
         }
-        if (containsAny(query, "pin", "trâu", "dung lượng", "thời lượng")) {
+        if (containsAny(query, "pin", "trâu", "trau", "dung lượng", "dung luong",
+                "thời lượng", "thoi luong")) {
             features.add("pin");
         }
-        if (containsAny(query, "mỏng", "nhẹ", "gọn", "thời trang")) {
+        if (containsAny(query, "mỏng", "mong", "nhẹ", "nhe", "gọn", "gon",
+                "thời trang", "thoi trang")) {
             features.add("slim");
         }
-        if (containsAny(query, "5g", "mạng nhanh")) {
+        if (containsAny(query, "5g", "mạng nhanh", "mang nhanh")) {
             features.add("5g");
         }
         
@@ -154,7 +160,7 @@ public class ProductContextBuilder {
 
     private void extractStorage(String query, SearchCriteria criteria) {
         java.util.regex.Pattern pattern = 
-            java.util.regex.Pattern.compile("(\\d+)\\s*gb\\s*(bộ nhớ|rom|storage)", 
+            java.util.regex.Pattern.compile("(\\d+)\\s*gb\\s*(bo nho|rom|storage)", 
                 java.util.regex.Pattern.CASE_INSENSITIVE);
         java.util.regex.Matcher matcher = pattern.matcher(query);
         if (matcher.find()) {
@@ -169,14 +175,34 @@ public class ProductContextBuilder {
         return false;
     }
 
+    private String removeVietnameseAccents(String value) {
+        if (value == null) {
+            return "";
+        }
+        String normalized = Normalizer.normalize(value, Normalizer.Form.NFD)
+            .replaceAll("\\p{M}", "");
+        return normalized.replace('đ', 'd').replace('Đ', 'D');
+    }
+
     private List<Product> queryProducts(SearchCriteria criteria, int limit) {
         List<Product> products = productRepository.findByDeletedAtIsNullOrderByCreatedAtDesc();
-        
-        return products.stream()
+
+        List<Product> candidates = products.stream()
             .filter(p -> p.getStatus() == ProductStatus.ACTIVE)
             .filter(p -> criteria.getBrand() == null || 
                 (p.getBrand() != null && p.getBrand().getName().toLowerCase().contains(criteria.getBrand())))
             .filter(p -> matchesFeatures(p, criteria.getFeatures()))
+            .collect(Collectors.toList());
+
+        if (!criteria.hasVariantConstraints()) {
+            return candidates.stream()
+                .limit(limit)
+                .collect(Collectors.toList());
+        }
+
+        Map<Long, List<ProductVariant>> variantsByProductId = loadVariantsByProductId(candidates);
+        return candidates.stream()
+            .filter(p -> matchesVariantCriteria(variantsByProductId.get(p.getId()), criteria))
             .limit(limit)
             .collect(Collectors.toList());
     }
@@ -191,12 +217,20 @@ public class ProductContextBuilder {
         for (String feature : features) {
             switch (feature) {
                 case "gaming":
-                    if (searchable.contains("gaming") || searchable.contains("rog") || 
-                        searchable.contains("legion")) return true;
+                    if (containsAny(searchable, "gaming", "rog", "legion", "redmagic", "snapdragon",
+                            "dimensity", "tản nhiệt", "tan nhiet", "hiệu năng", "hieu nang", "hz")) return true;
                     break;
                 case "camera":
-                    if (searchable.contains("camera") || searchable.contains("108mp") || 
-                        searchable.contains("50mp")) return true;
+                    if (containsAny(searchable, "camera", "50mp", "108mp", "200mp", "chụp ảnh",
+                            "chup anh", "selfie", "telephoto", "ois")) return true;
+                    break;
+                case "pin":
+                    if (containsAny(searchable, "pin", "mah", "5000", "6000", "battery",
+                            "sạc nhanh", "sac nhanh", "thời lượng", "thoi luong")) return true;
+                    break;
+                case "slim":
+                    if (containsAny(searchable, "mỏng", "mong", "nhẹ", "nhe", "gọn", "gon",
+                            "thời trang", "thoi trang")) return true;
                     break;
                 case "5g":
                     if (searchable.contains("5g")) return true;
@@ -205,7 +239,60 @@ public class ProductContextBuilder {
                     if (searchable.contains(feature)) return true;
             }
         }
-        return true; // No specific filter, accept all
+        return false;
+    }
+
+    private Map<Long, List<ProductVariant>> loadVariantsByProductId(List<Product> products) {
+        if (products == null || products.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+        List<Long> productIds = products.stream()
+            .map(Product::getId)
+            .filter(Objects::nonNull)
+            .toList();
+
+        if (productIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+        return variantRepository.findByProductIdInAndDeletedAtIsNull(productIds).stream()
+            .filter(v -> v.getProduct() != null && v.getProduct().getId() != null)
+            .collect(Collectors.groupingBy(v -> v.getProduct().getId()));
+    }
+
+    private boolean matchesVariantCriteria(List<ProductVariant> variants, SearchCriteria criteria) {
+        if (!criteria.hasVariantConstraints()) {
+            return true;
+        }
+        if (variants == null || variants.isEmpty()) {
+            return false;
+        }
+
+        return variants.stream()
+            .filter(v -> Boolean.TRUE.equals(v.getIsActive()))
+            .anyMatch(v -> matchesBudget(v, criteria)
+                    && matchesRam(v, criteria.getMinRam())
+                    && matchesStorage(v, criteria.getMinStorage()));
+    }
+
+    private boolean matchesBudget(ProductVariant variant, SearchCriteria criteria) {
+        BigDecimal price = variant.getPrice();
+        if (price == null) {
+            return false;
+        }
+        if (criteria.getMaxBudget() != null && price.compareTo(criteria.getMaxBudget()) > 0) {
+            return false;
+        }
+        return criteria.getMinBudget() == null || price.compareTo(criteria.getMinBudget()) >= 0;
+    }
+
+    private boolean matchesRam(ProductVariant variant, Integer minRam) {
+        return minRam == null || (variant.getRamGb() != null && variant.getRamGb() >= minRam);
+    }
+
+    private boolean matchesStorage(ProductVariant variant, Integer minStorage) {
+        return minStorage == null || (variant.getStorageGb() != null && variant.getStorageGb() >= minStorage);
     }
 
     private List<Product> getFallbackProducts(int limit) {
@@ -226,15 +313,17 @@ public class ProductContextBuilder {
         StringBuilder sb = new StringBuilder();
         sb.append("THÔNG TIN SẢN PHẨM CÓ SẴN:\n\n");
         
+        Map<Long, List<ProductVariant>> variantsByProductId = loadVariantsByProductId(products);
+
         for (Product product : products) {
-            sb.append(buildProductText(product));
+            sb.append(buildProductText(product, variantsByProductId.getOrDefault(product.getId(), new ArrayList<>())));
             sb.append("\n---\n\n");
         }
         
         return sb.toString();
     }
 
-    private String buildProductText(Product product) {
+    private String buildProductText(Product product, List<ProductVariant> variants) {
         StringBuilder sb = new StringBuilder();
         
         sb.append("📱 ").append(product.getName()).append("\n");
@@ -247,11 +336,8 @@ public class ProductContextBuilder {
             sb.append("📂 Danh mục: ").append(product.getCategory().getName()).append("\n");
         }
         
-        // Variants info
-        List<ProductVariant> variants = variantRepository
-            .findByProductIdAndDeletedAtIsNullOrderByPriceAsc(product.getId());
-        
-        if (!variants.isEmpty()) {
+        if (variants != null && !variants.isEmpty()) {
+            variants.sort(Comparator.comparing(ProductVariant::getPrice, Comparator.nullsLast(Comparator.naturalOrder())));
             sb.append("💰 Giá: ").append(formatPrice(variants.get(0).getPrice()));
             if (variants.size() > 1) {
                 sb.append(" - ").append(formatPrice(variants.get(variants.size() - 1).getPrice()));
@@ -301,6 +387,22 @@ public class ProductContextBuilder {
         private Integer minRam;
         private Integer minStorage;
         private List<String> features;
+
+        public boolean hasSpecificConstraints() {
+            return brand != null
+                    || minBudget != null
+                    || maxBudget != null
+                    || minRam != null
+                    || minStorage != null
+                    || (features != null && !features.isEmpty());
+        }
+
+        public boolean hasVariantConstraints() {
+            return minBudget != null
+                    || maxBudget != null
+                    || minRam != null
+                    || minStorage != null;
+        }
     }
 
     // ============================================================
@@ -314,7 +416,7 @@ public class ProductContextBuilder {
     public List<Product> searchProducts(String query, int limit) {
         SearchCriteria criteria = extractSearchCriteria(query);
         List<Product> products = queryProducts(criteria, limit);
-        if (products.isEmpty()) {
+        if (products.isEmpty() && !criteria.hasSpecificConstraints()) {
             products = getFallbackProducts(limit);
         }
         return products;
@@ -328,8 +430,10 @@ public class ProductContextBuilder {
         StringBuilder sb = new StringBuilder();
         sb.append("THÔNG TIN SẢN PHẨM CÓ SẴN:\n\n");
 
+        Map<Long, List<ProductVariant>> variantsByProductId = loadVariantsByProductId(products);
+
         for (Product product : products) {
-            sb.append(buildProductText(product));
+            sb.append(buildProductText(product, variantsByProductId.getOrDefault(product.getId(), new ArrayList<>())));
             sb.append("\n---\n\n");
         }
 
