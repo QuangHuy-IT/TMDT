@@ -123,7 +123,12 @@ const ChevronDown = () => (
 );
 
 /* ─── Main Component ──────────────────────────────────────────────── */
-export const ProductSpecificationsTab = ({ specificationRows, groupedSpecifications, specifications }) => {
+export const ProductSpecificationsTab = ({ 
+  specificationRows, 
+  groupedSpecifications, 
+  specifications,
+  showAll = false
+}) => {
   const [activeIndex, setActiveIndex] = useState(0);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
@@ -158,8 +163,8 @@ export const ProductSpecificationsTab = ({ specificationRows, groupedSpecificati
     });
   }, [cleanRows, rowsByCategory, cleanGrouped, cleanFlat]);
 
-  const visibleSections = isExpanded ? sections : sections.slice(0, 3);
-  const hasMore = sections.length > 3;
+  const visibleSections = (isExpanded || showAll) ? sections : sections.slice(0, 3);
+  const hasMore = !showAll && sections.length > 3;
 
   /* --- Reset on product change --- */
   const sig = sections.map((s) => s.id).join('|');
@@ -244,6 +249,20 @@ export const ProductSpecificationsTab = ({ specificationRows, groupedSpecificati
           <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
         </svg>
         <p style={{ color: '#9ca3af', fontSize: 14, marginTop: 12 }}>Chưa có thông số kỹ thuật.</p>
+      </div>
+    );
+  }
+
+  if (showAll) {
+    return (
+      <div style={S.tableWrap}>
+        <table style={S.table}>
+          <tbody>
+            {sections.flatMap((sec) => sec.items).map((item, idx) => (
+              <SpecRow key={idx} item={item} isEven={idx % 2 === 0} />
+            ))}
+          </tbody>
+        </table>
       </div>
     );
   }

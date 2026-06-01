@@ -136,6 +136,12 @@ const AdminNews = () => {
     setForm((p) => ({ ...p, content: value }));
   };
 
+  const getLocalISOString = () => {
+    const tzoffset = (new Date()).getTimezoneOffset() * 60000;
+    const localISOTime = (new Date(Date.now() - tzoffset)).toISOString().slice(0, 19);
+    return localISOTime;
+  };
+
   const handleSave = async () => {
     if (!form.title.trim()) { alert('Vui lòng nhập tiêu đề.'); return; }
 
@@ -151,7 +157,9 @@ const AdminNews = () => {
         isFeatured: form.isFeatured,
         isPublished: form.isPublished,
         authorName: form.authorName?.trim() || null,
-        publishedAt: form.publishedAt ? form.publishedAt + ':00' : null,
+        publishedAt: editingNews 
+          ? (form.publishedAt ? form.publishedAt + ':00' : null)
+          : (form.isPublished ? getLocalISOString() : null),
       };
 
       if (editingNews) {
@@ -776,7 +784,7 @@ const AdminNews = () => {
               </div>
 
               {/* Author & Date Row */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className={editingNews ? "grid grid-cols-2 gap-4" : "grid grid-cols-1"}>
                 <div>
                   <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 block">Tác giả</label>
                   <input
@@ -788,15 +796,17 @@ const AdminNews = () => {
                     className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-red-500/50"
                   />
                 </div>
-                <div>
-                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 block">Ngày đăng</label>
-                  <input
-                    type="datetime-local"
-                    value={form.publishedAt}
-                    onChange={(e) => setForm((p) => ({ ...p, publishedAt: e.target.value }))}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-gray-200 focus:outline-none focus:border-red-500/50"
-                  />
-                </div>
+                {editingNews && (
+                  <div>
+                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 block">Ngày đăng</label>
+                    <input
+                      type="datetime-local"
+                      value={form.publishedAt}
+                      onChange={(e) => setForm((p) => ({ ...p, publishedAt: e.target.value }))}
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-gray-200 focus:outline-none focus:border-red-500/50"
+                    />
+                  </div>
+                )}
               </div>
 
               {/* Toggles */}
