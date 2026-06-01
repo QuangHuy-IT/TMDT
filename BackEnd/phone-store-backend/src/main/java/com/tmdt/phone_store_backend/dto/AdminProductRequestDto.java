@@ -40,6 +40,8 @@ public class AdminProductRequestDto {
     /** Thông số kỹ thuật (chung cho tất cả variants) */
     private Map<String, String> specifications;
 
+    private List<ProductSpecificationDto> specificationRows;
+
     /**
      * Danh sách variants.
      * Mỗi variant có: color, storage, ram, price, stock, colorImageUrl.

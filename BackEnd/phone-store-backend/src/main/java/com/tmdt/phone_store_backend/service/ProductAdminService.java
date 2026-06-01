@@ -359,7 +359,7 @@ public class ProductAdminService {
         Product savedProduct = productRepository.save(product);
 
         // Product-level image is thumbnail only; gallery images belong to variants.
-        saveSpecifications(savedProduct, requestDto.getSpecifications(), now);
+        saveSpecifications(savedProduct, requestDto.getSpecificationRows(), requestDto.getSpecifications(), now);
 
         // Create variants
         List<ProductVariant> savedVariants = new ArrayList<>();
@@ -463,7 +463,7 @@ public class ProductAdminService {
         }
 
         productSpecificationRepository.deleteByProductId(productId);
-        saveSpecifications(product, requestDto.getSpecifications(), now);
+        saveSpecifications(product, requestDto.getSpecificationRows(), requestDto.getSpecifications(), now);
 
         ProductVariant selectedVariant = savedVariants.isEmpty() ? null : savedVariants.get(0);
         return toDetailDto(product, selectedVariant);
@@ -1557,6 +1557,172 @@ public class ProductAdminService {
         int qty = stock == null ? 0 : stock;
         if (qty <= 0) return StockStatus.OUT_OF_STOCK;
         if (qty <= 5) return StockStatus.LOW_STOCK;
+
+    private String getStorageLabel(ProductVariant variant) {
+        if (variant.getStorageLabel() != null && !variant.getStorageLabel().isBlank()) {
+            return variant.getStorageLabel();
+        }
+        if (variant.getStorageGb() != null && variant.getStorageGb() > 0) {
+            return formatStorageGb(variant.getStorageGb());
+        }
+        return "";
+    }
+
+    private String formatStorageGb(Integer storageGb) {
+        if (storageGb == null || storageGb <= 0) return "";
+        if (storageGb % 1024 == 0) return (storageGb / 1024) + "TB";
+        return storageGb + "GB";
+    }
+
+    private String normalizeStorageLabel(AdminProductVariantRequestDto variant) {
+        if (variant.getStorageLabel() != null && !variant.getStorageLabel().isBlank()) {
+            return variant.getStorageLabel().trim();
+        }
+        return formatStorageGb(variant.getStorageGb());
+    }
+
+    private String normalizeColor(String color) {
+        if (color == null || color.isBlank()) return "Default";
+        return color.trim();
+    }
+
+    private String normalizeColorForSlug(String color) {
+        if (color == null || color.isBlank()) return "";
+        return color.trim().toLowerCase(Locale.ROOT)
+                .replaceAll("[àáạảãâầấậẩẫăằắặẳẵ]", "a")
+                .replaceAll("[èéẹẻẽêềếệểễ]", "e")
+                .replaceAll("[ìíịỉĩ]", "i")
+                .replaceAll("[òóọỏõôồốộổỗơờớợởỡ]", "o")
+                .replaceAll("[ùúụủũưừứựửữ]", "u")
+                .replaceAll("[ỳýỵỷỹ]", "y")
+                .replaceAll("đ", "d")
+                .replaceAll("[^a-z0-9]", "")
+                .replaceAll("\\s+", "");
+    }
+
+    private BigDecimal resolveVariantPrice(AdminProductVariantRequestDto variant, BigDecimal defaultPrice) {
+        if (variant.getPrice() != null) return variant.getPrice();
+        return defaultPrice != null ? defaultPrice : BigDecimal.ZERO;
+    }
+
+    private int resolveVariantStock(AdminProductVariantRequestDto variant, int defaultStock) {
+        if (variant.getStock() != null) return variant.getStock();
+        return defaultStock;
+    }
+
+    private String mapColorHex(String colorName) {
+        String normalized = colorName == null ? "" : colorName.toLowerCase(Locale.ROOT);
+        if (normalized.contains("black") || normalized.contains("đen")) return "#1f2937";
+        if (normalized.contains("white") || normalized.contains("trắng")) return "#f3f4f6";
+        if (normalized.contains("blue") || normalized.contains("xanh")) return "#2563eb";
+        if (normalized.contains("green") || normalized.contains("lục")) return "#16a34a";
+        if (normalized.contains("red") || normalized.contains("đỏ")) return "#dc2626";
+        if (normalized.contains("gold") || normalized.contains("vàng")) return "#ca8a04";
+        return "#6b7280";
+    }
+
+    private String getStatus(ProductDiscount discount) {
+        LocalDateTime now = LocalDateTime.now();
+        if (discount.getEndAt().isBefore(now)) return "ENDED";
+        if (discount.getStartAt().isAfter(now)) return "UPCOMING";
+        return "ACTIVE";
+    }
+
+    private BigDecimal applyDiscount(BigDecimal originalPrice, ProductDiscount discount) {
+        if (discount == null) return originalPrice;
+        LocalDateTime now = LocalDateTime.now();
+        if (!Boolean.TRUE.equals(discount.getIsActive())
+                || discount.getEndAt().isBefore(now)
+                || discount.getStartAt().isAfter(now)) {
+            return originalPrice;
+        }
+        // discountAmount = SỐ TIỀN GIẢM TRỰC TIẾP (admin nhập bao nhiêu thì giảm bấy nhiêu)
+        if (discount.getDiscountAmount() != null && discount.getDiscountAmount().compareTo(BigDecimal.ZERO) > 0) {
+            BigDecimal saved = discount.getDiscountAmount().min(originalPrice);
+            BigDecimal result = originalPrice.subtract(saved);
+            return result.compareTo(BigDecimal.ZERO) < 0 ? BigDecimal.ZERO : result;
+        }
+        if (discount.getDiscountPercent() != null && discount.getDiscountPercent() > 0) {
+            BigDecimal saved = originalPrice.multiply(
+                    BigDecimal.valueOf(discount.getDiscountPercent())
+            ).divide(BigDecimal.valueOf(100), 0, RoundingMode.DOWN);
+            BigDecimal result = originalPrice.subtract(saved);
+            return result.compareTo(BigDecimal.ZERO) < 0 ? BigDecimal.ZERO : result;
+        }
+        return originalPrice;
+    }
+
+    private int getDiscountPercent(ProductDiscount discount) {
+        if (discount == null) return 0;
+        LocalDateTime now = LocalDateTime.now();
+        if (!Boolean.TRUE.equals(discount.getIsActive())
+                || discount.getEndAt().isBefore(now)
+                || discount.getStartAt().isAfter(now)) {
+            return 0;
+        }
+        if (discount.getDiscountPercent() != null) return discount.getDiscountPercent();
+        return 0; // discountPercent sẽ được tính từ discountAmount tại call site nếu cần
+    }
+
+    /** Tính % từ discountAmount khi discountPercent null */
+    private int getDiscountPercent(BigDecimal originalPrice, ProductDiscount discount) {
+        if (discount == null || originalPrice == null) return 0;
+        LocalDateTime now = LocalDateTime.now();
+        if (!Boolean.TRUE.equals(discount.getIsActive())
+                || discount.getEndAt().isBefore(now)
+                || discount.getStartAt().isAfter(now)) {
+            return 0;
+        }
+        if (discount.getDiscountPercent() != null) return discount.getDiscountPercent();
+        if (discount.getDiscountAmount() != null && discount.getDiscountAmount().compareTo(BigDecimal.ZERO) > 0) {
+            return discount.getDiscountAmount()
+                    .multiply(BigDecimal.valueOf(100))
+                    .divide(originalPrice, 0, RoundingMode.HALF_UP).intValue();
+        }
+        return 0;
+    }
+
+    private BigDecimal getDiscountSavedAmount(BigDecimal originalPrice, ProductDiscount discount) {
+        if (discount == null || originalPrice == null) return null;
+        LocalDateTime now = LocalDateTime.now();
+        if (!Boolean.TRUE.equals(discount.getIsActive())
+                || discount.getEndAt().isBefore(now)
+                || discount.getStartAt().isAfter(now)) {
+            return null;
+        }
+        if (discount.getDiscountAmount() != null && discount.getDiscountAmount().compareTo(BigDecimal.ZERO) > 0) {
+            return discount.getDiscountAmount().min(originalPrice);
+        }
+        if (discount.getDiscountPercent() != null && discount.getDiscountPercent() > 0) {
+            return originalPrice.multiply(BigDecimal.valueOf(discount.getDiscountPercent()))
+                    .divide(BigDecimal.valueOf(100), 0, RoundingMode.DOWN);
+        }
+        return null;
+    }
+
+    private ProductDiscount getActiveDiscount(Long variantId, LocalDateTime now, List<ProductDiscount> activeDiscounts) {
+        return activeDiscounts.stream()
+                .filter(d -> d.getVariant().getId().equals(variantId))
+                .findFirst()
+                .orElse(null);
+    }
+
+    private ProductDiscount getActiveDiscount(Long variantId, List<ProductDiscount> activeDiscounts) {
+        return getActiveDiscount(variantId, LocalDateTime.now(), activeDiscounts);
+    }
+
+    private int parseStorageNumeric(String label) {
+        if (label == null) return 0;
+        String digits = label.replaceAll("[^0-9]", "");
+        try { return Integer.parseInt(digits); } catch (NumberFormatException e) { return 0; }
+    }
+
+    private StockStatus resolveStockStatus(Integer stock) {
+        int qty = stock == null ? 0 : stock;
+        if (qty <= 0) return StockStatus.OUT_OF_STOCK;
+        if (qty <= 5) return StockStatus.LOW_STOCK;
+        return StockStatus.IN_STOCK;
+    }
         return StockStatus.IN_STOCK;
     }
     private String buildVariantDisplayName(ProductVariant variant) {

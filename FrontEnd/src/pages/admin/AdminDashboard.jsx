@@ -221,7 +221,7 @@ export const AdminDashboard = () => {
     const daysDiff = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
     
     if (daysDiff === 1) {
-      return 'Doanh thu hôm nay';
+      return 'Tổng doanh thu';
     } else if (daysDiff <= 7) {
       return `Doanh thu ${daysDiff} ngày`;
     } else if (daysDiff <= 31) {

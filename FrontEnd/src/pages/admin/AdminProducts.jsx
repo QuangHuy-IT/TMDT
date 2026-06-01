@@ -112,6 +112,56 @@ const parseSpecsMap = (specMap) => {
   return { fixed, extraGroups };
 };
 
+const parseSpecificationRowsToForm = (specificationRows, specificationsMap) => {
+  const fixed = buildEmptySpecs();
+  const extraGroupsMap = {};
+
+  if (Array.isArray(specificationRows) && specificationRows.length > 0) {
+    specificationRows.forEach(row => {
+      if (!row || !row.specKey) return;
+      const category = row.specCategory || 'Khác';
+      const key = row.specKey;
+      const value = row.specValue || '';
+
+      const matchedGroup = SPEC_GROUPS.find(g => g.category === category);
+      if (matchedGroup && matchedGroup.keys.includes(key)) {
+        fixed[key] = value;
+      } else {
+        if (!extraGroupsMap[category]) {
+          extraGroupsMap[category] = [];
+        }
+        extraGroupsMap[category].push({ key, value });
+      }
+    });
+  } else if (specificationsMap && typeof specificationsMap === 'object') {
+    Object.entries(specificationsMap).forEach(([key, value]) => {
+      if (!key) return;
+      const matchedGroup = SPEC_GROUPS.find(g => g.keys.includes(key));
+      if (matchedGroup) {
+        fixed[key] = value || '';
+      } else {
+        const category = matchedGroup ? matchedGroup.category : 'Khác';
+        if (!extraGroupsMap[category]) {
+          extraGroupsMap[category] = [];
+        }
+        extraGroupsMap[category].push({ key, value: value || '' });
+      }
+    });
+  }
+
+  // Convert extraGroupsMap to array
+  const extraGroups = Object.entries(extraGroupsMap).map(([category, specs], index) => {
+    const isFixedCategory = SPEC_GROUPS.some(g => g.category === category);
+    return {
+      id: isFixedCategory ? `extra-${category}` : `custom-${Date.now()}-${index}`,
+      category,
+      specs
+    };
+  });
+
+  return { fixed, extraGroups };
+};
+
 const STORAGE_PRESETS = ['64GB', '128GB', '256GB', '512GB', '1TB', '2TB', '5TB'];
 const RAM_PRESETS = ['2', '4', '6', '8', '12', '16', '32', '64', '128'];
 const COLOR_PRESETS = ['Đen', 'Trắng', 'Xanh', 'Tím', 'Vàng', 'Hồng', 'Đỏ', 'Bạc', 'Nâu', 'Cam'];
@@ -495,6 +545,8 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
         const res = await ProductService.getAdminProduct(productId);
         const data = res.data;
 
+        const { fixed, extraGroups } = parseSpecificationRowsToForm(data.specificationRows, data.specifications);
+
         setForm({
           name: data.name || '',
           brand: data.brand || '',
@@ -502,9 +554,9 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
           description: data.description || '',
           thumbnailUrl: data.thumbnailUrl || '',
           images: [],
-          specifications: data.specifications || {},
+          specifications: fixed,
           hiddenSpecKeys: [],
-          extraGroups: [],
+          extraGroups: extraGroups,
           variants: (data.variants || []).map(v => {
             const variantImages = Array.isArray(v.images) && v.images.length > 0
               ? v.images
@@ -739,6 +791,58 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
       });
     });
 
+    // Build structured specification rows
+    const specificationRows = [];
+    let sortOrderIdx = 0;
+
+    // 1. Process SPEC_GROUPS
+    SPEC_GROUPS.forEach(group => {
+      group.keys.forEach(key => {
+        const val = form.specifications[key];
+        const isHidden = (form.hiddenSpecKeys || []).includes(key);
+        if (val && val.trim() && !isHidden) {
+          specificationRows.push({
+            specCategory: group.category,
+            specKey: key.trim(),
+            specValue: val.trim(),
+            sortOrder: sortOrderIdx++
+          });
+        }
+      });
+
+      // 2. Process extra rows in this group
+      const groupExtra = (form.extraGroups || []).find(g => g.category === group.category);
+      if (groupExtra) {
+        (groupExtra.specs || []).forEach(row => {
+          if (row.key?.trim() && row.value?.trim()) {
+            specificationRows.push({
+              specCategory: group.category,
+              specKey: row.key.trim(),
+              specValue: row.value.trim(),
+              sortOrder: sortOrderIdx++
+            });
+          }
+        });
+      }
+    });
+
+    // 3. Process custom extra groups not in SPEC_GROUPS
+    (form.extraGroups || []).forEach(group => {
+      const isFixedCategory = SPEC_GROUPS.some(g => g.category === group.category);
+      if (!isFixedCategory && group.category?.trim()) {
+        (group.specs || []).forEach(row => {
+          if (row.key?.trim() && row.value?.trim()) {
+            specificationRows.push({
+              specCategory: group.category.trim(),
+              specKey: row.key.trim(),
+              specValue: row.value.trim(),
+              sortOrder: sortOrderIdx++
+            });
+          }
+        });
+      }
+    });
+
     const payload = {
       name: (form.name || '').trim(),
       brand: form.brand,
@@ -747,6 +851,7 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
       thumbnailUrl: form.thumbnailUrl || null,
       images: [],
       specifications: flatSpecs,
+      specificationRows: specificationRows,
       variants: validVariants.map(v => {
         const images = (v.images || []).filter(img => img && img.trim());
         const label = (v.storageLabel || '').trim();

@@ -1,0 +1,592 @@
+[
+    {
+        "product_name": "Xiaomi 17T 5G",
+        "slug": "xiaomi-17t-5g",
+        "brand_name": "Xiaomi",
+        "product_url": "/dien-thoai/xiaomi",
+        "thumbnail_url": "https://res.cloudinary.com/dozpywcus/image/upload/v1780202536/products/nq5hl22jdwvihkazhes5.webp",
+        "original_price": 20990000,
+        "sale_price": 16490000,
+        "discount_percent": 0
+    },
+    {
+        "product_name": "Xiaomi 17T Pro 5G",
+        "slug": "xiaomi-17t-pro-5g",
+        "brand_name": "Xiaomi",
+        "product_url": "/dien-thoai/xiaomi",
+        "thumbnail_url": "https://res.cloudinary.com/dozpywcus/image/upload/v1780202543/products/e9qsvmxvmf6irgzidlvs.webp",
+        "original_price": 20990000,
+        "sale_price": 16490000,
+        "discount_percent": 0
+    },
+    {
+        "product_name": "iPhone 17 Pro Max",
+        "slug": "iphone-17-series",
+        "brand_name": "iPhone",
+        "product_url": "/dien-thoai/iphone",
+        "thumbnail_url": "https://res.cloudinary.com/dozpywcus/image/upload/v1780202718/products/rxb60yevazavrst3o3ln.webp",
+        "original_price": 37990000,
+        "sale_price": 36990000,
+        "discount_percent": 3
+    },
+    {
+        "product_name": "Samsung Galaxy Z Fold7 5G",
+        "slug": "galaxy-z-series",
+        "brand_name": "Samsung",
+        "product_url": "/dien-thoai/samsung",
+        "thumbnail_url": "https://res.cloudinary.com/dozpywcus/image/upload/v1780202817/products/gmjwsftrcm6juzbghtx5.webp",
+        "original_price": 46990000,
+        "sale_price": 40590000,
+        "discount_percent": 14
+    },
+    {
+        "product_name": "OPPO Reno15 F 5G",
+        "slug": "oppo-reno-series",
+        "brand_name": "OPPO",
+        "product_url": "/dien-thoai/oppo",
+        "thumbnail_url": "https://res.cloudinary.com/dozpywcus/image/upload/v1780202874/products/avdxtnwmseppg1wh5cnw.webp",
+        "original_price": 11990000,
+        "sale_price": 11490000,
+        "discount_percent": 4
+    },
+    {
+        "product_name": "Xiaomi Redmi Note 15",
+        "slug": "redmi-note-series",
+        "brand_name": "Xiaomi",
+        "product_url": "/dien-thoai/xiaomi",
+        "thumbnail_url": "https://res.cloudinary.com/dozpywcus/image/upload/v1780202916/products/spqnn99ys5vu37vwaskh.webp",
+        "original_price": 5990000,
+        "sale_price": 5690000,
+        "discount_percent": 5
+    },
+    {
+        "product_name": "iPhone 17",
+        "slug": "iphone-17-series",
+        "brand_name": "iPhone",
+        "product_url": "/dien-thoai/iphone",
+        "thumbnail_url": "https://res.cloudinary.com/dozpywcus/image/upload/v1780202951/products/j2utwqoobl20tbupprhd.webp",
+        "original_price": 24990000,
+        "sale_price": 23990000,
+        "discount_percent": 4
+    },
+    {
+        "product_name": "Honor X9d 5G",
+        "slug": "honor-x-series",
+        "brand_name": "Honor",
+        "product_url": "/dien-thoai/honor",
+        "thumbnail_url": "https://res.cloudinary.com/dozpywcus/image/upload/v1780203037/products/e1yrtzaqyq4igmfuba3o.webp",
+        "original_price": 10990000,
+        "sale_price": 9790000,
+        "discount_percent": 11
+    },
+    {
+        "product_name": "Samsung Galaxy S25 Ultra 5G",
+        "slug": "galaxy-s-series",
+        "brand_name": "Samsung",
+        "product_url": "/dien-thoai/samsung",
+        "thumbnail_url": "https://res.cloudinary.com/dozpywcus/image/upload/v1780203077/products/tbfdthysimqdyvmvziaf.webp",
+        "original_price": 33380000,
+        "sale_price": 26490000,
+        "discount_percent": 21
+    },
+    {
+        "product_name": "REDMAGIC 11 Pro 5G",
+        "slug": "điện-thoại-redmagic",
+        "brand_name": "REDMAGIC",
+        "product_url": "/dien-thoai/redmagic",
+        "thumbnail_url": "https://res.cloudinary.com/dozpywcus/image/upload/v1780203197/products/vad2cd9vmcs23pfhd5mg.webp",
+        "original_price": 20990000,
+        "sale_price": 19490000,
+        "discount_percent": 7
+    },
+    {
+        "product_name": "Xiaomi Poco X7 5G",
+        "slug": "xiaomi-poco-series",
+        "brand_name": "Xiaomi",
+        "product_url": "/dien-thoai/xiaomi",
+        "thumbnail_url": "https://res.cloudinary.com/dozpywcus/image/upload/v1780203233/products/av4f8me9le9ritr3wbjm.webp",
+        "original_price": 9350000,
+        "sale_price": 7990000,
+        "discount_percent": 15
+    },
+    {
+        "product_name": "Samsung Galaxy A17",
+        "slug": "galaxy-a-series",
+        "brand_name": "Samsung",
+        "product_url": "/dien-thoai/samsung",
+        "thumbnail_url": "https://res.cloudinary.com/dozpywcus/image/upload/v1780203273/products/afp5s2fqlkbjzp6ilsin.webp",
+        "original_price": 5390000,
+        "sale_price": 4990000,
+        "discount_percent": 7
+    },
+    {
+        "product_name": "Honor X7d",
+        "slug": "honor-x-series",
+        "brand_name": "Honor",
+        "product_url": "/dien-thoai/honor",
+        "thumbnail_url": "https://res.cloudinary.com/dozpywcus/image/upload/v1780203311/products/l1gmcnuvnmy1p0adiusj.webp",
+        "original_price": 6490000,
+        "sale_price": 5990000,
+        "discount_percent": 8
+    },
+    {
+        "product_name": "iPhone 17 Pro",
+        "slug": "iphone-17-series",
+        "brand_name": "iPhone",
+        "product_url": "/dien-thoai/iphone",
+        "thumbnail_url": "https://res.cloudinary.com/dozpywcus/image/upload/v1780203364/products/laax3z74aip4kxssfybg.webp",
+        "original_price": 34990000,
+        "sale_price": 33790000,
+        "discount_percent": 3
+    },
+    {
+        "product_name": "Xiaomi Redmi 13x",
+        "slug": "xiaomi-redmi-series",
+        "brand_name": "Xiaomi",
+        "product_url": "/dien-thoai/xiaomi",
+        "thumbnail_url": "https://res.cloudinary.com/dozpywcus/image/upload/v1780203440/products/ro36nwzc6cjpscnea2ab.webp",
+        "original_price": 4190000,
+        "sale_price": 3690000,
+        "discount_percent": 12
+    },
+    {
+        "product_name": "Samsung Galaxy A07",
+        "slug": "galaxy-a-series",
+        "brand_name": "Samsung",
+        "product_url": "/dien-thoai/samsung",
+        "thumbnail_url": "https://res.cloudinary.com/dozpywcus/image/upload/v1780203480/products/axcbrpn0rjoravxpdvvp.webp",
+        "original_price": 3590000,
+        "sale_price": 3190000,
+        "discount_percent": 11
+    },
+    {
+        "product_name": "Samsung Galaxy S25 FE 5G",
+        "slug": "galaxy-s-series",
+        "brand_name": "Samsung",
+        "product_url": "/dien-thoai/samsung",
+        "thumbnail_url": "https://res.cloudinary.com/dozpywcus/image/upload/v1780203516/products/qdqihsbvq5gqjx6bvdnb.webp",
+        "original_price": 16690000,
+        "sale_price": 12990000,
+        "discount_percent": 22
+    },
+    {
+        "product_name": "Honor X6c",
+        "slug": "honor-x-series",
+        "brand_name": "Honor",
+        "product_url": "/dien-thoai/honor",
+        "thumbnail_url": "https://res.cloudinary.com/dozpywcus/image/upload/v1780203572/products/krtnytkfopvewfffztes.webp",
+        "original_price": 4590000,
+        "sale_price": 4390000,
+        "discount_percent": 4
+    },
+    {
+        "product_name": "Nubia A76 4GB 128GB (NFC)",
+        "slug": "điện-thoại-nubia---zte",
+        "brand_name": "Nubia",
+        "product_url": "/dien-thoai/nubia",
+        "thumbnail_url": "https://res.cloudinary.com/dozpywcus/image/upload/v1780203604/products/us0zp8zibzefqpkfoir9.webp",
+        "original_price": 3390000,
+        "sale_price": 2790000,
+        "discount_percent": 18
+    },
+    {
+        "product_name": "Xiaomi Poco M7 Pro 5G",
+        "slug": "xiaomi-poco-series",
+        "brand_name": "Xiaomi",
+        "product_url": "/dien-thoai/xiaomi",
+        "thumbnail_url": "https://res.cloudinary.com/dozpywcus/image/upload/v1780203639/products/p2ysjnmbstf2ozocuemm.webp",
+        "original_price": 6370000,
+        "sale_price": 5990000,
+        "discount_percent": 6
+    },
+    {
+        "product_name": "Nubia V70 Design",
+        "slug": "điện-thoại-nubia---zte",
+        "brand_name": "Nubia",
+        "product_url": "/dien-thoai/nubia",
+        "thumbnail_url": "https://res.cloudinary.com/dozpywcus/image/upload/v1780203694/products/pwukgm5bzgw3dxpiiwp1.webp",
+        "original_price": 249000,
+        "sale_price": 3090000,
+        "discount_percent": 300
+    },
+    {
+        "product_name": "Masstel Izi 15 4G",
+        "slug": "điện-thoại-masstel",
+        "brand_name": "Masstel",
+        "product_url": "/dien-thoai/masstel",
+        "thumbnail_url": "https://res.cloudinary.com/dozpywcus/image/upload/v1780203739/products/xrm09tpnjw0wc6eognx3.webp",
+        "original_price": 0,
+        "sale_price": 0,
+        "discount_percent": 0
+    },
+    {
+        "product_name": "OPPO A6T",
+        "slug": "oppo-a-series",
+        "brand_name": "OPPO",
+        "product_url": "/dien-thoai/oppo",
+        "thumbnail_url": "https://res.cloudinary.com/dozpywcus/image/upload/v1780203750/products/yfmi8nye9mdeu3mjtm6v.webp",
+        "original_price": 4490000,
+        "sale_price": 4390000,
+        "discount_percent": 2
+    },
+    {
+        "product_name": "Xiaomi Redmi A7 Pro 4GB 128GB (NFC)",
+        "slug": "xiaomi-redmi-series",
+        "brand_name": "Xiaomi",
+        "product_url": "/dien-thoai/xiaomi",
+        "thumbnail_url": "https://res.cloudinary.com/dozpywcus/image/upload/v1780203793/products/xhqkc3833c5mwxixdbaq.webp",
+        "original_price": 4490000,
+        "sale_price": 4090000,
+        "discount_percent": 9
+    },
+    {
+        "product_name": "Samsung Galaxy A56 5G",
+        "slug": "galaxy-a-series",
+        "brand_name": "Samsung",
+        "product_url": "/dien-thoai/samsung",
+        "thumbnail_url": "https://res.cloudinary.com/dozpywcus/image/upload/v1780203846/products/tr8ccphw5ceokuetd5u4.webp",
+        "original_price": 9810000,
+        "sale_price": 8910000,
+        "discount_percent": 9
+    },
+    {
+        "product_name": "Oppo A6C",
+        "slug": "oppo-a-series",
+        "brand_name": "Oppo",
+        "product_url": "/dien-thoai/oppo",
+        "thumbnail_url": "https://res.cloudinary.com/dozpywcus/image/upload/v1780203896/products/xbizgle7068ytyo0qy9t.webp",
+        "original_price": 4690000,
+        "sale_price": 4590000,
+        "discount_percent": 2
+    },
+    {
+        "product_name": "iPhone 13",
+        "slug": "iphone-13-series",
+        "brand_name": "iPhone",
+        "product_url": "/dien-thoai/iphone",
+        "thumbnail_url": "https://res.cloudinary.com/dozpywcus/image/upload/v1780203932/products/sgbhg5tv3ehmb14ebilx.webp",
+        "original_price": 14690000,
+        "sale_price": 11990000,
+        "discount_percent": 18
+    },
+    {
+        "product_name": "Samsung Galaxy A06 5G",
+        "slug": "galaxy-a-series",
+        "brand_name": "Samsung",
+        "product_url": "/dien-thoai/samsung",
+        "thumbnail_url": "https://res.cloudinary.com/dozpywcus/image/upload/v1780203964/products/ssiijshq7hzibli4nxyv.webp",
+        "original_price": 3920000,
+        "sale_price": 3320000,
+        "discount_percent": 15
+    },
+    {
+        "product_name": "Honor X9d 5G",
+        "slug": "honor-x-series",
+        "brand_name": "Honor",
+        "product_url": "/dien-thoai/honor",
+        "thumbnail_url": "https://res.cloudinary.com/dozpywcus/image/upload/v1780204254/products/zxsmuslfstccc1t3tzn7.webp",
+        "original_price": 11990000,
+        "sale_price": 10490000,
+        "discount_percent": 13
+    },
+    {
+        "product_name": "Nubia Neo 5 5G",
+        "slug": "nubia-neo-5-5g",
+        "brand_name": "Nubia",
+        "product_url": "/dien-thoai/nubia",
+        "thumbnail_url": "https://res.cloudinary.com/dozpywcus/image/upload/v1780204615/products/ddxjvjotmgiqphxf548c.webp",
+        "original_price": 0,
+        "sale_price": 0,
+        "discount_percent": 0
+    },
+    {
+        "product_name": "Samsung Galaxy A07",
+        "slug": "galaxy-a-series",
+        "brand_name": "Samsung",
+        "product_url": "/dien-thoai/samsung",
+        "thumbnail_url": "https://res.cloudinary.com/dozpywcus/image/upload/v1780205111/products/abeakg0grf0txgx2svol.webp",
+        "original_price": 4690000,
+        "sale_price": 4290000,
+        "discount_percent": 9
+    },
+    {
+        "product_name": "OPPO A6T",
+        "slug": "oppo-a-series",
+        "brand_name": "OPPO",
+        "product_url": "/dien-thoai/oppo",
+        "thumbnail_url": "https://res.cloudinary.com/dozpywcus/image/upload/v1780206403/products/ckdqu0lngqbinirx8jwe.webp",
+        "original_price": 7490000,
+        "sale_price": 7290000,
+        "discount_percent": 3
+    },
+    {
+        "product_name": "Honor X7c",
+        "slug": "honor-x-series",
+        "brand_name": "Honor",
+        "product_url": "/dien-thoai/honor",
+        "thumbnail_url": "https://res.cloudinary.com/dozpywcus/image/upload/v1780207140/products/ynyk2iap4qyoiej4ph3w.webp",
+        "original_price": 5400000,
+        "sale_price": 4500000,
+        "discount_percent": 17
+    },
+    {
+        "product_name": "Nubia A36",
+        "slug": "điện-thoại-nubia---zte",
+        "brand_name": "Nubia",
+        "product_url": "/dien-thoai/nubia",
+        "thumbnail_url": "https://res.cloudinary.com/dozpywcus/image/upload/v1780207178/products/ysl7matf3fsgsvnzktqf.webp",
+        "original_price": 249000,
+        "sale_price": 2990000,
+        "discount_percent": 0
+    },
+    {
+        "product_name": "OPPO Reno13 F 5G",
+        "slug": "oppo-reno-series",
+        "brand_name": "OPPO",
+        "product_url": "/dien-thoai/oppo",
+        "thumbnail_url": "https://res.cloudinary.com/dozpywcus/image/upload/v1780207218/products/w2vcjrpbvb19qv6qukat.webp",
+        "original_price": 10800000,
+        "sale_price": 9990000,
+        "discount_percent": 8
+    },
+    {
+        "product_name": "Benco V91c",
+        "slug": "điện-thoại-benco",
+        "brand_name": "Benco",
+        "product_url": "/dien-thoai/benco",
+        "thumbnail_url": "https://res.cloudinary.com/dozpywcus/image/upload/v1780207246/products/wmuzje6ltysloeoe86zl.webp",
+        "original_price": 2690000,
+        "sale_price": 2590000,
+        "discount_percent": 4
+    },
+    {
+        "product_name": "Benco V91c",
+        "slug": "điện-thoại-benco",
+        "brand_name": "Benco",
+        "product_url": "/dien-thoai/benco",
+        "thumbnail_url": "https://res.cloudinary.com/dozpywcus/image/upload/v1780207274/products/wviglkuyk62brxjnzhpv.webp",
+        "original_price": 2690000,
+        "sale_price": 2590000,
+        "discount_percent": 4
+    },
+    {
+        "product_name": "OPPO Reno14 5G",
+        "slug": "oppo-reno-series",
+        "brand_name": "OPPO",
+        "product_url": "/dien-thoai/oppo",
+        "thumbnail_url": "https://res.cloudinary.com/dozpywcus/image/upload/v1780207291/products/lii7lsmahoi9fe2xrksk.webp",
+        "original_price": 15700000,
+        "sale_price": 15500000,
+        "discount_percent": 1
+    },
+    {
+        "product_name": "Xiaomi Poco C71",
+        "slug": "xiaomi-poco-series",
+        "brand_name": "Xiaomi",
+        "product_url": "/dien-thoai/xiaomi",
+        "thumbnail_url": "https://res.cloudinary.com/dozpywcus/image/upload/v1780207331/products/yk3tyzsckba1khugdeyp.webp",
+        "original_price": 3150000,
+        "sale_price": 2950000,
+        "discount_percent": 6
+    },
+    {
+        "product_name": "Xiaomi Redmi Note 14 5G",
+        "slug": "redmi-note-series",
+        "brand_name": "Xiaomi",
+        "product_url": "/dien-thoai/xiaomi",
+        "thumbnail_url": "https://res.cloudinary.com/dozpywcus/image/upload/v1780207374/products/nedttx2oqnakmqtvz45v.webp",
+        "original_price": 7160000,
+        "sale_price": 6490000,
+        "discount_percent": 9
+    },
+    {
+        "product_name": "Mobell M139 4G",
+        "slug": "phổ-thông-4g",
+        "brand_name": "Mobell",
+        "product_url": "/dien-thoai/mobell",
+        "thumbnail_url": "https://res.cloudinary.com/dozpywcus/image/upload/v1780207414/products/hyv9bmpqjuy3zxwzlao5.webp",
+        "original_price": 0,
+        "sale_price": 0,
+        "discount_percent": 0
+    },
+    {
+        "product_name": "Samsung Galaxy S25 Edge 5G",
+        "slug": "galaxy-s-series",
+        "brand_name": "Samsung",
+        "product_url": "/dien-thoai/samsung",
+        "thumbnail_url": "https://res.cloudinary.com/dozpywcus/image/upload/v1780207597/products/lb8smgdsnqopz30x67ka.webp",
+        "original_price": 29450000,
+        "sale_price": 20450000,
+        "discount_percent": 31
+    },
+    {
+        "product_name": "OPPO A3",
+        "slug": "oppo-a-series",
+        "brand_name": "OPPO",
+        "product_url": "/dien-thoai/oppo",
+        "thumbnail_url": "https://res.cloudinary.com/dozpywcus/image/upload/v1780207638/products/ytke9vhr4vxqnthxdbjp.webp",
+        "original_price": 6380000,
+        "sale_price": 5680000,
+        "discount_percent": 11
+    },
+    {
+        "product_name": "Samsung Galaxy Z Flip7 5G",
+        "slug": "galaxy-z-series",
+        "brand_name": "Samsung",
+        "product_url": "/dien-thoai/samsung",
+        "thumbnail_url": "https://res.cloudinary.com/dozpywcus/image/upload/v1780207694/products/ikucekolzvfy13onkcci.webp",
+        "original_price": 28990000,
+        "sale_price": 22990000,
+        "discount_percent": 21
+    },
+    {
+        "product_name": "Samsung Galaxy S25 Plus 5G",
+        "slug": "galaxy-s-series",
+        "brand_name": "Samsung",
+        "product_url": "/dien-thoai/samsung",
+        "thumbnail_url": "https://res.cloudinary.com/dozpywcus/image/upload/v1780207770/products/lhqgaxzpnlpqwrc5onqs.webp",
+        "original_price": 26500000,
+        "sale_price": 22700000,
+        "discount_percent": 14
+    },
+    {
+        "product_name": "Xiaomi Redmi Note 14",
+        "slug": "redmi-note-series",
+        "brand_name": "Xiaomi",
+        "product_url": "/dien-thoai/xiaomi",
+        "thumbnail_url": "https://res.cloudinary.com/dozpywcus/image/upload/v1780207842/products/dnjpfny4hebqfsp2bdiz.webp",
+        "original_price": 4900000,
+        "sale_price": 4390000,
+        "discount_percent": 10
+    },
+    {
+        "product_name": "Itel IT8010 4G",
+        "slug": "phổ-thông-4g",
+        "brand_name": "Itel",
+        "product_url": "/dien-thoai/itel",
+        "thumbnail_url": "https://res.cloudinary.com/dozpywcus/image/upload/v1780207881/products/euci7gg6gltktmpuobfm.webp",
+        "original_price": 0,
+        "sale_price": 0,
+        "discount_percent": 0
+    },
+    {
+        "product_name": "Honor Magic V3 5G",
+        "slug": "honor-magic-series",
+        "brand_name": "Honor",
+        "product_url": "/dien-thoai/honor",
+        "thumbnail_url": "https://res.cloudinary.com/dozpywcus/image/upload/v1780207912/products/ekvhughjjislaqu8dh8n.webp",
+        "original_price": 39270000,
+        "sale_price": 29990000,
+        "discount_percent": 24
+    },
+    {
+        "product_name": "OPPO A18",
+        "slug": "oppo-a-series",
+        "brand_name": "OPPO",
+        "product_url": "/dien-thoai/oppo",
+        "thumbnail_url": "https://res.cloudinary.com/dozpywcus/image/upload/v1780207945/products/ybhqs5kdw2eargnezz5s.webp",
+        "original_price": 3290000,
+        "sale_price": 2890000,
+        "discount_percent": 12
+    },
+    {
+        "product_name": "OPPO Find N5 5G",
+        "slug": "oppo-find-series",
+        "brand_name": "OPPO",
+        "product_url": "/dien-thoai/oppo",
+        "thumbnail_url": "https://res.cloudinary.com/dozpywcus/image/upload/v1780207979/products/e99tzi6dptiq1wwhpjd7.webp",
+        "original_price": 299000,
+        "sale_price": 44180000,
+        "discount_percent": 2
+    },
+    {
+        "product_name": "Honor 600 5G Lite",
+        "slug": "honor-series",
+        "brand_name": "Honor",
+        "product_url": "/dien-thoai/honor",
+        "thumbnail_url": "https://res.cloudinary.com/dozpywcus/image/upload/v1780208036/products/t07qg4rsvgivbx2yuhxh.webp",
+        "original_price": 0,
+        "sale_price": 0,
+        "discount_percent": 0
+    },
+    {
+        "product_name": "Honor 600 5G",
+        "slug": "honor-series",
+        "brand_name": "Honor",
+        "product_url": "/dien-thoai/honor",
+        "thumbnail_url": "https://res.cloudinary.com/dozpywcus/image/upload/v1780208052/products/gzuhjizece0jejniiaro.webp",
+        "original_price": 0,
+        "sale_price": 0,
+        "discount_percent": 0
+    },
+    {
+        "product_name": "Honor 600 Pro 5G",
+        "slug": "honor-series",
+        "brand_name": "Honor",
+        "product_url": "/dien-thoai/honor",
+        "thumbnail_url": "https://res.cloudinary.com/dozpywcus/image/upload/v1780208097/products/zff2uykw9tqpltmacwa9.webp",
+        "original_price": 0,
+        "sale_price": 0,
+        "discount_percent": 0
+    },
+    {
+        "product_name": "Xiaomi Poco F8 Pro 5G",
+        "slug": "xiaomi-poco-series",
+        "brand_name": "Xiaomi",
+        "product_url": "/dien-thoai/xiaomi",
+        "thumbnail_url": "https://res.cloudinary.com/dozpywcus/image/upload/v1780208111/products/ik5bhvexg8cngn7qdzgc.webp",
+        "original_price": 15990000,
+        "sale_price": 15990000,
+        "discount_percent": 1
+    },
+    {
+        "product_name": "Samsung Galaxy XCover7 Pro 5G",
+        "slug": "galaxy-xcover",
+        "brand_name": "Samsung",
+        "product_url": "/dien-thoai/samsung",
+        "thumbnail_url": "https://res.cloudinary.com/dozpywcus/image/upload/v1780208137/products/kui7knqhclwhl0blqryp.webp",
+        "original_price": 14230000,
+        "sale_price": 14230000,
+        "discount_percent": 0
+    },
+    {
+        "product_name": "Nubia Fold 5G",
+        "slug": "điện-thoại-nubia---zte",
+        "brand_name": "Nubia",
+        "product_url": "/dien-thoai/nubia",
+        "thumbnail_url": "https://res.cloudinary.com/dozpywcus/image/upload/v1780208172/products/v0tkmudzxrhkrckjbniu.webp",
+        "original_price": 29990000,
+        "sale_price": 29990000,
+        "discount_percent": 1
+    },
+    {
+        "product_name": "Samsung Galaxy Z TriFold 5G",
+        "slug": "galaxy-z-series",
+        "brand_name": "Samsung",
+        "product_url": "/dien-thoai/samsung",
+        "thumbnail_url": "https://res.cloudinary.com/dozpywcus/image/upload/v1780208201/products/ddednjjciugfqphwsanl.webp",
+        "original_price": 0,
+        "sale_price": 0,
+        "discount_percent": 0
+    },
+    {
+        "product_name": "REDMAGIC 11s Pro 5G",
+        "slug": "điện-thoại",
+        "brand_name": "REDMAGIC",
+        "product_url": "/dien-thoai/redmagic",
+        "thumbnail_url": "https://res.cloudinary.com/dozpywcus/image/upload/v1780208235/products/x8agy0pgi0mljynezpye.webp",
+        "original_price": 0,
+        "sale_price": 0,
+        "discount_percent": 0
+    },
+    {
+        "product_name": "Honor 600 5G",
+        "slug": "điện-thoại-honor",
+        "brand_name": "Honor",
+        "product_url": "/dien-thoai/honor",
+        "thumbnail_url": "https://res.cloudinary.com/dozpywcus/image/upload/v1780208236/products/glcgd0dxol36pygzrlji.webp",
+        "original_price": 0,
+        "sale_price": 0,
+        "discount_percent": 0
+    }
+]
