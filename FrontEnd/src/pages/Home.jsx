@@ -57,7 +57,7 @@ export const Home = () => {
   });
 
   const visibleBrands = (apiBrands || [])
-    .filter(b => b.is_active !== false);
+    .filter(b => b.isActive === true);
 
   return (
     <main className="min-h-screen bg-slate-50/50 pb-20 space-y-6">

@@ -60,7 +60,12 @@ export const ProductCard = ({ product, variant = 'default', className }) => {
   const hasDiscount = sale > 0;
 
   const handleCardClick = () => {
-    if (variantSlug) navigate(`/products/${variantSlug}`);
+    if (variantSlug) {
+      const url = selectedVariant?.id
+        ? `/products/${variantSlug}?product_id=${selectedVariant.id}`
+        : `/products/${variantSlug}`;
+      navigate(url);
+    }
   };
 
   const handleFavClick = (e) => {

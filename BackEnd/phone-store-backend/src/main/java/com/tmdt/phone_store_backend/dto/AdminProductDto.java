@@ -48,7 +48,8 @@ public class AdminProductDto {
     private Long reviewCount;
 
     /** Thông tin chung */
-    private String description;
+    private String shortDescription;
+    private String detailDescription;
     private List<String> images;
     private String thumbnailUrl;
     private Map<String, String> specifications;
@@ -56,7 +57,7 @@ public class AdminProductDto {
 
     /**
      * Thông số kỹ thuật theo nhóm (CellphoneS-style).
-     * Key = tên nhóm (Màn hình, Camera, CPU & RAM, ...), Value = Map&lt;key, value&gt;.
+     * Key = tên nhóm (Màn hình, Camera, CPU & RAM, ...), Value = Map<String, String>.
      */
     private Map<String, Map<String, String>> groupedSpecifications;
 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Zap, Gift, Flame, AlertCircle, ShoppingBag, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import CountdownTimer from './CountdownTimer';
 import FlashSaleTabs from './FlashSaleTabs';
 import FlashSaleDateSelector from './FlashSaleDateSelector';

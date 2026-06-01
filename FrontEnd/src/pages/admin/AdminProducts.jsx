@@ -31,135 +31,33 @@ const parseCurrencyToNumber = (str) => {
   return isNaN(num) ? 0 : Math.max(0, num);
 };
 
-// Fixed spec groups — each group has a list of fixed spec keys
-// Used for phone/tablet products. Users can add custom groups for accessories.
-const SPEC_GROUPS = [
-  {
-    category: 'Màn hình',
-    keys: [
-      'Kích thước màn hình', 'Công nghệ màn hình', 'Độ phân giải màn hình',
-      'Tính năng màn hình', 'Tần số quét',
-    ],
-  },
-  {
-    category: 'Camera',
-    keys: ['Camera sau', 'Camera trước', 'Đèn Flash', 'Quay video'],
-  },
-  {
-    category: 'CPU & RAM',
-    keys: ['Chipset', 'Loại CPU', 'RAM', 'GPU'],
-  },
-  {
-    category: 'Pin & Sạc',
-    keys: ['Pin', 'Sạc nhanh', 'Công nghệ sạc'],
-  },
-  {
-    category: 'Kết nối',
-    keys: ['Công nghệ NFC', 'Cổng sạc', 'Jack tai nghe', 'Bluetooth', 'WiFi', 'GPS'],
-  },
-  {
-    category: 'Mạng & Di động',
-    keys: ['Mạng', 'Thẻ SIM', 'eSIM'],
-  },
-  {
-    category: 'Hệ điều hành',
-    keys: ['Hệ điều hành'],
-  },
-  {
-    category: 'Thiết kế',
-    keys: ['Trọng lượng', 'Kích thước', 'Chất liệu'],
-  },
-  {
-    category: 'Bảo mật',
-    keys: ['Bảo mật'],
-  },
-  {
-    category: 'Khác',
-    keys: ['Bộ nhớ trong', 'Thẻ nhớ', 'Radio', 'Hồng ngoại'],
-  },
-];
-
-// Build empty flat spec map from fixed groups
-const buildEmptySpecs = () => {
-  const obj = {};
-  SPEC_GROUPS.forEach(g => g.keys.forEach(k => { obj[k] = ''; }));
-  return obj;
-};
-
-// Convert flat spec map {key→value} → { fixed: {}, extra: [{key,value}], extraGroups: [{category, specs:[{key,value}]}] }
-const parseSpecsMap = (specMap) => {
-  const fixed = buildEmptySpecs();
-  const extra = [];
-  const extraGroups = []; // custom groups added by user
-
-  if (specMap && typeof specMap === 'object') {
-    Object.entries(specMap).forEach(([key, value]) => {
-      if (!key) return;
-      const matchedGroup = SPEC_GROUPS.find(g => g.keys.includes(key));
-      if (matchedGroup) {
-        fixed[key] = value || '';
-      } else {
-        extra.push({ key, value: value || '' });
-      }
-    });
-  }
-
-  // If there are extra specs, group them under "Khác"
-  if (extra.length > 0) {
-    extraGroups.push({ id: 'extra-default', category: 'Khác', specs: extra });
-  }
-
-  return { fixed, extraGroups };
-};
-
+// Parse specificationRows / specificationsMap → extraGroups array (all custom, no fixed groups)
 const parseSpecificationRowsToForm = (specificationRows, specificationsMap) => {
-  const fixed = buildEmptySpecs();
   const extraGroupsMap = {};
 
   if (Array.isArray(specificationRows) && specificationRows.length > 0) {
     specificationRows.forEach(row => {
       if (!row || !row.specKey) return;
       const category = row.specCategory || 'Khác';
-      const key = row.specKey;
-      const value = row.specValue || '';
-
-      const matchedGroup = SPEC_GROUPS.find(g => g.category === category);
-      if (matchedGroup && matchedGroup.keys.includes(key)) {
-        fixed[key] = value;
-      } else {
-        if (!extraGroupsMap[category]) {
-          extraGroupsMap[category] = [];
-        }
-        extraGroupsMap[category].push({ key, value });
-      }
+      if (!extraGroupsMap[category]) extraGroupsMap[category] = [];
+      extraGroupsMap[category].push({ key: row.specKey, value: row.specValue || '' });
     });
   } else if (specificationsMap && typeof specificationsMap === 'object') {
     Object.entries(specificationsMap).forEach(([key, value]) => {
       if (!key) return;
-      const matchedGroup = SPEC_GROUPS.find(g => g.keys.includes(key));
-      if (matchedGroup) {
-        fixed[key] = value || '';
-      } else {
-        const category = matchedGroup ? matchedGroup.category : 'Khác';
-        if (!extraGroupsMap[category]) {
-          extraGroupsMap[category] = [];
-        }
-        extraGroupsMap[category].push({ key, value: value || '' });
-      }
+      const category = 'Khác';
+      if (!extraGroupsMap[category]) extraGroupsMap[category] = [];
+      extraGroupsMap[category].push({ key, value: value || '' });
     });
   }
 
-  // Convert extraGroupsMap to array
-  const extraGroups = Object.entries(extraGroupsMap).map(([category, specs], index) => {
-    const isFixedCategory = SPEC_GROUPS.some(g => g.category === category);
-    return {
-      id: isFixedCategory ? `extra-${category}` : `custom-${Date.now()}-${index}`,
-      category,
-      specs
-    };
-  });
+  const extraGroups = Object.entries(extraGroupsMap).map(([category, specs], index) => ({
+    id: `custom-${Date.now()}-${index}`,
+    category,
+    specs,
+  }));
 
-  return { fixed, extraGroups };
+  return { extraGroups };
 };
 
 const STORAGE_PRESETS = ['64GB', '128GB', '256GB', '512GB', '1TB', '2TB', '5TB'];
@@ -186,12 +84,11 @@ const emptyForm = {
   name: '',
   brand: '',
   seriesId: '',
-  description: '',
+  shortDescription: '',
+  detailDescription: '',
   thumbnailUrl: '',
   images: [],
-  specifications: buildEmptySpecs(), // flat map: {key: value}
-  // Template keys that user deleted (per-group array)
-  hiddenSpecKeys: [],
+  specifications: {}, // flat map: {key: value}
   // Custom groups added by user (for accessories, etc.)
   extraGroups: [],
   variants: [],
@@ -545,17 +442,17 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
         const res = await ProductService.getAdminProduct(productId);
         const data = res.data;
 
-        const { fixed, extraGroups } = parseSpecificationRowsToForm(data.specificationRows, data.specifications);
+        const { extraGroups } = parseSpecificationRowsToForm(data.specificationRows, data.specifications);
 
         setForm({
           name: data.name || '',
           brand: data.brand || '',
           seriesId: data.seriesId || '',
-          description: data.description || '',
+          shortDescription: data.shortDescription || '',
+          detailDescription: data.detailDescription || data.description || '',
           thumbnailUrl: data.thumbnailUrl || '',
           images: [],
-          specifications: fixed,
-          hiddenSpecKeys: [],
+          specifications: {},
           extraGroups: extraGroups,
           variants: (data.variants || []).map(v => {
             const variantImages = Array.isArray(v.images) && v.images.length > 0
@@ -775,79 +672,32 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
       return;
     }
 
-    // Flatten: template specs + extraGroups → flat {key: value}
+    // Build flat specs map and specificationRows from extraGroups only
     const flatSpecs = {};
-    const hiddenKeys = new Set(form.hiddenSpecKeys || []);
-    // Template specs (non-empty, not hidden)
-    Object.entries(form.specifications || {}).forEach(([key, val]) => {
-      if (key && val && val.trim() && !hiddenKeys.has(key)) flatSpecs[key] = val.trim();
-    });
-    // Extra group specs (non-empty)
-    (form.extraGroups || []).forEach(group => {
-      (group.specs || []).forEach(row => {
-        if (row.key?.trim() && row.value?.trim()) {
-          flatSpecs[row.key.trim()] = row.value.trim();
-        }
-      });
-    });
-
-    // Build structured specification rows
     const specificationRows = [];
     let sortOrderIdx = 0;
 
-    // 1. Process SPEC_GROUPS
-    SPEC_GROUPS.forEach(group => {
-      group.keys.forEach(key => {
-        const val = form.specifications[key];
-        const isHidden = (form.hiddenSpecKeys || []).includes(key);
-        if (val && val.trim() && !isHidden) {
+    (form.extraGroups || []).forEach(group => {
+      if (!group.category?.trim()) return;
+      (group.specs || []).forEach(row => {
+        if (row.key?.trim() && row.value?.trim()) {
+          flatSpecs[row.key.trim()] = row.value.trim();
           specificationRows.push({
-            specCategory: group.category,
-            specKey: key.trim(),
-            specValue: val.trim(),
-            sortOrder: sortOrderIdx++
+            specCategory: group.category.trim(),
+            specKey: row.key.trim(),
+            specValue: row.value.trim(),
+            sortOrder: sortOrderIdx++,
           });
         }
       });
-
-      // 2. Process extra rows in this group
-      const groupExtra = (form.extraGroups || []).find(g => g.category === group.category);
-      if (groupExtra) {
-        (groupExtra.specs || []).forEach(row => {
-          if (row.key?.trim() && row.value?.trim()) {
-            specificationRows.push({
-              specCategory: group.category,
-              specKey: row.key.trim(),
-              specValue: row.value.trim(),
-              sortOrder: sortOrderIdx++
-            });
-          }
-        });
-      }
-    });
-
-    // 3. Process custom extra groups not in SPEC_GROUPS
-    (form.extraGroups || []).forEach(group => {
-      const isFixedCategory = SPEC_GROUPS.some(g => g.category === group.category);
-      if (!isFixedCategory && group.category?.trim()) {
-        (group.specs || []).forEach(row => {
-          if (row.key?.trim() && row.value?.trim()) {
-            specificationRows.push({
-              specCategory: group.category.trim(),
-              specKey: row.key.trim(),
-              specValue: row.value.trim(),
-              sortOrder: sortOrderIdx++
-            });
-          }
-        });
-      }
     });
 
     const payload = {
       name: (form.name || '').trim(),
       brand: form.brand,
       seriesId: form.seriesId || null,
-      description: form.description,
+      shortDescription: form.shortDescription,
+      detailDescription: form.detailDescription,
       thumbnailUrl: form.thumbnailUrl || null,
       images: [],
       specifications: flatSpecs,
@@ -1075,13 +925,23 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
                 </div>
               </div>
 
-              {/* Description */}
+              {/* Short Description */}
               <div>
-                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">Mô tả</label>
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">Mô tả ngắn</label>
                 <div className="rounded-xl overflow-hidden border border-white/10">
-                  <TiptapEditor value={form.description}
-                    onChange={(content) => updateForm({ description: content })}
-                    placeholder="Mô tả sản phẩm..." />
+                  <TiptapEditor value={form.shortDescription}
+                    onChange={(content) => updateForm({ shortDescription: content })}
+                    placeholder="Mô tả ngắn gọn về sản phẩm..." />
+                </div>
+              </div>
+
+              {/* Detail Description */}
+              <div>
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">Mô tả chi tiết</label>
+                <div className="rounded-xl overflow-hidden border border-white/10">
+                  <TiptapEditor value={form.detailDescription}
+                    onChange={(content) => updateForm({ detailDescription: content })}
+                    placeholder="Mô tả chi tiết sản phẩm..." />
                 </div>
               </div>
             </section>
@@ -1314,48 +1174,32 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
               </datalist>
             </section>
 
-            {/* Specifications — CellphoneS-style grouped tabs */}
+            {/* Specifications — custom groups only */}
             <section className="bg-[#13151e] border border-white/5 rounded-2xl p-6">
-              <h3 className="text-sm font-black text-white uppercase tracking-wider mb-4">Thông số kỹ thuật</h3>
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-sm font-black text-white uppercase tracking-wider">Thông số kỹ thuật</h3>
+                  <p className="text-[11px] text-gray-500 mt-0.5">Nhấn "Thêm nhóm" để tạo nhóm thông số mới</p>
+                </div>
+                {(form.extraGroups || []).length > 0 && (
+                  <span className="text-[11px] bg-white/5 text-gray-400 px-2.5 py-1 rounded-lg">
+                    {(form.extraGroups || []).length} nhóm
+                  </span>
+                )}
+              </div>
 
-              {/* Specs grouped by category — fixed keys + extra rows */}
-              {SPEC_GROUPS.map(group => (
-                <SpecGroup
-                  key={group.category}
-                  category={group.category}
-                  keys={group.keys}
-                  values={form.specifications}
-                  onChange={(key, val) => {
-                    updateForm(prev => ({
-                      ...prev,
-                      specifications: { ...(prev.specifications || {}), [key]: val },
-                    }));
-                  }}
-                  extraRows={form.extraGroups?.find(g => g.category === group.category)?.specs}
-                  onExtraChange={(rows) => {
-                    updateForm(prev => {
-                      const existing = (prev.extraGroups || []).filter(g => g.category !== group.category);
-                      const updated = rows.length > 0
-                        ? [...existing, { id: `extra-${group.category}`, category: group.category, specs: rows }]
-                        : existing;
-                      return { ...prev, extraGroups: updated };
-                    });
-                  }}
-                  hiddenKeys={form.hiddenSpecKeys || []}
-                  onDeleteKey={(keyToHide) => {
-                    updateForm(prev => ({
-                      ...prev,
-                      hiddenSpecKeys: [...(prev.hiddenSpecKeys || []), keyToHide],
-                      specifications: { ...(prev.specifications || {}), [keyToHide]: '' },
-                    }));
-                  }}
-                />
-              ))}
-
-              {/* Custom groups — user-defined (for accessories) */}
-              {(form.extraGroups || []).filter(g => !SPEC_GROUPS.find(sg => sg.category === g.category)).length > 0 && (
-                <div className="mt-4 space-y-3">
-                  {(form.extraGroups || []).filter(g => !SPEC_GROUPS.find(sg => sg.category === g.category)).map(group => (
+              {/* Custom groups list */}
+              {(form.extraGroups || []).length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-10 rounded-xl border border-dashed border-white/10 text-center">
+                  <svg className="w-10 h-10 text-gray-700 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  </svg>
+                  <p className="text-sm text-gray-600 font-bold">Chưa có nhóm thông số nào</p>
+                  <p className="text-xs text-gray-700 mt-1">Nhấn nút bên dưới để thêm nhóm thông số đầu tiên</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {(form.extraGroups || []).map(group => (
                     <CustomGroup
                       key={group.id || group.category}
                       group={group}
@@ -1380,7 +1224,7 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
                 </div>
               )}
 
-              {/* Add custom group button */}
+              {/* Add group button */}
               <button
                 type="button"
                 onClick={() => {
@@ -1392,17 +1236,13 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
                     ],
                   }));
                 }}
-                className="flex items-center gap-2 text-[10px] font-bold text-gray-500 hover:text-green-400 transition-colors mt-3 px-2"
+                className="flex items-center justify-center gap-2 w-full mt-4 py-3 rounded-xl border border-dashed border-white/15 text-sm font-bold text-gray-400 hover:border-green-500/40 hover:text-green-400 hover:bg-green-500/5 transition-all"
               >
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                 </svg>
-                Thêm nhóm tùy chỉnh (VD: Tai nghe, Sạc dự phòng…)
+                Thêm nhóm thông số
               </button>
-
-              <p className="text-[10px] text-gray-600 mt-2">
-                Nhấn "Thêm thông số khác" để bổ sung dòng. Dùng "Thêm nhóm tùy chỉnh" để thêm nhóm mới cho phụ kiện.
-              </p>
             </section>
           </div>
         </div>
@@ -1538,7 +1378,7 @@ export const AdminProducts = () => {
                       <div>
                         <p className="text-sm font-medium text-white">{product.name}</p>
                         <p className="text-[11px] text-gray-500 line-clamp-1">
-                          {product.description ? 'Đã có mô tả' : '—'}
+                          {(product.detailDescription || product.shortDescription) ? 'Đã có mô tả' : '-'}
                         </p>
                       </div>
                     </div>

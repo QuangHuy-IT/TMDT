@@ -25,7 +25,6 @@ public class BrandController {
     @GetMapping
     public ResponseEntity<List<BrandDto>> getBrands() {
         List<BrandDto> brands = brandRepository.findAllByOrderBySortOrderAsc().stream()
-                .filter(brand -> Boolean.TRUE.equals(brand.getIsActive()))
                 .map(this::toDto)
                 .toList();
         return ResponseEntity.ok(brands);

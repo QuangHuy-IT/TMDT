@@ -1,339 +1,502 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 
-const CATEGORY_ICONS = {
+/* ─── Category Icons ──────────────────────────────────────────────── */
+const ICONS = {
   'Màn hình': (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="3" width="20" height="14" rx="2" /><path d="M8 21h8M12 17v4" />
     </svg>
   ),
   'Camera': (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14.5 4h-5L7 7H4a2 2 0 00-2 2v9a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2h-3l-2.5-3z" />
+      <circle cx="12" cy="13" r="3" />
     </svg>
   ),
   'CPU & RAM': (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <rect x="4" y="4" width="16" height="16" rx="2" /><rect x="9" y="9" width="6" height="6" />
+      <path d="M9 1v3M15 1v3M9 20v3M15 20v3M1 9h3M1 15h3M20 9h3M20 15h3" />
     </svg>
   ),
   'Pin & Sạc': (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="7" width="16" height="10" rx="2" /><path d="M22 11v2M7 11l3-4v3h3l-3 4v-3H7z" />
     </svg>
   ),
   'Kết nối': (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0" />
-    </svg>
-  ),
-  'Hệ điều hành': (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-    </svg>
-  ),
-  'Thiết kế': (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
-    </svg>
-  ),
-  'Bảo mật': (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M1.42 9A15.95 15.95 0 0112 5c4.13 0 7.9 1.57 10.74 4.15" />
+      <path d="M5 12.55A11 11 0 0112 10c2.6 0 5 .9 6.88 2.39" />
+      <path d="M10.71 16.42A5 5 0 0112 16c.84 0 1.63.2 2.32.56" />
+      <circle cx="12" cy="20" r="1" fill="currentColor" />
     </svg>
   ),
   'Mạng & Di động': (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2 20h.01M7 20v-4M12 20v-8M17 20v-12M22 4v16" />
+    </svg>
+  ),
+  'Hệ điều hành': (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.07 4.93a10 10 0 010 14.14M4.93 4.93a10 10 0 000 14.14" />
+    </svg>
+  ),
+  'Thiết kế': (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" />
+    </svg>
+  ),
+  'Bảo mật': (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><path d="M9 12l2 2 4-4" />
     </svg>
   ),
 };
 
 const DEFAULT_ICON = (
-  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10" /><path d="M12 8v4M12 16h.01" />
   </svg>
 );
 
+/* ─── Ordering & helpers ──────────────────────────────────────────── */
 const CATEGORY_ORDER = [
-  'Màn hình',
-  'Camera',
-  'CPU & RAM',
-  'Pin & Sạc',
-  'Kết nối',
-  'Mạng & Di động',
-  'Hệ điều hành',
-  'Thiết kế',
-  'Bảo mật',
-  'Khác',
+  'Màn hình', 'Camera', 'CPU & RAM', 'Pin & Sạc', 'Kết nối',
+  'Mạng & Di động', 'Hệ điều hành', 'Thiết kế', 'Bảo mật', 'Khác',
 ];
 
-const isFilledSpec = ([key, value]) => String(key || '').trim() && String(value || '').trim();
-
-const normalizeFlatSpecs = (specs) => (
-  specs && typeof specs === 'object'
-    ? Object.fromEntries(Object.entries(specs).filter(isFilledSpec))
-    : {}
-);
-
-const normalizeGroupedSpecs = (groups) => {
-  if (!groups || typeof groups !== 'object') return {};
-
-  return Object.entries(groups).reduce((result, [category, specs]) => {
-    const cleanCategory = String(category || '').trim();
-    const cleanSpecs = normalizeFlatSpecs(specs);
-    if (cleanCategory && Object.keys(cleanSpecs).length > 0) {
-      result[cleanCategory] = cleanSpecs;
-    }
-    return result;
+const isValidPair = ([k, v]) => String(k || '').trim() && String(v || '').trim();
+const normFlat = (s) => s && typeof s === 'object' ? Object.fromEntries(Object.entries(s).filter(isValidPair)) : {};
+const normGrouped = (g) => {
+  if (!g || typeof g !== 'object') return {};
+  return Object.entries(g).reduce((acc, [cat, specs]) => {
+    const c = String(cat || '').trim();
+    const s = normFlat(specs);
+    if (c && Object.keys(s).length > 0) acc[c] = s;
+    return acc;
   }, {});
 };
-
-const normalizeSpecificationRows = (rows) => (
+const normRows = (rows) =>
   Array.isArray(rows)
-    ? rows
-      .map((row, index) => ({
-        id: row?.id ?? `${row?.specCategory || 'spec'}-${row?.specKey || index}-${index}`,
-        specCategory: String(row?.specCategory || 'Khác').trim() || 'Khác',
-        specKey: String(row?.specKey || '').trim(),
-        specValue: String(row?.specValue || '').trim(),
-        sortOrder: Number.isFinite(Number(row?.sortOrder)) ? Number(row.sortOrder) : index,
+    ? rows.map((r, i) => ({
+        id: r?.id ?? `${r?.specCategory || 'spec'}-${i}`,
+        specCategory: String(r?.specCategory || 'Khác').trim() || 'Khác',
+        specKey: String(r?.specKey || '').trim(),
+        specValue: String(r?.specValue || '').trim(),
+        sortOrder: Number.isFinite(Number(r?.sortOrder)) ? Number(r.sortOrder) : i,
       }))
-      .filter((row) => row.specKey && row.specValue)
-      .sort((a, b) => a.sortOrder - b.sortOrder || String(a.id).localeCompare(String(b.id)))
-    : []
+      .filter((r) => r.specKey && r.specValue)
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+    : [];
+const groupRows = (rows) => rows.reduce((acc, r) => {
+  const c = r.specCategory || 'Khác';
+  if (!acc[c]) acc[c] = [];
+  acc[c].push(r);
+  return acc;
+}, {});
+const sortCats = (cats) => [...cats].sort((a, b) => {
+  const iA = CATEGORY_ORDER.indexOf(a), iB = CATEGORY_ORDER.indexOf(b);
+  if (iA === -1 && iB === -1) return a.localeCompare(b);
+  if (iA === -1) return 1; if (iB === -1) return -1;
+  return iA - iB;
+});
+const toSectionId = (cat) =>
+  `spec-${cat.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`;
+
+/* ─── SVG Arrow / Chevron icons ──────────────────────────────────── */
+const ChevronLeft = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+    <path d="M15 18l-6-6 6-6" />
+  </svg>
+);
+const ChevronRight = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+    <path d="M9 18l6-6-6-6" />
+  </svg>
+);
+const ChevronDown = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+    <path d="M6 9l6 6 6-6" />
+  </svg>
 );
 
-const groupRowsByCategory = (rows) => rows.reduce((result, row) => {
-  const category = row.specCategory || 'Khác';
-  if (!result[category]) result[category] = [];
-  result[category].push(row);
-  return result;
-}, {});
-
+/* ─── Main Component ──────────────────────────────────────────────── */
 export const ProductSpecificationsTab = ({ specificationRows, groupedSpecifications, specifications }) => {
-  const [activeTab, setActiveTab] = useState(0);
-  const cleanSpecificationRows = useMemo(
-    () => normalizeSpecificationRows(specificationRows),
-    [specificationRows]
-  );
-  const rowsByCategory = useMemo(
-    () => groupRowsByCategory(cleanSpecificationRows),
-    [cleanSpecificationRows]
-  );
-  const cleanGroupedSpecifications = useMemo(
-    () => normalizeGroupedSpecs(groupedSpecifications),
-    [groupedSpecifications]
-  );
-  const cleanSpecifications = useMemo(
-    () => normalizeFlatSpecs(specifications),
-    [specifications]
-  );
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);   // show all / show first 3
 
-  const categoryList = useMemo(() => {
-    if (cleanSpecificationRows.length > 0) {
-      const cats = Object.keys(rowsByCategory);
-      return cats.sort((a, b) => {
-        const idxA = CATEGORY_ORDER.indexOf(a);
-        const idxB = CATEGORY_ORDER.indexOf(b);
-        if (idxA === -1 && idxB === -1) return a.localeCompare(b);
-        if (idxA === -1) return 1;
-        if (idxB === -1) return -1;
-        return idxA - idxB;
-      });
-    }
-    if (Object.keys(cleanGroupedSpecifications).length > 0) {
-      const cats = Object.keys(cleanGroupedSpecifications);
-      return cats.sort((a, b) => {
-        const idxA = CATEGORY_ORDER.indexOf(a);
-        const idxB = CATEGORY_ORDER.indexOf(b);
-        if (idxA === -1 && idxB === -1) return a.localeCompare(b);
-        if (idxA === -1) return 1;
-        if (idxB === -1) return -1;
-        return idxA - idxB;
-      });
-    }
-    if (Object.keys(cleanSpecifications).length > 0) {
-      return ['Thông số'];
-    }
-    return [];
-  }, [cleanSpecificationRows, rowsByCategory, cleanGroupedSpecifications, cleanSpecifications]);
-  const categorySignature = categoryList.join('|');
+  const isClickScrolling = useRef(false);
+  const navRef = useRef(null);
+  const tabRefs = useRef([]);
+
+  /* --- Normalize data --- */
+  const cleanRows = useMemo(() => normRows(specificationRows), [specificationRows]);
+  const rowsByCategory = useMemo(() => groupRows(cleanRows), [cleanRows]);
+  const cleanGrouped = useMemo(() => normGrouped(groupedSpecifications), [groupedSpecifications]);
+  const cleanFlat = useMemo(() => normFlat(specifications), [specifications]);
+
+  /* --- Build sections --- */
+  const sections = useMemo(() => {
+    const hasRows = cleanRows.length > 0;
+    const hasGrouped = Object.keys(cleanGrouped).length > 0;
+    const hasFlat = Object.keys(cleanFlat).length > 0;
+    let cats = [];
+    if (hasRows) cats = sortCats(Object.keys(rowsByCategory));
+    else if (hasGrouped) cats = sortCats(Object.keys(cleanGrouped));
+    else if (hasFlat) cats = ['Thông số'];
+
+    return cats.map((cat) => {
+      let items = [];
+      if (hasRows) items = (rowsByCategory[cat] || []).map((r) => ({ key: r.specKey, value: r.specValue }));
+      else if (hasGrouped) items = Object.entries(cleanGrouped[cat] || {}).map(([k, v]) => ({ key: k, value: v }));
+      else items = Object.entries(cleanFlat).map(([k, v]) => ({ key: k, value: v }));
+      return { category: cat, items, id: toSectionId(cat) };
+    });
+  }, [cleanRows, rowsByCategory, cleanGrouped, cleanFlat]);
+
+  const visibleSections = isExpanded ? sections : sections.slice(0, 3);
+  const hasMore = sections.length > 3;
+
+  /* --- Reset on product change --- */
+  const sig = sections.map((s) => s.id).join('|');
+  useEffect(() => { setActiveIndex(0); setIsExpanded(false); }, [sig]);
+
+  /* --- Track scroll arrows state --- */
+  const updateArrows = useCallback(() => {
+    const el = navRef.current;
+    if (!el) return;
+    setCanScrollLeft(el.scrollLeft > 4);
+    setCanScrollRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 4);
+  }, []);
 
   useEffect(() => {
-    setActiveTab(0);
-  }, [categorySignature]);
+    const el = navRef.current;
+    if (!el) return;
+    updateArrows();
+    el.addEventListener('scroll', updateArrows, { passive: true });
+    const ro = new ResizeObserver(updateArrows);
+    ro.observe(el);
+    return () => { el.removeEventListener('scroll', updateArrows); ro.disconnect(); };
+  }, [sections, updateArrows]);
 
-  if (categoryList.length === 0) {
+  /* --- Scroll nav to keep active tab visible --- */
+  const scrollNavToTab = useCallback((index) => {
+    const nav = navRef.current;
+    const tab = tabRefs.current[index];
+    if (!nav || !tab) return;
+    const navRect = nav.getBoundingClientRect();
+    const tabRect = tab.getBoundingClientRect();
+    const offset = tabRect.left - navRect.left - navRect.width / 2 + tabRect.width / 2;
+    nav.scrollBy({ left: offset, behavior: 'smooth' });
+  }, []);
+
+  /* --- Arrow scroll buttons --- */
+  const scrollNav = useCallback((dir) => {
+    navRef.current?.scrollBy({ left: dir * 180, behavior: 'smooth' });
+  }, []);
+
+  /* --- IntersectionObserver scroll spy --- */
+  useEffect(() => {
+    if (sections.length <= 1) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (isClickScrolling.current) return;
+        const visible = entries
+          .filter((e) => e.isIntersecting)
+          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+        if (visible.length > 0) {
+          const idx = sections.findIndex((s) => s.id === visible[0].target.id);
+          if (idx !== -1) { setActiveIndex(idx); scrollNavToTab(idx); }
+        }
+      },
+      { root: null, rootMargin: '-80px 0px -55% 0px', threshold: 0 }
+    );
+    sections.forEach((sec) => { const el = document.getElementById(sec.id); if (el) observer.observe(el); });
+    return () => observer.disconnect();
+  }, [sections, scrollNavToTab]);
+
+  /* --- Tab click --- */
+  const handleTabClick = useCallback((index, id) => {
+    setActiveIndex(index);
+    scrollNavToTab(index);
+    // If section is collapsed (not visible), expand first
+    if (!isExpanded && index >= 3) setIsExpanded(true);
+    setTimeout(() => {
+      const el = document.getElementById(id);
+      if (el) {
+        isClickScrolling.current = true;
+        const y = el.getBoundingClientRect().top + window.pageYOffset - 140;
+        window.scrollTo({ top: y, behavior: 'smooth' });
+        setTimeout(() => { isClickScrolling.current = false; }, 900);
+      }
+    }, isExpanded || index < 3 ? 0 : 100);
+  }, [scrollNavToTab, isExpanded]);
+
+  /* --- Empty state --- */
+  if (sections.length === 0) {
     return (
-      <div className="rounded-2xl border border-gray-100 bg-white p-6 text-center">
-        <p className="text-sm text-gray-400">Chưa có thông số kỹ thuật cho sản phẩm này.</p>
+      <div style={S.emptyWrap}>
+        <svg style={{ width: 40, height: 40, color: '#d1d5db' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+        </svg>
+        <p style={{ color: '#9ca3af', fontSize: 14, marginTop: 12 }}>Chưa có thông số kỹ thuật.</p>
       </div>
     );
   }
 
-  const hasRows = cleanSpecificationRows.length > 0;
-  const hasGrouped = Object.keys(cleanGroupedSpecifications).length > 0;
-  const activeCategory = categoryList[Math.min(activeTab, categoryList.length - 1)] || categoryList[0];
-
   return (
-    <div className="rounded-2xl border border-gray-100 bg-white overflow-hidden">
-      {/* Section header */}
-      <div className="border-b border-gray-100 px-4 py-4">
-        <h2 className="text-sm font-black uppercase tracking-wide text-gray-900">
-          Thông số kỹ thuật
-        </h2>
+    <div style={S.root}>
+      {/* ── Header ── */}
+      <div style={S.header}>
+        <div style={S.headerIcon}>
+          <svg style={{ width: 18, height: 18 }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            <path d="M9 12h6M9 16h4" />
+          </svg>
+        </div>
+        <h2 style={S.headerTitle}>Thông số kỹ thuật</h2>
+        <span style={S.headerCount}>{sections.length} nhóm</span>
       </div>
 
-      {/* Tab bar */}
-      {(hasRows || hasGrouped) && categoryList.length > 1 && (
-        <div className="border-b border-gray-100 overflow-x-auto scrollbar-hide">
-          <div className="flex min-w-max px-2">
-            {categoryList.map((category, index) => (
-              <button
-                key={category}
-                onClick={() => setActiveTab(index)}
-                className={`relative flex items-center gap-1.5 px-4 py-3 text-xs font-bold whitespace-nowrap transition-colors ${
-                  activeTab === index
-                    ? 'text-red-600'
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                <span className={activeTab === index ? 'text-red-500' : 'text-gray-400'}>
-                  {CATEGORY_ICONS[category] || DEFAULT_ICON}
-                </span>
-                {category}
-                {activeTab === index && (
-                  <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-red-500 rounded-full" />
-                )}
-              </button>
-            ))}
+      {/* ── Sticky Tab Navigation ── */}
+      {sections.length > 1 && (
+        <div style={S.stickyNav}>
+          <div style={S.navRow}>
+            {/* Left arrow */}
+            <button
+              onClick={() => scrollNav(-1)}
+              style={{ ...S.arrowBtn, opacity: canScrollLeft ? 1 : 0, pointerEvents: canScrollLeft ? 'auto' : 'none' }}
+              aria-label="Cuộn trái"
+            >
+              <ChevronLeft />
+            </button>
+
+            {/* Scrollable tab track */}
+            <div ref={navRef} style={S.tabTrack}>
+              {sections.map((sec, i) => {
+                const isActive = activeIndex === i;
+                return (
+                  <button
+                    key={sec.id}
+                    ref={(el) => (tabRefs.current[i] = el)}
+                    onClick={() => handleTabClick(i, sec.id)}
+                    style={{
+                      ...S.tab,
+                      ...(isActive ? S.tabActive : S.tabInactive),
+                    }}
+                    onMouseEnter={(e) => { if (!isActive) { e.currentTarget.style.backgroundColor = '#f9fafb'; e.currentTarget.style.color = '#374151'; } }}
+                    onMouseLeave={(e) => { if (!isActive) { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#6b7280'; } }}
+                  >
+                    <span style={{ ...S.tabIcon, ...(isActive ? S.tabIconActive : {}) }}>
+                      {ICONS[sec.category] || DEFAULT_ICON}
+                    </span>
+                    <span>{sec.category}</span>
+                    {isActive && <span style={S.tabUnderline} />}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Right arrow */}
+            <button
+              onClick={() => scrollNav(1)}
+              style={{ ...S.arrowBtn, opacity: canScrollRight ? 1 : 0, pointerEvents: canScrollRight ? 'auto' : 'none' }}
+              aria-label="Cuộn phải"
+            >
+              <ChevronRight />
+            </button>
           </div>
         </div>
       )}
 
-      {/* Spec content */}
-      <div className="p-4">
-        {hasRows ? (
-          <div className="animate-in fade-in duration-200">
-            <h3 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
-              <span className="text-gray-400">
-                {CATEGORY_ICONS[activeCategory] || DEFAULT_ICON}
-              </span>
-              {activeCategory}
-            </h3>
-            <div className="bg-gray-50 rounded-xl overflow-hidden">
-              {(rowsByCategory[activeCategory] || []).map((row, idx, arr) => (
-                <div
-                  key={row.id}
-                  className={`flex justify-between gap-4 px-4 py-3 text-sm ${
-                    idx !== arr.length - 1 ? 'border-b border-gray-200' : ''
-                  }`}
-                >
-                  <span className="text-gray-500 shrink-0 w-36">{row.specKey}</span>
-                  <span className="text-gray-800 font-medium text-right leading-relaxed">{row.specValue}</span>
-                </div>
-              ))}
-            </div>
-
-            <p className="mt-2 text-xs text-gray-400 text-right">
-              {(rowsByCategory[activeCategory] || []).length} thông số
-            </p>
-          </div>
-        ) : hasGrouped ? (
-          <div className="animate-in fade-in duration-200">
-            <h3 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
-              <span className="text-gray-400">
-                {CATEGORY_ICONS[activeCategory] || DEFAULT_ICON}
-              </span>
-              {activeCategory}
-            </h3>
-            <div className="bg-gray-50 rounded-xl overflow-hidden">
-              {Object.entries(cleanGroupedSpecifications[activeCategory] || {}).map(
-                ([key, value], idx, arr) => (
-                  <div
-                    key={key}
-                    className={`flex justify-between gap-4 px-4 py-3 text-sm ${
-                      idx !== arr.length - 1 ? 'border-b border-gray-200' : ''
-                    }`}
-                  >
-                    <span className="text-gray-500 shrink-0 w-36">{key}</span>
-                    <span className="text-gray-800 font-medium text-right leading-relaxed">{value}</span>
-                  </div>
-                )
-              )}
-            </div>
-
-            {/* Category count indicator */}
-            <p className="mt-2 text-xs text-gray-400 text-right">
-              {Object.keys(cleanGroupedSpecifications[activeCategory] || {}).length} thông số
-            </p>
-          </div>
-        ) : (
-          <div className="bg-gray-50 rounded-xl overflow-hidden">
-            {Object.entries(cleanSpecifications).map(([key, value], idx, arr) => (
-              <div
-                key={key}
-                className={`flex justify-between gap-4 px-4 py-3 text-sm ${
-                  idx !== arr.length - 1 ? 'border-b border-gray-200' : ''
-                }`}
-              >
-                <span className="text-gray-500 shrink-0 w-36">{key}</span>
-                <span className="text-gray-800 font-medium text-right leading-relaxed">
-                  {String(value || '')}
-                </span>
+      {/* ── Spec Sections ── */}
+      <div style={S.sectionsWrapper}>
+        {visibleSections.map((sec, secIdx) => (
+          <section key={sec.id} id={sec.id} style={{ ...S.section, scrollMarginTop: 140 }}>
+            {/* Section header */}
+            <div style={S.sectionHeader}>
+              <span style={S.sectionIcon}>{ICONS[sec.category] || DEFAULT_ICON}</span>
+              <div>
+                <p style={S.sectionCounter}>{secIdx + 1} / {sections.length}</p>
+                <h3 style={S.sectionTitle}>{sec.category}</h3>
               </div>
-            ))}
-          </div>
-        )}
-
-        {/* Quick summary chips — show first 3 specs from each tab on mobile */}
-        {(hasRows || hasGrouped) && categoryList.length > 1 && (
-          <div className="mt-4 pt-4 border-t border-gray-100">
-            <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-3">
-              Xem nhanh thông số nổi bật
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {categoryList.slice(0, 4).map((category, idx) => {
-                const firstSpec = hasRows
-                  ? rowsByCategory[category]?.[0]
-                  : Object.entries(cleanGroupedSpecifications[category] || {})[0];
-                return firstSpec ? (
-                  <button
-                    key={category}
-                    onClick={() => setActiveTab(idx)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
-                      activeTab === idx
-                        ? 'bg-red-50 border-red-200 text-red-600'
-                        : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'
-                    }`}
-                  >
-                    {category}: <span className="font-normal text-gray-500">
-                      {hasRows ? firstSpec.specValue : firstSpec[1]}
-                    </span>
-                  </button>
-                ) : null;
-              })}
+              <span style={S.sectionBadge}>{sec.items.length} thông số</span>
             </div>
-          </div>
-        )}
+
+            {/* 2-Column Table */}
+            <div style={S.tableWrap}>
+              <table style={S.table}>
+                <tbody>
+                  {sec.items.map((item, idx) => (
+                    <SpecRow key={idx} item={item} isEven={idx % 2 === 0} />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        ))}
       </div>
 
-      {/* "View all" link — shown when not on last tab */}
-      {(hasRows || hasGrouped) && activeTab < categoryList.length - 1 && (
-        <div className="px-4 pb-4">
-          <button
-            onClick={() => setActiveTab(activeTab + 1)}
-            className="text-xs font-bold text-red-600 hover:text-red-700 flex items-center gap-1"
-          >
-            Xem thêm thông số {categoryList[activeTab + 1]}
-            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
-        </div>
+      {/* ── Expand / Collapse button ── */}
+      {hasMore && (
+        <button
+          onClick={() => setIsExpanded((v) => !v)}
+          style={S.expandBtn}
+          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#fff0f0'; e.currentTarget.style.borderColor = '#fca5a5'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#ffffff'; e.currentTarget.style.borderColor = '#e5e7eb'; }}
+        >
+          <span style={{ fontFamily: 'inherit' }}>
+            {isExpanded
+              ? `Thu gọn`
+              : `Xem thêm ${sections.length - 3} nhóm thông số`}
+          </span>
+          <span style={{ ...S.expandChevron, transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+            <ChevronDown />
+          </span>
+        </button>
       )}
     </div>
   );
+};
+
+/* ─── SpecRow ─────────────────────────────────────────────────────── */
+const SpecRow = ({ item, isEven }) => {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <tr
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        borderBottom: '1px solid #f3f4f6',
+        backgroundColor: hovered ? '#fff7f7' : isEven ? '#fafafa' : '#ffffff',
+        transition: 'background-color 0.15s ease',
+      }}
+    >
+      <td style={S.rowKey}>{item.key}</td>
+      <td style={S.rowVal}>{item.value}</td>
+    </tr>
+  );
+};
+
+/* ─── Styles ─────────────────────────────────────────────────────── */
+const S = {
+  root: {
+    borderRadius: 20,
+    border: '1px solid #e5e7eb',
+    backgroundColor: '#ffffff',
+    overflow: 'hidden',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)',
+  },
+  header: {
+    display: 'flex', alignItems: 'center', gap: 10,
+    padding: '14px 18px', borderBottom: '1px solid #f3f4f6', backgroundColor: '#fafafa',
+  },
+  headerIcon: {
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    width: 34, height: 34, borderRadius: 10, backgroundColor: '#fee2e2', color: '#ef4444', flexShrink: 0,
+  },
+  headerTitle: {
+    margin: 0, fontSize: 14, fontWeight: 800, color: '#111827',
+    letterSpacing: '-0.01em', textTransform: 'uppercase', flex: 1,
+  },
+  headerCount: {
+    padding: '3px 10px', borderRadius: 999, backgroundColor: '#f3f4f6',
+    color: '#6b7280', fontSize: 11, fontWeight: 700,
+  },
+  /* Nav */
+  stickyNav: {
+    position: 'sticky', top: 80, zIndex: 30,
+    backgroundColor: 'rgba(255,255,255,0.97)',
+    backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+    borderBottom: '2px solid #f3f4f6',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+  },
+  navRow: {
+    display: 'flex', alignItems: 'stretch',
+  },
+  arrowBtn: {
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    width: 36, flexShrink: 0,
+    border: 'none', backgroundColor: 'transparent',
+    color: '#6b7280', cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    outline: 'none',
+  },
+  tabTrack: {
+    display: 'flex', flex: 1, gap: 2,
+    padding: '6px 4px 0',
+    overflowX: 'auto', scrollbarWidth: 'none', msOverflowStyle: 'none',
+  },
+  tab: {
+    position: 'relative',
+    display: 'flex', alignItems: 'center', gap: 5,
+    padding: '7px 12px 10px',
+    borderRadius: '8px 8px 0 0',
+    border: 'none', cursor: 'pointer',
+    fontSize: 12.5, fontWeight: 700,
+    whiteSpace: 'nowrap', transition: 'all 0.2s ease',
+    outline: 'none', flexShrink: 0, fontFamily: 'inherit',
+  },
+  tabActive: { backgroundColor: '#fff0f0', color: '#dc2626' },
+  tabInactive: { backgroundColor: 'transparent', color: '#6b7280' },
+  tabIcon: { width: 14, height: 14, flexShrink: 0, color: '#9ca3af', transition: 'color 0.2s ease' },
+  tabIconActive: { color: '#ef4444' },
+  tabUnderline: {
+    position: 'absolute', bottom: 0, left: 0, right: 0, height: 2,
+    backgroundColor: '#dc2626', borderRadius: '2px 2px 0 0',
+  },
+  /* Sections */
+  sectionsWrapper: { backgroundColor: '#ffffff' },
+  section: { padding: '18px 18px 22px', borderBottom: '1px solid #f3f4f6' },
+  sectionHeader: { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 },
+  sectionIcon: {
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    width: 38, height: 38, borderRadius: 11, backgroundColor: '#fff0f0', color: '#ef4444',
+    flexShrink: 0, padding: 8,
+  },
+  sectionCounter: {
+    margin: '0 0 2px', fontSize: 10, fontWeight: 700, color: '#9ca3af',
+    letterSpacing: '0.1em', textTransform: 'uppercase', lineHeight: 1,
+  },
+  sectionTitle: {
+    margin: 0, fontSize: 13, fontWeight: 800, color: '#111827',
+    letterSpacing: '-0.01em', textTransform: 'uppercase', lineHeight: 1,
+  },
+  sectionBadge: {
+    marginLeft: 'auto', padding: '3px 10px', borderRadius: 999,
+    backgroundColor: '#f3f4f6', color: '#6b7280', fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap',
+  },
+  /* Table */
+  tableWrap: { borderRadius: 12, border: '1px solid #e5e7eb', overflow: 'hidden' },
+  table: { width: '100%', borderCollapse: 'collapse' },
+  rowKey: {
+    width: '40%', minWidth: 110, padding: '9px 14px', fontSize: 12.5, fontWeight: 600,
+    color: '#6b7280', verticalAlign: 'top', lineHeight: 1.5, borderRight: '1px solid #f3f4f6',
+  },
+  rowVal: {
+    padding: '9px 14px', fontSize: 13, fontWeight: 500, color: '#111827',
+    lineHeight: 1.6, whiteSpace: 'pre-line',
+  },
+  /* Expand button */
+  expandBtn: {
+    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+    width: '100%', padding: '13px 16px',
+    border: 'none', borderTop: '1px solid #e5e7eb',
+    backgroundColor: '#ffffff', color: '#dc2626',
+    fontSize: 13, fontWeight: 700, cursor: 'pointer',
+    transition: 'all 0.2s ease', outline: 'none', fontFamily: 'inherit',
+  },
+  expandChevron: {
+    display: 'flex', alignItems: 'center', transition: 'transform 0.3s ease',
+    color: '#dc2626',
+  },
+  /* Empty */
+  emptyWrap: {
+    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+    padding: 48, borderRadius: 20, border: '1px solid #f3f4f6', backgroundColor: '#ffffff', textAlign: 'center',
+  },
 };
