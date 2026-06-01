@@ -20,6 +20,7 @@ import { Register } from './pages/Register';
 import { CompleteGoogleRegister } from './pages/auth/CompleteGoogleRegister';
 import { OtpVerification } from './pages/auth/OtpVerification';
 import { Profile } from './pages/Profile';
+import { Vouchers } from './pages/Vouchers';
 import { About } from './pages/About';
 import { FlashSalePage } from './pages/FlashSalePage';
 import { NewsPage } from './pages/NewsPage';
@@ -194,6 +195,7 @@ function App() {
                         <Route path="/cart" element={<ProtectedRoute><Cart /></ProtectedRoute>} />
                         <Route path="/checkout" element={<ProtectedRoute><Checkout /></ProtectedRoute>} />
                         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+                        <Route path="/vouchers" element={<ProtectedRoute><Vouchers /></ProtectedRoute>} />
                         <Route path="/orders" element={<ProtectedRoute><Orders /></ProtectedRoute>} />
                         <Route path="/order/:id" element={<ProtectedRoute><OrderDetail /></ProtectedRoute>} />
                         <Route path="/payment/success" element={<PaymentSuccess />} />

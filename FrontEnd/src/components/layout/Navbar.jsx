@@ -394,6 +394,9 @@ export const Navbar = () => {
                         <Link to="/profile" onClick={() => setIsUserMenuOpen(false)} className="mt-2 block rounded-2xl px-3 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">
                           Hồ sơ của tôi
                         </Link>
+                        <Link to="/vouchers" onClick={() => setIsUserMenuOpen(false)} className="block rounded-2xl px-3 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                          Kho voucher
+                        </Link>
                         <Link to="/orders" onClick={() => setIsUserMenuOpen(false)} className="block rounded-2xl px-3 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">
                           Đơn hàng
                         </Link>
