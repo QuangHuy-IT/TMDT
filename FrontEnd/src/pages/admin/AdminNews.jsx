@@ -603,7 +603,7 @@ const AdminNews = () => {
                 <textarea
                   value={form.excerpt}
                   onChange={(e) => setForm((p) => ({ ...p, excerpt: e.target.value }))}
-                  placeholder="Mô tả ngắn hiển thị trên card tin tức..."
+                  placeholder="Mô tả ngắn hiển thị tin tức..."
                   rows={3}
                   maxLength={500}
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-red-500/50 resize-none"

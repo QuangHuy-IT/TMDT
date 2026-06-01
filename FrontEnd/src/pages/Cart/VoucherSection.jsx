@@ -7,9 +7,8 @@ const fmtCode = (v) => v.discountType === 'PERCENT'
   ? `Giảm ${v.discountValue}%`
   : `Giảm ${fmt(v.discountValue)}`;
 
-const VoucherSection = ({ onApply }) => {
+const VoucherSection = ({ subtotal, applied, onApply }) => {
   const [code, setCode]         = useState('');
-  const [applied, setApplied]   = useState(null);
   const [error, setError]       = useState('');
   const [showList, setShowList] = useState(false);
   const [vouchers, setVouchers] = useState([]);
@@ -37,8 +36,14 @@ const VoucherSection = ({ onApply }) => {
 
     setApplying(true);
     try {
-      const voucher = await voucherService.validateVoucher(trimmed);
-      setApplied(voucher);
+      const voucher = await voucherService.validateVoucher(trimmed, subtotal);
+      
+      if (voucher.minOrderAmount != null && subtotal != null && subtotal < voucher.minOrderAmount) {
+        setError(`Đơn hàng phải có giá trị tối thiểu ${voucher.minOrderAmount.toLocaleString('vi-VN')}đ để sử dụng voucher này.`);
+        setApplying(false);
+        return;
+      }
+
       setCode('');
       setShowList(false);
       onApply?.(voucher);
@@ -54,8 +59,11 @@ const VoucherSection = ({ onApply }) => {
   };
 
   const handlePickVoucher = (v) => {
-    setApplied(v);
-    setCode(v.code);
+    if (v.minOrderAmount != null && subtotal != null && subtotal < v.minOrderAmount) {
+      setError(`Đơn hàng phải có giá trị tối thiểu ${v.minOrderAmount.toLocaleString('vi-VN')}đ để sử dụng voucher này.`);
+      return;
+    }
+    setCode('');
     setShowList(false);
     setError('');
     onApply?.(v);
@@ -97,12 +105,12 @@ const VoucherSection = ({ onApply }) => {
             <div className="flex flex-wrap gap-2">
               {vouchers.map((v) => (
                 <button
-                  key={v.id}
-                  type="button"
-                  onClick={() => handlePickVoucher(v)}
-                  className="text-[12px] font-semibold text-red-600
-                             border border-dashed border-red-400 rounded px-3 py-1.5
-                             hover:bg-red-50 transition-colors cursor-pointer bg-transparent"
+                   key={v.id}
+                   type="button"
+                   onClick={() => handlePickVoucher(v)}
+                   className="text-[12px] font-semibold text-red-600
+                              border border-dashed border-red-400 rounded px-3 py-1.5
+                              hover:bg-red-50 transition-colors cursor-pointer bg-transparent"
                 >
                   {v.code} — {fmtCode(v)}
                 </button>
@@ -125,7 +133,7 @@ const VoucherSection = ({ onApply }) => {
           <span className="text-green-600 ml-1">({fmtCode(applied)})</span>
           <button
             type="button"
-            onClick={() => { setApplied(null); onApply?.(null); }}
+            onClick={() => { onApply?.(null); }}
             className="ml-auto text-gray-400 hover:text-red-500 transition-colors
                        bg-transparent border-none cursor-pointer text-xs"
           >

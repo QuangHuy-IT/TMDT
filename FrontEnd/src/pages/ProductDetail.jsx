@@ -298,6 +298,38 @@ export const ProductDetail = () => {
     return 1;
   }, [selectedVariant, product]);
 
+  const handleQuantityChange = (e) => {
+    const val = e.target.value.replace(/[^0-9]/g, '');
+    if (val === '') {
+      setQuantity('');
+      return;
+    }
+    const num = parseInt(val, 10);
+    if (num > maxQuantity) {
+      setQuantity(maxQuantity);
+    } else {
+      setQuantity(num);
+    }
+  };
+
+  const handleQuantityBlur = () => {
+    const num = Number(quantity);
+    if (quantity === '' || num <= 0) {
+      setQuantity(1);
+    } else if (num > maxQuantity) {
+      setQuantity(maxQuantity);
+    }
+  };
+
+  useEffect(() => {
+    setQuantity((q) => {
+      if (q === '') return '';
+      const num = Number(q);
+      if (num > maxQuantity) return maxQuantity;
+      return q;
+    });
+  }, [maxQuantity]);
+
   const originalPrice = useMemo(() => {
     if (selectedVariant?.compareAtPrice != null) return Number(selectedVariant.compareAtPrice);
     if (product?.originalPrice != null) return Number(product.originalPrice);
@@ -400,6 +432,8 @@ export const ProductDetail = () => {
     }
     if (maxQuantity <= 0) return;
 
+    const finalQuantity = Math.max(1, Math.min(maxQuantity, Number(quantity) || 1));
+
     dispatch({
       type: 'ADD_TO_CART',
       payload: {
@@ -411,7 +445,7 @@ export const ProductDetail = () => {
         productId: String(product.id),
         cartKey: String(selectedVariant?.id || selectedVariant?.slug || selectedVariant?.storageLabel || selectedVariant?.color || product.id),
         name: displayName,
-        quantity,
+        quantity: finalQuantity,
         price: currentPrice,
         originalPrice,
         ram: selectedVariant?.ramGb ? `${selectedVariant.ramGb}GB` : '',
@@ -682,10 +716,16 @@ export const ProductDetail = () => {
               {/* Quantity + Purchase CTA Buttons */}
               <div className="flex items-center gap-3 pt-2">
                 <div className="flex items-center overflow-hidden rounded-xl border border-gray-200 bg-white">
-                  <button onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                  <button onClick={() => setQuantity((q) => Math.max(1, (Number(q) || 0) - 1))}
                     className="h-11 w-11 text-lg font-black text-gray-500 hover:text-red-600">−</button>
-                  <span className="w-14 text-center font-bold text-base">{quantity}</span>
-                  <button onClick={() => setQuantity((q) => Math.min(maxQuantity, q + 1))}
+                  <input
+                    type="text"
+                    value={quantity}
+                    onChange={handleQuantityChange}
+                    onBlur={handleQuantityBlur}
+                    className="w-14 text-center font-bold text-base border-none focus:outline-none focus:ring-0 p-0"
+                  />
+                  <button onClick={() => setQuantity((q) => Math.min(maxQuantity, (Number(q) || 0) + 1))}
                     className="h-11 w-11 text-lg font-black text-gray-500 hover:text-red-600">+</button>
                 </div>
                 <button onClick={addToCart} disabled={maxQuantity <= 0}

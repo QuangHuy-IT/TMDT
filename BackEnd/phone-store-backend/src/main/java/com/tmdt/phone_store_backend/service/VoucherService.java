@@ -20,5 +20,5 @@ public interface VoucherService {
 
     List<VoucherDto> getAvailableVouchers();
 
-    VoucherDto validateByCode(String code);
+    VoucherDto validateByCode(String code, java.math.BigDecimal subtotal);
 }

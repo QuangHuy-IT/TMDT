@@ -1,3 +1,4 @@
+
 import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -159,9 +160,8 @@ export const Navbar = () => {
     <>
       <nav
         ref={navRef}
-        className={`sticky top-0 z-50 border-b border-slate-200 transition-all duration-300 ${
-          scrolled ? 'bg-white/92 shadow-[0_16px_40px_rgba(15,23,42,0.08)] backdrop-blur-xl' : 'bg-white'
-        }`}
+        className={`sticky top-0 z-50 border-b border-slate-200 transition-all duration-300 ${scrolled ? 'bg-white/92 shadow-[0_16px_40px_rgba(15,23,42,0.08)] backdrop-blur-xl' : 'bg-white'
+          }`}
       >
         <div className="mx-auto max-w-7xl px-4">
           <div className="flex h-20 items-center gap-4">
@@ -198,18 +198,18 @@ export const Navbar = () => {
                       <div className="space-y-2">
                         {brandsLoading
                           ? Array.from({ length: 8 }).map((_, index) => (
-                              <div key={index} className="h-6 w-32 animate-pulse rounded bg-slate-100" />
-                            ))
+                            <div key={index} className="h-6 w-32 animate-pulse rounded bg-slate-100" />
+                          ))
                           : featuredBrands.map((brand) => (
-                              <Link
-                                key={brand.id || brand.slug}
-                                to={`/brands/${brand.slug}`}
-                                onClick={() => setActiveMenu(null)}
-                                className="block text-sm font-semibold text-slate-700 transition-colors hover:text-red-600"
-                              >
-                                {brand.name}
-                              </Link>
-                            ))}
+                            <Link
+                              key={brand.id || brand.slug}
+                              to={`/brands/${brand.slug}`}
+                              onClick={() => setActiveMenu(null)}
+                              className="block text-sm font-semibold text-slate-700 transition-colors hover:text-red-600"
+                            >
+                              {brand.name}
+                            </Link>
+                          ))}
                       </div>
                     </section>
 

@@ -94,19 +94,26 @@ export const Cart = () => {
   const [selectedIds, setSelectedIds] = useState(() => new Set());
   const [appliedVoucher, setAppliedVoucher] = useState(null);
 
+  // ── Derived values ───────────────────────────────────────────────────────────
+  const allChecked  = enriched.length > 0 && enriched.every((i) => selectedIds.has(i.cartId));
+  const selected    = enriched.filter((i) => selectedIds.has(i.cartId));
+  const selectedQty = selected.reduce((s, i) => s + i.quantity, 0);
+  const grandTotal  = selected.reduce((s, i) => s + i.price * i.quantity, 0);
+
   // Prune stale ids when cart items are removed
   useEffect(() => {
     const valid = new Set(enriched.map((i) => i.cartId));
     setSelectedIds((prev) => new Set([...prev].filter((id) => valid.has(id))));
   }, [cart]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!isAuthenticated) return null;
+  // Automatically remove applied voucher if grandTotal drops below minOrderAmount
+  useEffect(() => {
+    if (appliedVoucher && appliedVoucher.minOrderAmount != null && grandTotal < appliedVoucher.minOrderAmount) {
+      setAppliedVoucher(null);
+    }
+  }, [grandTotal, appliedVoucher]);
 
-  // ── Derived values ───────────────────────────────────────────────────────────
-  const allChecked  = enriched.length > 0 && enriched.every((i) => selectedIds.has(i.cartId));
-  const selected    = enriched.filter((i) => selectedIds.has(i.cartId));
-  const selectedQty = selected.reduce((s, i) => s + i.quantity, 0);
-  const grandTotal  = selected.reduce((s, i) => s + i.price * i.quantity, 0);
+  if (!isAuthenticated) return null;
 
   // Group by brand for shop-style sections
   const brands = [...new Set(enriched.map((i) => i.brand))];
@@ -160,6 +167,7 @@ export const Cart = () => {
       params.set('discountType', appliedVoucher.discountType || '');
       params.set('discountValue', appliedVoucher.discountValue || '');
       params.set('maxDiscountAmount', appliedVoucher.maxDiscountAmount || '');
+      params.set('minOrderAmount', appliedVoucher.minOrderAmount || '');
     }
     const query = params.toString();
     navigate(`/checkout?${query}`);
@@ -254,12 +262,10 @@ export const Cart = () => {
 
             {/* ── Voucher section ── */}
             <VoucherSection
+              subtotal={grandTotal}
+              applied={appliedVoucher}
               onApply={(voucher) => {
-                if (voucher) {
-                  setAppliedVoucher(voucher);
-                } else {
-                  setAppliedVoucher(null);
-                }
+                setAppliedVoucher(voucher);
               }}
             />
 

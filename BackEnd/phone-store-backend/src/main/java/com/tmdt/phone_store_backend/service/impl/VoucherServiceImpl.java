@@ -141,7 +141,7 @@ public class VoucherServiceImpl implements VoucherService {
     }
 
     @Override
-    public VoucherDto validateByCode(String code) {
+    public VoucherDto validateByCode(String code, BigDecimal subtotal) {
         String normalized = code.trim().toUpperCase();
         Voucher v = voucherRepository.findByCode(normalized)
                 .orElseThrow(() -> new ResourceNotFoundException("Mã voucher không tồn tại"));
@@ -159,6 +159,11 @@ public class VoucherServiceImpl implements VoucherService {
         if (v.getUsageLimit() != null && v.getUsedCount() != null
                 && v.getUsedCount() >= v.getUsageLimit()) {
             throw new BadRequestException("Mã voucher đã hết lượt sử dụng");
+        }
+        if (v.getMinOrderAmount() != null && subtotal != null
+                && subtotal.compareTo(v.getMinOrderAmount()) < 0) {
+            throw new BadRequestException("Đơn hàng phải có giá trị tối thiểu "
+                    + v.getMinOrderAmount().longValue() + "đ để sử dụng voucher này");
         }
         return toDto(v);
     }
