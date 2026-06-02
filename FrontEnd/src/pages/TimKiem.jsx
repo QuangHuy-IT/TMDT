@@ -128,7 +128,6 @@ export const TimKiem = () => {
               { key: 'newest', label: 'Mới nhất' },
               { key: 'price-asc', label: 'Giá thấp' },
               { key: 'price-desc', label: 'Giá cao' },
-              { key: 'rating', label: 'Đánh giá cao' },
             ].map(({ key, label }) => (
               <button
                 key={key}

@@ -96,6 +96,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/flash-sales/**").permitAll()
                         .requestMatchers("/api/chat/**").permitAll()
                         .requestMatchers("/api/ai/**").permitAll()
+                        .requestMatchers("/api/news/**").permitAll()
                         
                         // Order endpoints - require authentication (ownership is verified in controller)
                         .requestMatchers("/api/orders/**").authenticated()
