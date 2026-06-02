@@ -170,8 +170,12 @@ export const Navbar = () => {
                 <img src="/assets/images/icon/main/logo.svg" className="h-6 w-6 invert" alt="Logo" />
               </div>
               <div>
-                <p className="text-lg font-black uppercase tracking-tight text-slate-950">HHShop</p>
-                <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-slate-400">Mobile Store</p>
+                <p className="text-xl font-extrabold tracking-tight text-slate-950">
+                  HHShop
+                </p>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-slate-500">
+                  MOBILE STORE
+                </p>
               </div>
             </Link>
 
@@ -181,20 +185,19 @@ export const Navbar = () => {
                 onMouseEnter={() => setActiveMenu('catalog')}
                 onMouseLeave={() => setActiveMenu((current) => (current === 'catalog' ? null : current))}
               >
-                <button className="rounded-2xl px-4 py-2.5 text-sm font-black text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-950">
+                <button className="rounded-2xl px-4 py-2.5 text-sm font-medium text-slate-600 hover:text-red-600 transition-colors hover:bg-slate-100 hover:text-slate-950">
                   Danh mục
                 </button>
                 <DropdownPanel visible={activeMenu === 'catalog'} widthClass="w-[740px]">
                   <div className="mb-5 flex items-center justify-between">
                     <div>
-                      <p className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-400">Explore</p>
                       <h3 className="text-xl font-black text-slate-950">Danh mục</h3>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-4 gap-8">
                     <section>
-                      <p className="mb-4 text-[11px] font-black uppercase tracking-[0.22em] text-slate-400">Hãng điện thoại</p>
+                      <p className="mb-4 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Hãng điện thoại</p>
                       <div className="space-y-2">
                         {brandsLoading
                           ? Array.from({ length: 8 }).map((_, index) => (
@@ -205,7 +208,7 @@ export const Navbar = () => {
                               key={brand.id || brand.slug}
                               to={`/brands/${brand.slug}`}
                               onClick={() => setActiveMenu(null)}
-                              className="block text-sm font-semibold text-slate-700 transition-colors hover:text-red-600"
+                              className="block text-sm font-medium text-slate-600 hover:text-red-600 transition-colors hover:text-red-600"
                             >
                               {brand.name}
                             </Link>
@@ -214,14 +217,14 @@ export const Navbar = () => {
                     </section>
 
                     <section>
-                      <p className="mb-4 text-[11px] font-black uppercase tracking-[0.22em] text-slate-400">Mức giá điện thoại</p>
+                      <p className="mb-4 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Mức giá điện thoại</p>
                       <div className="space-y-2">
                         {PRICE_LINKS.map((item) => (
                           <Link
                             key={item.value}
                             to={`/products?price=${item.value}`}
                             onClick={() => setActiveMenu(null)}
-                            className="block text-sm font-semibold text-slate-700 transition-colors hover:text-red-600"
+                            className="block text-sm font-medium text-slate-600 hover:text-red-600 transition-colors hover:text-red-600"
                           >
                             {item.label}
                           </Link>
@@ -230,14 +233,14 @@ export const Navbar = () => {
                     </section>
 
                     <section>
-                      <p className="mb-4 text-[11px] font-black uppercase tracking-[0.22em] text-slate-400">Dung lượng</p>
+                      <p className="mb-4 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Dung lượng</p>
                       <div className="space-y-2">
                         {STORAGE_LINKS.map((value) => (
                           <Link
                             key={value}
                             to={`/products?storage=${value.toLowerCase()}`}
                             onClick={() => setActiveMenu(null)}
-                            className="block text-sm font-semibold text-slate-700 transition-colors hover:text-red-600"
+                            className="block text-sm font-medium text-slate-600 hover:text-red-600 transition-colors hover:text-red-600"
                           >
                             {value}
                           </Link>
@@ -246,7 +249,7 @@ export const Navbar = () => {
                     </section>
 
                     <section>
-                      <p className="mb-4 text-[11px] font-black uppercase tracking-[0.22em] text-slate-400">Tiện ích</p>
+                      <p className="mb-4 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Tiện ích</p>
                       <div className="space-y-2">
                         <Link
                           to="/khuyen-mai"
@@ -261,7 +264,7 @@ export const Navbar = () => {
                         <Link
                           to="/gioi-thieu"
                           onClick={() => setActiveMenu(null)}
-                          className="flex items-center gap-2 text-sm font-semibold text-slate-700 transition-colors hover:text-red-600"
+                          className="flex items-center gap-2 text-sm font-medium text-slate-600 transition-colors hover:text-red-600"
                         >
                           <svg className="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
@@ -271,7 +274,7 @@ export const Navbar = () => {
                         <Link
                           to="/tin-tuc"
                           onClick={() => setActiveMenu(null)}
-                          className="flex items-center gap-2 text-sm font-semibold text-slate-700 transition-colors hover:text-red-600"
+                          className="flex items-center gap-2 text-sm font-medium text-slate-600 transition-colors hover:text-red-600"
                         >
                           <svg className="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
@@ -323,7 +326,7 @@ export const Navbar = () => {
                     transition={{ duration: 0.16 }}
                     className="absolute top-full mt-3 w-full rounded-[24px] border border-slate-200 bg-white py-2 shadow-[0_18px_40px_rgba(15,23,42,0.12)]"
                   >
-                    <p className="px-4 py-2 text-[11px] font-black uppercase tracking-[0.22em] text-slate-400">Recent Search</p>
+                    <p className="px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Recent Search</p>
                     {searchHistory.map((item) => (
                       <button
                         key={item}
@@ -388,7 +391,7 @@ export const Navbar = () => {
                         className="absolute right-0 mt-3 w-52 rounded-[24px] border border-slate-200 bg-white p-2 shadow-[0_18px_40px_rgba(15,23,42,0.14)]"
                       >
                         <div className="border-b border-slate-100 px-3 py-3">
-                          <p className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-400">Tài khoản</p>
+                          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Tài khoản</p>
                           <p className="mt-1 truncate text-sm font-bold text-slate-900">{user?.fullName}</p>
                         </div>
                         <Link to="/profile" onClick={() => setIsUserMenuOpen(false)} className="mt-2 block rounded-2xl px-3 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">
@@ -476,7 +479,7 @@ export const Navbar = () => {
 
               <div className="flex-1 space-y-6 overflow-y-auto px-5 py-5">
                 <section>
-                  <p className="mb-3 text-[11px] font-black uppercase tracking-[0.22em] text-slate-400">Danh mục</p>
+                  <p className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Danh mục</p>
                   <div className="space-y-6">
                     <div>
                       <p className="mb-3 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Hãng điện thoại</p>
