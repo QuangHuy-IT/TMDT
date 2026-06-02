@@ -59,7 +59,7 @@ public class Product {
     @Column(nullable = false, length = 300)
     private String slug;
 
-    @Column(name = "short_description", nullable = false, columnDefinition = "MEDIUMTEXT")
+    @Column(name = "short_description", nullable = true, columnDefinition = "MEDIUMTEXT")
     private String shortDescription;
 
     @Column(name = "detail_description", nullable = false, columnDefinition = "MEDIUMTEXT")

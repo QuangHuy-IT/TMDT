@@ -6,11 +6,11 @@ import { CompactRecommendationList } from '../ui/RecommendationCards';
 
 // Enhanced suggested questions với icons
 const SUGGESTED_QUESTIONS = [
-  { text: 'Tìm điện thoại gaming dưới 15 triệu', icon: '🎮', category: 'search' },
-  { text: 'So sánh iPhone 15 và Samsung S24', icon: '⚖️', category: 'compare' },
-  { text: 'Điện thoại pin trâu, camera tốt', icon: '📷', category: 'search' },
-  { text: 'Bảo hành như thế nào?', icon: '🔧', category: 'faq' },
-  { text: 'Có trả góp 0% không?', icon: '💳', category: 'faq' },
+  { text: 'Tìm điện thoại gaming dưới 15 triệu', category: 'search' },
+  { text: 'So sánh iPhone 15 và Samsung S24', category: 'compare' },
+  { text: 'Điện thoại pin trâu, camera tốt', category: 'search' },
+  { text: 'Bảo hành như thế nào?', category: 'faq' },
+  { text: 'Có trả góp 0% không?', category: 'faq' },
 ];
 
 // Intent icons mapping
@@ -66,15 +66,7 @@ export const ChatbotPopup = ({ isOpen, onClose }) => {
   const makeGreeting = () => ({
     id: `bot-greeting-${Date.now()}`,
     sender: 'bot',
-    text: `👋 Xin chào! Tôi là AI Assistant của TMDT Phone Store.
-
-Tôi có thể giúp bạn:
-🔍 Tìm kiếm điện thoại phù hợp
-⚖️ So sánh các sản phẩm
-💡 Đề xuất sản phẩm theo nhu cầu
-❓ Trả lời về bảo hành, giao hàng, đổi trả
-
-Bạn cần tôi hỗ trợ gì hôm nay?`,
+    text: `Xin chào! Tôi là AI Assistant của TMDT Phone Store. Bạn cần tôi hỗ trợ gì hôm nay?`,
     time: new Date().toLocaleTimeString('vi-VN', {
       hour: '2-digit',
       minute: '2-digit',
@@ -194,10 +186,6 @@ Bạn cần tôi hỗ trợ gì hôm nay?`,
                 </div>
                 <div>
                   <h3 className="text-base font-bold text-white leading-tight">AI Assistant</h3>
-                  <p className="text-xs text-white/80 flex items-center gap-1">
-                    <Sparkles size={10} />
-                    Powered by Gemini AI
-                  </p>
                 </div>
               </div>
               <button

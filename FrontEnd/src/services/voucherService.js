@@ -6,8 +6,12 @@ export const voucherService = {
     return response.data;
   },
 
-  validateVoucher: async (code) => {
-    const response = await api.get('/vouchers/validate', { params: { code } });
+  validateVoucher: async (code, subtotal) => {
+    const params = { code };
+    if (subtotal != null) {
+      params.subtotal = subtotal;
+    }
+    const response = await api.get('/vouchers/validate', { params });
     return response.data;
   },
 };

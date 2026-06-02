@@ -20,6 +20,7 @@ const useCheckout = () => {
   const voucherDiscountType = searchParams.get('discountType') || null;
   const voucherDiscountValue = Number(searchParams.get('discountValue')) || 0;
   const voucherMaxDiscount = Number(searchParams.get('maxDiscountAmount')) || null;
+  const voucherMinOrderAmount = Number(searchParams.get('minOrderAmount')) || 0;
   const selectedIds = JSON.parse(searchParams.get('items') || 'null');
 
   // ── State ──────────────────────────────────────────────────────────────────
@@ -80,6 +81,7 @@ const useCheckout = () => {
 
   const discountAmount = useMemo(() => {
     if (!voucherCode) return 0;
+    if (voucherMinOrderAmount > 0 && subtotal < voucherMinOrderAmount) return 0;
     if (voucherDiscountType === 'PERCENT') {
       let discount = subtotal * (voucherDiscountValue / 100);
       if (voucherMaxDiscount != null) {
@@ -91,7 +93,7 @@ const useCheckout = () => {
       return Math.min(voucherDiscountValue, subtotal);
     }
     return 0;
-  }, [voucherCode, voucherDiscountType, voucherDiscountValue, voucherMaxDiscount, subtotal]);
+  }, [voucherCode, voucherDiscountType, voucherDiscountValue, voucherMaxDiscount, voucherMinOrderAmount, subtotal]);
 
   const total = subtotal + shippingFee - discountAmount;
 

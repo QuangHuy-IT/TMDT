@@ -1,5 +1,7 @@
 # Huong dan do du lieu vao database
 
+# Chạy file import_cleaned_to_db.py
+
 File import chinh: `scraper/import_to_db.py`
 
 Script nay doc du lieu da scrape tu JSON va do vao database MySQL `phone_store`.

@@ -347,8 +347,8 @@ public class ProductAdminService {
         product.setBrand(brand);
         product.setCategory(category);
         product.setSeries(series);
-        product.setShortDescription(getDescription(requestDto));
-        product.setDetailDescription(getDescription(requestDto));
+        product.setShortDescription(requestDto.getShortDescription());
+        product.setDetailDescription(requestDto.getDetailDescription());
         product.setStatus(ProductStatus.ACTIVE);
         product.setSale(requestDto.getSale() != null ? requestDto.getSale() : 0);
         product.setIsFeatured(Boolean.FALSE);
@@ -359,7 +359,7 @@ public class ProductAdminService {
         Product savedProduct = productRepository.save(product);
 
         // Product-level image is thumbnail only; gallery images belong to variants.
-        saveSpecifications(savedProduct, requestDto.getSpecifications(), now);
+        saveSpecifications(savedProduct, requestDto.getSpecificationRows(), requestDto.getSpecifications(), now);
 
         // Create variants
         List<ProductVariant> savedVariants = new ArrayList<>();
@@ -401,8 +401,8 @@ public class ProductAdminService {
             product.setSeries(null);
         }
 
-        product.setShortDescription(getDescription(requestDto));
-        product.setDetailDescription(getDescription(requestDto));
+        product.setShortDescription(requestDto.getShortDescription());
+        product.setDetailDescription(requestDto.getDetailDescription());
         product.setSale(requestDto.getSale() != null ? requestDto.getSale() : 0);
         product.setThumbnailUrl(requestDto.getThumbnailUrl());
         product.setUpdatedAt(now);
@@ -463,7 +463,7 @@ public class ProductAdminService {
         }
 
         productSpecificationRepository.deleteByProductId(productId);
-        saveSpecifications(product, requestDto.getSpecifications(), now);
+        saveSpecifications(product, requestDto.getSpecificationRows(), requestDto.getSpecifications(), now);
 
         ProductVariant selectedVariant = savedVariants.isEmpty() ? null : savedVariants.get(0);
         return toDetailDto(product, selectedVariant);
@@ -802,7 +802,8 @@ public class ProductAdminService {
                 ? getActiveDiscount(selectedVariant.getId(), activeDiscounts) : null;
         dto.setSale(selectedDiscount != null && selectedVariant != null
                 ? getDiscountPercent(selectedVariant.getPrice(), selectedDiscount) : 0);
-        dto.setDescription(product.getDetailDescription());
+        dto.setShortDescription(product.getShortDescription());
+        dto.setDetailDescription(product.getDetailDescription());
         dto.setThumbnailUrl(product.getThumbnailUrl());
         dto.setImages(images.stream().map(ProductImage::getImageUrl).toList());
         applyReviewStats(dto, product.getId());
@@ -1559,6 +1560,7 @@ public class ProductAdminService {
         if (qty <= 5) return StockStatus.LOW_STOCK;
         return StockStatus.IN_STOCK;
     }
+
     private String buildVariantDisplayName(ProductVariant variant) {
         if (variant == null) return "";
         StringBuilder sb = new StringBuilder();
@@ -1615,21 +1617,38 @@ public class ProductAdminService {
         if (!images.isEmpty()) productImageRepository.saveAll(images);
     }
 
-    private void saveSpecifications(Product product, Map<String, String> specs, LocalDateTime now) {
-        if (specs == null || specs.isEmpty()) return;
+    private void saveSpecifications(Product product, List<ProductSpecificationDto> specificationRows, Map<String, String> specs, LocalDateTime now) {
         List<ProductSpecification> specifications = new ArrayList<>();
-        int i = 0;
-        for (Map.Entry<String, String> entry : specs.entrySet()) {
-            if (entry.getValue() == null || entry.getValue().isBlank()) continue;
-            ProductSpecification spec = new ProductSpecification();
-            spec.setProduct(product);
-            spec.setSpecKey(entry.getKey());
-            spec.setSpecValue(entry.getValue().trim());
-            spec.setSpecCategory(categorizeSpecKey(entry.getKey()));
-            spec.setSortOrder(i++);
-            spec.setCreatedAt(now);
-            spec.setUpdatedAt(now);
-            specifications.add(spec);
+        if (specificationRows != null && !specificationRows.isEmpty()) {
+            int i = 0;
+            for (ProductSpecificationDto dto : specificationRows) {
+                if (dto.getSpecKey() == null || dto.getSpecKey().isBlank() || dto.getSpecValue() == null || dto.getSpecValue().isBlank()) {
+                    continue;
+                }
+                ProductSpecification spec = new ProductSpecification();
+                spec.setProduct(product);
+                spec.setSpecKey(dto.getSpecKey().trim());
+                spec.setSpecValue(dto.getSpecValue().trim());
+                spec.setSpecCategory(dto.getSpecCategory() != null && !dto.getSpecCategory().isBlank() ? dto.getSpecCategory().trim() : "Khác");
+                spec.setSortOrder(dto.getSortOrder() != null ? dto.getSortOrder() : i++);
+                spec.setCreatedAt(now);
+                spec.setUpdatedAt(now);
+                specifications.add(spec);
+            }
+        } else if (specs != null && !specs.isEmpty()) {
+            int i = 0;
+            for (Map.Entry<String, String> entry : specs.entrySet()) {
+                if (entry.getValue() == null || entry.getValue().isBlank()) continue;
+                ProductSpecification spec = new ProductSpecification();
+                spec.setProduct(product);
+                spec.setSpecKey(entry.getKey());
+                spec.setSpecValue(entry.getValue().trim());
+                spec.setSpecCategory(categorizeSpecKey(entry.getKey()));
+                spec.setSortOrder(i++);
+                spec.setCreatedAt(now);
+                spec.setUpdatedAt(now);
+                specifications.add(spec);
+            }
         }
         if (!specifications.isEmpty()) productSpecificationRepository.saveAll(specifications);
     }
@@ -1679,12 +1698,5 @@ public class ProductAdminService {
                     category.setUpdatedAt(now);
                     return categoryRepository.save(category);
                 });
-    }
-
-    private String getDescription(AdminProductRequestDto requestDto) {
-        if (requestDto.getDescription() == null || requestDto.getDescription().isBlank()) {
-            return "Chưa có mô tả";
-        }
-        return requestDto.getDescription().trim();
     }
 }

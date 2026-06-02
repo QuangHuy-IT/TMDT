@@ -28,8 +28,11 @@ public class AdminProductRequestDto {
     /** Giá sale % */
     private Integer sale = 0;
 
-    /** Mô tả (chung cho tất cả variants) */
-    private String description;
+    /** Mô tả ngắn (chung cho tất cả variants) */
+    private String shortDescription;
+
+    /** Mô tả chi tiết (chung cho tất cả variants) */
+    private String detailDescription;
 
     /** Ảnh thumbnail */
     private String thumbnailUrl;
@@ -39,6 +42,8 @@ public class AdminProductRequestDto {
 
     /** Thông số kỹ thuật (chung cho tất cả variants) */
     private Map<String, String> specifications;
+
+    private List<ProductSpecificationDto> specificationRows;
 
     /**
      * Danh sách variants.

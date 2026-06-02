@@ -24,10 +24,12 @@ public class VoucherController {
     }
 
     @GetMapping("/validate")
-    public ResponseEntity<?> validateVoucher(@RequestParam String code) {
-        log.info("GET /api/vouchers/validate?code={}", code);
+    public ResponseEntity<?> validateVoucher(
+            @RequestParam String code,
+            @RequestParam(required = false) java.math.BigDecimal subtotal) {
+        log.info("GET /api/vouchers/validate?code={}&subtotal={}", code, subtotal);
         try {
-            VoucherDto voucher = voucherService.validateByCode(code);
+            VoucherDto voucher = voucherService.validateByCode(code, subtotal);
             return ResponseEntity.ok(voucher);
         } catch (Exception e) {
             return ResponseEntity.badRequest()

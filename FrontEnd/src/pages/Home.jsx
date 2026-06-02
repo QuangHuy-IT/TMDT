@@ -9,6 +9,7 @@ import bannerService from '../services/bannerService';
 import flashSaleService from '../services/flashSaleService';
 import brandService from '../services/brandService';
 import productService from '../services/productService';
+import NewsSection from '../components/home/NewsSection';
 
 export const Home = () => {
   useEffect(() => {
@@ -57,7 +58,7 @@ export const Home = () => {
   });
 
   const visibleBrands = (apiBrands || [])
-    .filter(b => b.is_active !== false);
+    .filter(b => b.isActive === true);
 
   return (
     <main className="min-h-screen bg-slate-50/50 pb-20 space-y-6">
@@ -124,6 +125,11 @@ export const Home = () => {
         </div>
       </div>
 
+      {/* 5. News Section */}
+      <div className="container mx-auto px-4">
+        <NewsSection />
+      </div>
+
       {/* Final Call to Action */}
       <section className="container mx-auto px-4 py-12">
         <div className="bg-slate-900 rounded-[3rem] p-12 text-center text-white relative overflow-hidden">
@@ -142,7 +148,7 @@ export const Home = () => {
               target="_blank"
               className="bg-white text-slate-900 px-10 py-4 rounded-2xl font-black hover:bg-orange-500 hover:text-white transition-all shadow-xl text-center"
             >
-              Gọi ngay: 0866093546
+              Gọi ngay: 0896898734
             </a>
 
             <a
