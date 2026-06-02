@@ -32,6 +32,8 @@ export const AdminDashboard = () => {
   const { state } = useContext(ShopContext);
   const navigate = useNavigate();
 
+  const [hoveredIndex, setHoveredIndex] = useState(null);
+
   // Stats data
   const [stats, setStats] = useState({
     totalRevenue: 0,
@@ -160,15 +162,16 @@ export const AdminDashboard = () => {
         return Array.from({ length: daysDiff }, (_, i) => ({
           month: `Ng${i + 1}`,
           value: 0,
+          rawRevenue: 0,
         }));
       } else {
         return [
-          { month: 'T1', value: 0 },
-          { month: 'T2', value: 0 },
-          { month: 'T3', value: 0 },
-          { month: 'T4', value: 0 },
-          { month: 'T5', value: 0 },
-          { month: 'T6', value: 0 },
+          { month: 'T1', value: 0, rawRevenue: 0 },
+          { month: 'T2', value: 0, rawRevenue: 0 },
+          { month: 'T3', value: 0, rawRevenue: 0 },
+          { month: 'T4', value: 0, rawRevenue: 0 },
+          { month: 'T5', value: 0, rawRevenue: 0 },
+          { month: 'T6', value: 0, rawRevenue: 0 },
         ];
       }
     }
@@ -182,12 +185,14 @@ export const AdminDashboard = () => {
         return {
           month: item.month,
           value: item.revenue > 0 ? Math.round(item.revenue / 1000000 * 10) / 10 : 0,
+          rawRevenue: item.revenue || 0,
         };
       } else {
         const [month, year] = item.month.split('/');
         return {
           month: `T${parseInt(month)}`,
           value: item.revenue > 0 ? Math.round(item.revenue / 1000000 * 10) / 10 : 0,
+          rawRevenue: item.revenue || 0,
         };
       }
     });
@@ -196,6 +201,23 @@ export const AdminDashboard = () => {
   const maxVal = useMemo(() => {
     const values = chartData.map(d => d.value);
     return Math.max(...values, 1);
+  }, [chartData]);
+
+  // Metric summaries for the period
+  const peakDay = useMemo(() => {
+    if (!chartData || chartData.length === 0) return null;
+    return chartData.reduce((max, item) => item.rawRevenue > max.rawRevenue ? item : max, chartData[0]);
+  }, [chartData]);
+
+  const averageRevenue = useMemo(() => {
+    if (!chartData || chartData.length === 0) return 0;
+    const total = chartData.reduce((sum, item) => sum + item.rawRevenue, 0);
+    return Math.round(total / chartData.length);
+  }, [chartData]);
+
+  const activeDaysCount = useMemo(() => {
+    if (!chartData) return 0;
+    return chartData.filter(item => item.rawRevenue > 0).length;
   }, [chartData]);
 
   const formatPrice = (price) => Number(price || 0).toLocaleString();
@@ -242,6 +264,34 @@ export const AdminDashboard = () => {
       return 'Doanh thu theo tháng';
     }
   };
+
+  const svgWidth = 600;
+  const svgHeight = 200;
+  const svgPadding = { top: 20, right: 20, bottom: 30, left: 30 };
+
+  const svgPoints = useMemo(() => {
+    if (!chartData || chartData.length === 0) return [];
+    const usableWidth = svgWidth - svgPadding.left - svgPadding.right;
+    const usableHeight = svgHeight - svgPadding.top - svgPadding.bottom;
+    
+    return chartData.map((d, i) => {
+      const x = svgPadding.left + (i / Math.max(chartData.length - 1, 1)) * usableWidth;
+      const y = maxVal > 0 
+        ? svgPadding.top + (1 - (d.value / maxVal)) * usableHeight
+        : svgHeight - svgPadding.bottom;
+      return { x, y, data: d, index: i };
+    });
+  }, [chartData, maxVal]);
+
+  const svgLinePath = useMemo(() => {
+    if (svgPoints.length === 0) return '';
+    return `M ${svgPoints[0].x} ${svgPoints[0].y} ` + svgPoints.slice(1).map(p => `L ${p.x} ${p.y}`).join(' ');
+  }, [svgPoints]);
+
+  const svgAreaPath = useMemo(() => {
+    if (svgPoints.length === 0) return '';
+    return `${svgLinePath} L ${svgPoints[svgPoints.length - 1].x} ${svgHeight - svgPadding.bottom} L ${svgPoints[0].x} ${svgHeight - svgPadding.bottom} Z`;
+  }, [svgPoints, svgLinePath]);
 
   return (
     <div className="space-y-6">
@@ -331,49 +381,253 @@ export const AdminDashboard = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
         {/* Biểu đồ doanh thu */}
-        <div className="lg:col-span-2 bg-[#13151e] border border-white/5 rounded-2xl p-6">
-          <div className="flex items-center justify-between mb-6">
+        <div className="lg:col-span-2 bg-[#13151e] border border-white/5 rounded-2xl p-6 relative">
+          
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
             <div>
-              <h2 className="text-sm font-bold text-white">{getChartTitle()}</h2>
-              <p className="text-xs text-gray-500 mt-0.5">Đơn vị: triệu đồng</p>
+              <h2 className="text-sm font-bold text-white flex items-center gap-1.5">
+                <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+                {getChartTitle()}
+              </h2>
+              <p className="text-[10px] text-gray-500 mt-0.5">Đơn vị: triệu đồng | Di chuột để xem chi tiết</p>
             </div>
-            {loadingStats ? (
-              <span className="text-xs text-gray-500 bg-gray-500/10 border border-gray-500/20 px-2 py-1 rounded-lg font-medium animate-pulse">
-                Đang tải...
-              </span>
+            
+            <div className="flex items-center gap-3">
+
+              {/* Growth badge */}
+              {loadingStats ? (
+                <span className="text-xs text-gray-500 bg-gray-500/10 border border-gray-500/20 px-2 py-1 rounded-lg font-medium animate-pulse">
+                  Đang tải...
+                </span>
+              ) : (
+                <span className={`text-xs ${formatGrowthColor(stats.revenueGrowthPercent)} bg-green-500/10 border border-green-500/20 px-2 py-1 rounded-lg font-medium`}>
+                  {formatGrowth(stats.revenueGrowthPercent)}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* SVG Chart Container */}
+          <div className="relative w-full h-[200px]">
+            {loadingRevenue ? (
+              <div className="absolute inset-0 flex items-center justify-center bg-[#13151e]/50 z-10">
+                <div className="w-6 h-6 border-2 border-white/10 border-t-red-500 rounded-full animate-spin"></div>
+              </div>
+            ) : null}
+
+            {chartData.length > 0 ? (
+              <svg 
+                viewBox={`0 0 ${svgWidth} ${svgHeight}`} 
+                className="w-full h-full overflow-visible"
+              >
+                <defs>
+                  {/* Area gradient */}
+                  <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#ef4444" stopOpacity="0.25" />
+                    <stop offset="100%" stopColor="#ef4444" stopOpacity="0.0" />
+                  </linearGradient>
+                </defs>
+
+                {/* Y-axis grids and labels */}
+                {[0, 0.5, 1].map((ratio) => {
+                  const y = svgPadding.top + ratio * (svgHeight - svgPadding.top - svgPadding.bottom);
+                  const displayValue = maxVal * (1 - ratio);
+                  return (
+                    <g key={ratio}>
+                      <line 
+                        x1={svgPadding.left} 
+                        y1={y} 
+                        x2={svgWidth - svgPadding.right} 
+                        y2={y} 
+                        stroke="rgba(255,255,255,0.03)" 
+                        strokeDasharray="4 4"
+                      />
+                      <text 
+                        x={0} 
+                        y={y + 3} 
+                        textAnchor="start" 
+                        className="text-[10px] fill-gray-500 font-mono font-bold"
+                      >
+                        {displayValue > 0 ? `${displayValue.toFixed(1)}M` : '0M'}
+                      </text>
+                    </g>
+                  );
+                })}
+
+                {/* Draw Area / Line Chart */}
+                {svgPoints.length > 0 && (
+                  <>
+                    {/* Area fill */}
+                    <path 
+                      d={svgAreaPath} 
+                      fill="url(#areaGrad)" 
+                    />
+                    {/* Line stroke */}
+                    <path 
+                      d={svgLinePath} 
+                      fill="none" 
+                      stroke="#ef4444" 
+                      strokeWidth="2.5" 
+                      strokeLinecap="round" 
+                      strokeLinejoin="round"
+                      style={{ filter: 'drop-shadow(0px 3px 4px rgba(239, 68, 68, 0.2))' }}
+                    />
+                    {/* Data joint dots */}
+                    {svgPoints.map((p, idx) => {
+                      const isHovered = hoveredIndex === idx;
+                      return (
+                        <circle
+                          key={idx}
+                          cx={p.x}
+                          cy={p.y}
+                          r={isHovered ? 5.5 : 3}
+                          fill={isHovered ? '#ffffff' : '#ef4444'}
+                          stroke={isHovered ? '#ef4444' : '#ffffff'}
+                          strokeWidth={isHovered ? 2.5 : 1}
+                          className="transition-all duration-150"
+                        />
+                      );
+                    })}
+                  </>
+                )}
+
+                {/* Hover vertical guidelining */}
+                {hoveredIndex !== null && svgPoints[hoveredIndex] && (
+                  <line
+                    x1={svgPoints[hoveredIndex].x}
+                    y1={svgPadding.top}
+                    x2={svgPoints[hoveredIndex].x}
+                    y2={svgHeight - svgPadding.bottom}
+                    stroke="rgba(239, 68, 68, 0.25)"
+                    strokeWidth="1"
+                    strokeDasharray="3 3"
+                    className="pointer-events-none"
+                  />
+                )}
+
+                {/* X-axis date labels */}
+                {svgPoints.map((p, idx) => {
+                  const showLabel = chartData.length <= 7 
+                    ? true 
+                    : chartData.length <= 15 
+                      ? idx % 2 === 0 
+                      : chartData.length <= 31 
+                        ? idx % 5 === 0 || idx === chartData.length - 1
+                        : idx % 10 === 0 || idx === chartData.length - 1;
+                  if (!showLabel) return null;
+                  return (
+                    <text
+                      key={idx}
+                      x={p.x}
+                      y={svgHeight - 12}
+                      textAnchor="middle"
+                      className="text-[9px] fill-gray-500 font-medium"
+                    >
+                      {p.data.month}
+                    </text>
+                  );
+                })}
+
+                {/* Invisible hover-capture rectangles */}
+                {svgPoints.map((p, idx) => {
+                  const stepWidth = (svgWidth - svgPadding.left - svgPadding.right) / Math.max(chartData.length - 1, 1);
+                  return (
+                    <rect
+                      key={idx}
+                      x={p.x - stepWidth / 2}
+                      y={svgPadding.top}
+                      width={stepWidth}
+                      height={svgHeight - svgPadding.top - svgPadding.bottom}
+                      fill="transparent"
+                      className="cursor-pointer pointer-events-auto"
+                      onMouseEnter={() => setHoveredIndex(idx)}
+                      onMouseLeave={() => setHoveredIndex(null)}
+                    />
+                  );
+                })}
+              </svg>
             ) : (
-              <span className={`text-xs ${formatGrowthColor(stats.revenueGrowthPercent)} bg-green-500/10 border border-green-500/20 px-2 py-1 rounded-lg font-medium`}>
-                {formatGrowth(stats.revenueGrowthPercent)}
-              </span>
+              <div className="w-full h-full flex items-center justify-center text-xs text-gray-500">
+                Không có dữ liệu trong khoảng thời gian này
+              </div>
+            )}
+
+            {/* Interactive Floating Tooltip */}
+            {hoveredIndex !== null && chartData[hoveredIndex] && svgPoints[hoveredIndex] && (
+              <div 
+                className="absolute z-20 bg-[#1e2230] border border-white/10 rounded-xl p-3 shadow-2xl pointer-events-none transition-all duration-75 flex flex-col gap-1 min-w-[120px]"
+                style={{
+                  left: `${Math.min(Math.max((svgPoints[hoveredIndex].x / svgWidth) * 100, 15), 85)}%`,
+                  top: `${Math.max((svgPoints[hoveredIndex].y / svgHeight) * 100 - 30, 20)}%`,
+                  transform: 'translate(-50%, -100%)',
+                }}
+              >
+                <span className="text-[9px] text-gray-400 font-bold uppercase tracking-wider block border-b border-white/5 pb-1">
+                  {chartData[hoveredIndex].month}
+                </span>
+                <span className="text-xs font-black text-white block mt-0.5">
+                  {Number(chartData[hoveredIndex].rawRevenue).toLocaleString('vi-VN')}₫
+                </span>
+                <span className="text-[9px] font-bold text-red-400 flex items-center gap-0.5">
+                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500"></span>
+                  {chartData[hoveredIndex].value}M triệu VNĐ
+                </span>
+              </div>
             )}
           </div>
 
-          {/* Bar chart */}
-          <div className="overflow-x-auto">
-            <div 
-              className="flex items-end justify-between gap-1 h-36 min-w-full"
-              style={{ minWidth: chartData.length > 15 ? `${chartData.length * 30}px` : '100%' }}
-            >
-              {chartData.map((d, i) => (
-                <div key={i} className="flex flex-col items-center gap-1 flex-shrink-0" style={{ width: `${Math.max(100 / chartData.length, 3)}%`, maxWidth: '60px', minWidth: '24px' }}>
-                  <span className="text-[10px] text-gray-500 font-mono">{d.value}M</span>
-                  <div
-                    className="w-full rounded-t-lg transition-all duration-700 relative group"
-                    style={{
-                      height: `${Math.max((d.value / maxVal) * 100, 2)}%`,
-                      background: i === chartData.length - 1
-                        ? 'linear-gradient(to top, #dc2626, #f87171)'
-                        : 'rgba(255,255,255,0.07)',
-                      minHeight: '8px',
-                    }}
-                  >
-                    <div className="absolute inset-0 rounded-t-lg bg-red-500/20 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                  </div>
-                  <span className="text-[10px] text-gray-500 truncate">{d.month}</span>
-                </div>
-              ))}
+          {/* Metrics Summary Row */}
+          <div className="grid grid-cols-3 gap-4 mt-6 pt-6 border-t border-white/5">
+            <div className="flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-lg bg-red-500/10 flex items-center justify-center text-red-400 shrink-0">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                </svg>
+              </div>
+              <div className="min-w-0">
+                <p className="text-[9px] text-gray-500 font-bold uppercase tracking-wider truncate">Đỉnh doanh thu</p>
+                <p className="text-xs font-black text-white mt-0.5 truncate">
+                  {peakDay ? `${formatPrice(peakDay.rawRevenue)}₫` : '0₫'}
+                </p>
+                {peakDay && peakDay.rawRevenue > 0 && (
+                  <p className="text-[8px] text-gray-600 font-medium truncate">Mốc: {peakDay.month}</p>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-400 shrink-0">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+              </div>
+              <div className="min-w-0">
+                <p className="text-[9px] text-gray-500 font-bold uppercase tracking-wider truncate">Trung bình ngày</p>
+                <p className="text-xs font-black text-white mt-0.5 truncate">{formatPrice(averageRevenue)}₫</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-lg bg-green-500/10 flex items-center justify-center text-green-400 shrink-0">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+              </div>
+              <div className="min-w-0">
+                <p className="text-[9px] text-gray-500 font-bold uppercase tracking-wider truncate">Ngày có đơn</p>
+                <p className="text-xs font-black text-white mt-0.5 truncate">{activeDaysCount} ngày</p>
+                {chartData.length > 0 && (
+                  <p className="text-[8px] text-gray-600 font-medium truncate">
+                    Tỷ lệ: {Math.round((activeDaysCount / chartData.length) * 100)}%
+                  </p>
+                )}
+              </div>
             </div>
           </div>
+
         </div>
 
         {/* Top sản phẩm bán chạy */}

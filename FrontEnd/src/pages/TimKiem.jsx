@@ -27,7 +27,7 @@ export const TimKiem = () => {
   });
   const { brands } = usePublicBrands();
 
-  const [sortBy, setSortBy] = useState('default');
+  const [sortBy, setSortBy] = useState('featured');
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -77,8 +77,29 @@ export const TimKiem = () => {
     if (sortBy === 'low-to-high' || sortBy === 'price-asc') result.sort((a, b) => a.price - b.price);
     if (sortBy === 'high-to-low' || sortBy === 'price-desc') result.sort((a, b) => b.price - a.price);
     if (sortBy === 'rating') result.sort((a, b) => (b.rating || 0) - (a.rating || 0));
-    if (sortBy === 'newest' || sortBy === 'featured') {
+    if (sortBy === 'newest') {
       result.sort((a, b) => new Date(b.releaseDate || b.createdAt || 0) - new Date(a.releaseDate || a.createdAt || 0));
+    }
+    if (sortBy === 'featured') {
+      result.sort((a, b) => {
+        // 1. isFeatured: true first
+        const featA = a.isFeatured ? 1 : 0;
+        const featB = b.isFeatured ? 1 : 0;
+        if (featB !== featA) return featB - featA;
+
+        // 2. averageRating (or rating): higher first
+        const ratingA = a.averageRating || a.rating || 0;
+        const ratingB = b.averageRating || b.rating || 0;
+        if (ratingB !== ratingA) return ratingB - ratingA;
+
+        // 3. reviewCount: higher first
+        const reviewA = a.reviewCount || 0;
+        const reviewB = b.reviewCount || 0;
+        if (reviewB !== reviewA) return reviewB - reviewA;
+
+        // 4. releaseDate/createdAt: newest first
+        return new Date(b.releaseDate || b.createdAt || 0) - new Date(a.releaseDate || a.createdAt || 0);
+      });
     }
     if (sortBy === 'name-az') result.sort((a, b) => a.name.localeCompare(b.name));
 
