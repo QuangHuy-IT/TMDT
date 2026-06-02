@@ -1,0 +1,45 @@
+[
+    {
+        "title": "iPhone 17 Pro Max",
+        "image_url": "https://cdn2.fptshop.com.vn/unsafe/1240x0/filters:format(webp):quality(75)/H2_614x212_8e2658ed17.png",
+        "link_url": "/products/iphone-17-pro-max",
+        "position": "HOME_HERO"
+
+    },
+    {
+        "title": "GALAXY S26 ULTRA  Siêu Phẩm AI Galaxy",
+        "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:1036:450/q:100/plain/https://media-asset.cellphones.com.vn/dashboard-v1/manage-banner/s26-ultra-home-0525.png",
+        "link_url": "/products/samsung-galaxy-s26-ultra-5g-12gb-256gb-den",
+        "position": "HOME_HERO"
+
+    },
+    {
+        "title": "",
+        "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:1036:450/q:100/plain/https://media-asset.cellphones.com.vn/dashboard-v1/manage-banner/Oppofin%20x9%20ultra_oppen-home.png",
+        "link_url": "/products/oppo-find-x9-ultra-5g-12gb-512gb-cam",
+        "position": "HOME_HERO"
+
+    },
+    {
+        "title": "",
+        "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:321:795/q:100/plain/https://media-asset.cellphones.com.vn/page_configs/01KKXFP9PENJJF7Y55WM80DSAD.jpg",
+        "link_url": "/brands/xiaomi/redmi-note-series",
+        "position": "SIDEBAR"
+
+    },
+    {
+        "title": "",
+        "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:321:795/q:100/plain/https://media-asset.cellphones.com.vn/page_configs/01KQVKK76VJE27FEVV2Q0HQ0NR.png",
+        "link_url": "/products/iphone-17-8gb-256gb-xanh-lam-khoi",
+        "position": "SIDEBAR"
+
+    },
+    {
+        "title": "",
+        "image_url": "https://cdn2.cellphones.com.vn/insecure/rs:fill:321:795/q:100/plain/https://media-asset.cellphones.com.vn/page_configs/01KQVKK76VJE27FEVV2Q0HQ0NR.png",
+        "link_url": "/products/iphone-17-8gb-256gb-xanh-lam-khoi",
+        "position": "SIDEBAR"
+
+    }
+
+]

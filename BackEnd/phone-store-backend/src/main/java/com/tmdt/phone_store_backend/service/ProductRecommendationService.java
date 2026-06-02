@@ -124,7 +124,8 @@ public class ProductRecommendationService {
     }
 
     private boolean matchesAnyCategory(Product p, List<String> categories) {
-        String text = (p.getName() + " " + p.getShortDescription()).toLowerCase();
+        String shortDesc = p.getShortDescription() != null ? p.getShortDescription() : "";
+        String text = (p.getName() + " " + shortDesc).toLowerCase();
         return categories.stream().anyMatch(text::contains);
     }
 

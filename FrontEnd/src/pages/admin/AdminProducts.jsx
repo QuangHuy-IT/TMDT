@@ -84,7 +84,7 @@ const emptyForm = {
   name: '',
   brand: '',
   seriesId: '',
-  shortDescription: '',
+  shortDescription: null,
   detailDescription: '',
   thumbnailUrl: '',
   images: [],
@@ -448,7 +448,7 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
           name: data.name || '',
           brand: data.brand || '',
           seriesId: data.seriesId || '',
-          shortDescription: data.shortDescription || '',
+          shortDescription: data.shortDescription || null,
           detailDescription: data.detailDescription || data.description || '',
           thumbnailUrl: data.thumbnailUrl || '',
           images: [],
@@ -696,7 +696,7 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
       name: (form.name || '').trim(),
       brand: form.brand,
       seriesId: form.seriesId || null,
-      shortDescription: form.shortDescription,
+      shortDescription: null,
       detailDescription: form.detailDescription,
       thumbnailUrl: form.thumbnailUrl || null,
       images: [],
@@ -923,20 +923,6 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
                     <p className="text-xs text-gray-600 italic">Vui lòng chọn thương hiệu trước</p>
                   )}
                 </div>
-              </div>
-
-              {/* Short Description */}
-              <div>
-                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 block">Mô tả ngắn</label>
-                <textarea
-                  value={form.shortDescription || ''}
-                  onChange={(e) => updateForm({ shortDescription: e.target.value })}
-                  placeholder="Mô tả ngắn gọn về sản phẩm..."
-                  rows={3}
-                  maxLength={500}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-red-500/50 resize-none"
-                />
-                <p className="text-[10px] text-gray-600 mt-1 text-right">{(form.shortDescription || '').length}/500</p>
               </div>
 
               {/* Detail Description */}
