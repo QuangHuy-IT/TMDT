@@ -12,9 +12,10 @@ import com.tmdt.phone_store_backend.repository.PendingOrderRepository;
 import com.tmdt.phone_store_backend.repository.UserRepository;
 import com.tmdt.phone_store_backend.repository.VoucherRepository;
 import com.tmdt.phone_store_backend.service.OrderPlacementService;
+import com.tmdt.phone_store_backend.service.OrderService;
 import com.tmdt.phone_store_backend.service.PayOSService;
+import jakarta.annotation.PostConstruct;
 import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
@@ -25,18 +26,80 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/payment/payos")
-@RequiredArgsConstructor
 @Slf4j
 public class PayOSController {
 
     private final PayOSService payOSService;
+    private final OrderService orderService;
     private final PendingOrderRepository pendingOrderRepository;
     private final UserRepository userRepository;
     private final VoucherRepository voucherRepository;
     private final OrderPlacementService orderPlacementService;
     private final ObjectMapper objectMapper;
+
     @Value("${app.frontend.url}")
     private String frontendUrl;
+
+    @Value("${server.servlet.context-path:}")
+    private String contextPath;
+
+    @Value("${app.backend.host:}")
+    private String backendHost;
+
+    @Value("${app.backend.port:8080}")
+    private int backendPort;
+
+    public PayOSController(
+            PayOSService payOSService,
+            OrderService orderService,
+            PendingOrderRepository pendingOrderRepository,
+            UserRepository userRepository,
+            VoucherRepository voucherRepository,
+            OrderPlacementService orderPlacementService,
+            ObjectMapper objectMapper
+    ) {
+        this.payOSService = payOSService;
+        this.orderService = orderService;
+        this.pendingOrderRepository = pendingOrderRepository;
+        this.userRepository = userRepository;
+        this.voucherRepository = voucherRepository;
+        this.orderPlacementService = orderPlacementService;
+        this.objectMapper = objectMapper;
+    }
+
+    private String getBackendBaseUrl() {
+        if (backendHost != null && !backendHost.isBlank()) {
+            return "https://" + backendHost + ":" + backendPort + contextPath;
+        }
+        return "http://localhost:8080" + contextPath;
+    }
+
+    @PostConstruct
+    public void initWebhook() {
+        String webhookUrl = getBackendBaseUrl() + "/api/payment/payos/webhook";
+        log.info("=== PayOS Webhook Initialization ===");
+        log.info("Backend base URL: {}", getBackendBaseUrl());
+        log.info("Webhook URL will be registered with PayOS: {}", webhookUrl);
+        try {
+            payOSService.confirmWebhookUrl(webhookUrl);
+            log.info("PayOS webhook URL confirmed successfully on startup: {}", webhookUrl);
+        } catch (Exception e) {
+            log.warn("Could not confirm webhook URL on startup (PayOS may be unreachable or already configured): {}", e.getMessage());
+        }
+    }
+
+    @PostMapping("/confirm-webhook")
+    public ResponseEntity<Map<String, String>> confirmWebhook(@RequestBody Map<String, String> body) {
+        String webhookUrl = body.get("webhookUrl");
+        if (webhookUrl == null || webhookUrl.isBlank()) {
+            webhookUrl = getBackendBaseUrl() + "/api/payment/payos/webhook";
+        }
+        payOSService.confirmWebhookUrl(webhookUrl);
+        return ResponseEntity.ok(Map.of(
+                "status", "confirmed",
+                "webhookUrl", webhookUrl
+        ));
+    }
 
     @PostMapping("/place-and-pay")
     public ResponseEntity<PayOSPaymentResponseDto> placeOrderAndCreatePayment(
@@ -45,7 +108,6 @@ public class PayOSController {
         long payosOrderCode = System.currentTimeMillis();
         String internalOrderCode = "ORD" + payosOrderCode;
 
-        // Resolve voucher: prefer voucherId, fallback to voucherCode lookup
         Long voucherId = request.getVoucherId();
         if (voucherId == null && request.getVoucherCode() != null && !request.getVoucherCode().isBlank()) {
             Voucher voucher = voucherRepository.findByCode(request.getVoucherCode().trim())
@@ -60,7 +122,7 @@ public class PayOSController {
         String cancelUrl = frontendUrl + "/payment/cancel?orderCode=" + internalOrderCode + "&payosOrderCode=" + payosOrderCode;
 
         User user = userRepository.findById(request.getUserId())
-                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người dùng"));
+                .orElseThrow(() -> new ResourceNotFoundException("Khong tim thay nguoi dung"));
         String buyerName = user.getFullName();
         String buyerPhone = user.getPhone();
 
@@ -68,7 +130,7 @@ public class PayOSController {
         try {
             itemsJson = objectMapper.writeValueAsString(request.getItems());
         } catch (JsonProcessingException e) {
-            throw new RuntimeException("Lỗi serialize items: " + e.getMessage());
+            throw new RuntimeException("Loi serialize items: " + e.getMessage());
         }
 
         PendingOrder pendingOrder = new PendingOrder();
@@ -90,7 +152,6 @@ public class PayOSController {
 
         log.info("Created pending order {} for PayOS orderCode {}", internalOrderCode, payosOrderCode);
 
-        // COD: create Order immediately — no webhook needed
         if ("COD".equalsIgnoreCase(request.getPaymentMethod())) {
             log.info("COD flow: creating order with internalOrderCode={}", internalOrderCode);
             OrderDtoWrapper codResult = createOrderFromRequest(request, internalOrderCode, voucherId);
@@ -103,7 +164,6 @@ public class PayOSController {
                     .build());
         }
 
-        // PayOS: create payment link and wait for webhook
         PayOSPaymentResponseDto payment = payOSService.createPaymentLink(
                 String.valueOf(payosOrderCode),
                 request.getTotalAmount().longValue(),
@@ -163,10 +223,8 @@ public class PayOSController {
         return ResponseEntity.ok().build();
     }
 
-    @PostMapping("/confirm-webhook")
-    public ResponseEntity<Map<String, String>> confirmWebhook(@RequestBody Map<String, String> body) {
-        String webhookUrl = body.get("webhookUrl");
-        payOSService.confirmWebhookUrl(webhookUrl);
-        return ResponseEntity.ok(Map.of("status", "confirmed", "webhookUrl", webhookUrl));
+    @GetMapping("/order/{orderCode}")
+    public ResponseEntity<com.tmdt.phone_store_backend.dto.OrderDto> getOrderByCode(@PathVariable String orderCode) {
+        return ResponseEntity.ok(orderService.getOrderByOrderCode(orderCode));
     }
 }

@@ -14,6 +14,10 @@ const PaymentService = {
     return api.get(`/orders/${orderCode}`);
   },
 
+  getOrderByCodePublic: (orderCode) => {
+    return api.get(`/payment/payos/order/${orderCode}`);
+  },
+
   cancelOrder: (orderCode) => {
     return api.patch(`/orders/${orderCode}/cancel`);
   },

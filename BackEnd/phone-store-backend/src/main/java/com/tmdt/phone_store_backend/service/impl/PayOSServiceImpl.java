@@ -138,36 +138,60 @@ public class PayOSServiceImpl implements PayOSService {
     public void handleWebhook(Object webhookBody) {
         try {
             WebhookData data = payOS.webhooks().verify(webhookBody);
-            log.info("Received PayOS webhook: orderCode={}, paymentLinkId={}, amount={}, status={}",
-                    data.getOrderCode(), data.getPaymentLinkId(), data.getAmount(), data.getCode());
-
-            if (!"00".equals(data.getCode())) {
-                log.warn("PayOS webhook received non-success code: {} - {}", data.getCode(), data.getDesc());
-                return;
-            }
+            log.info("Received PayOS webhook: orderCode={}, paymentLinkId={}, amount={}, code={}, desc={}",
+                    data.getOrderCode(), data.getPaymentLinkId(), data.getAmount(), data.getCode(), data.getDesc());
 
             String payosOrderCode = String.valueOf(data.getOrderCode());
-            PendingOrder pending = pendingOrderRepository.findById(payosOrderCode).orElse(null);
 
-            if (pending == null) {
-                log.error("PendingOrder not found for payosOrderCode: {}", payosOrderCode);
-                return;
-            }
-
-            if (orderRepository.existsByOrderCode("ORD" + payosOrderCode)) {
-                log.info("Order already created for payosOrderCode: {}", payosOrderCode);
+            // === SUCCESS ===
+            if ("00".equals(data.getCode())) {
+                log.info("PayOS payment SUCCESS for orderCode={}", payosOrderCode);
+                PendingOrder pending = pendingOrderRepository.findById(payosOrderCode).orElse(null);
+                if (pending == null) {
+                    log.error("PendingOrder not found for payosOrderCode: {}. Order may already be processed.", payosOrderCode);
+                    return;
+                }
+                if (orderRepository.existsByOrderCode("ORD" + payosOrderCode)) {
+                    log.info("Order already created for payosOrderCode: {}. Skipping duplicate.", payosOrderCode);
+                    pendingOrderRepository.delete(pending);
+                    return;
+                }
+                Order order = createOrderFromPending(pending);
                 pendingOrderRepository.delete(pending);
+                log.info("Order {} created successfully via PayOS webhook", order.getOrderCode());
                 return;
             }
 
-            Order order = createOrderFromPending(pending);
-            pendingOrderRepository.delete(pending);
+            // === CANCELLATION ===
+            if ("CANCELLED".equals(data.getCode()) || "01".equals(data.getCode()) || "PAYMENT_CANCELLED".equals(data.getCode())) {
+                log.info("PayOS payment CANCELLED for orderCode={}", payosOrderCode);
 
-            log.info("Order {} created successfully via PayOS webhook", order.getOrderCode());
+                // If Order already exists (webhook arrived after success), update its status
+                String orderCode = "ORD" + payosOrderCode;
+                if (orderRepository.existsByOrderCode(orderCode)) {
+                    orderRepository.findByOrderCode(orderCode).ifPresent(order -> {
+                        order.setOrderStatus(OrderStatus.CANCELED);
+                        order.setUpdatedAt(LocalDateTime.now());
+                        orderRepository.save(order);
+                        log.info("Order {} updated to CANCELLED via PayOS webhook", orderCode);
+                    });
+                    return;
+                }
+
+                // If only PendingOrder exists, just delete it
+                PendingOrder pending = pendingOrderRepository.findById(payosOrderCode).orElse(null);
+                if (pending != null) {
+                    pendingOrderRepository.delete(pending);
+                    log.info("PendingOrder {} deleted (no Order was created)", payosOrderCode);
+                }
+                return;
+            }
+
+            log.warn("PayOS webhook received unhandled code: {} - {}", data.getCode(), data.getDesc());
 
         } catch (Exception e) {
             log.error("Error processing PayOS webhook: {}", e.getMessage(), e);
-            throw new RuntimeException("Lỗi xử lý webhook: " + e.getMessage());
+            throw new RuntimeException("Loi xu ly webhook: " + e.getMessage());
         }
     }
 
@@ -249,16 +273,26 @@ public class PayOSServiceImpl implements PayOSService {
 
             log.info("PayOS cancel response: status={}, body={}", response.getStatusCode(), response.getBody());
 
-            // Delete pending order after successful cancellation
-            pendingOrderRepository.findById(payosOrderCode).ifPresent(pendingOrder -> {
-                pendingOrderRepository.delete(pendingOrder);
-                log.info("Deleted pending order: {}", payosOrderCode);
-            });
-
         } catch (Exception e) {
             log.error("Failed to cancel PayOS payment link {}: {}", payosOrderCode, e.getMessage());
-            // Don't throw - the important thing is the order wasn't saved
         }
+
+        // Update Order if it already exists (webhook arrived before cancel)
+        String orderCode = "ORD" + payosOrderCode;
+        orderRepository.findByOrderCode(orderCode).ifPresent(order -> {
+                if (order.getOrderStatus() != OrderStatus.CANCELED) {
+                    order.setOrderStatus(OrderStatus.CANCELED);
+                order.setUpdatedAt(LocalDateTime.now());
+                orderRepository.save(order);
+                log.info("Order {} updated to CANCELLED after cancelPaymentLink", orderCode);
+            }
+        });
+
+        // Delete PendingOrder if still present
+        pendingOrderRepository.findById(payosOrderCode).ifPresent(pendingOrder -> {
+            pendingOrderRepository.delete(pendingOrder);
+            log.info("Deleted pending order: {}", payosOrderCode);
+        });
     }
 
     @Override
