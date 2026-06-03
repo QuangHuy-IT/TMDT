@@ -11,7 +11,7 @@ export const QRPaymentView = ({ paymentData, onCancel, onSuccess, navigate }) =>
 
   const checkPaymentStatus = useCallback(async () => {
     try {
-      const res = await PaymentService.getOrderByCode(payment.orderCode);
+      const res = await PaymentService.getOrderByCodePublic(payment.orderCode);
       if (res.data.paymentStatus === 'PAID') {
         setPaid(true);
         clearInterval(intervalRef.current);

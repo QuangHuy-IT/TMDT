@@ -601,7 +601,7 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
       ramGb: pickerRam || null,
       price: pickerPrice || 0,
       costPrice: pickerCostPrice || 0,
-      stock: 0,
+      stock: '',
     });
     setPickerStorage('');
     setPickerRam('');
@@ -664,11 +664,18 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
       return;
     }
 
-    // Every variant must have storage
+    // Every variant must have storage and stock
     const missingStorage = validVariants.find(v => !v.storageLabel);
     if (missingStorage) {
       const idx = (form.variants || []).indexOf(missingStorage) + 1;
       alert(`Phiên bản #${idx} thiếu Dung lượng. Vui lòng chọn Dung lượng cho tất cả các phiên bản.`);
+      return;
+    }
+
+    const missingStock = validVariants.find(v => v.stock === '' || v.stock === null || v.stock === undefined);
+    if (missingStock) {
+      const idx = (form.variants || []).indexOf(missingStock) + 1;
+      alert(`Phiên bản #${idx} chưa nhập Tồn kho. Vui lòng nhập số lượng tồn kho cho tất cả các phiên bản.`);
       return;
     }
 
@@ -941,7 +948,7 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
               <h3 className="text-sm font-black text-white uppercase tracking-wider">Hình ảnh</h3>
               <div>
                 <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">Ảnh Thumbnail</label>
-                <p className="text-[10px] text-gray-600 mb-2">Chỉ lưu vào products.thumbnail_url. Ảnh chi tiết sẽ thêm trong từng phiên bản.</p>
+                <p className="text-[10px] text-gray-600 mb-2">Ảnh đại diện cho sản phẩm</p>
                 {form.thumbnailUrl ? (
                   <div className="relative group w-28 h-28">
                     <img src={form.thumbnailUrl && form.thumbnailUrl.trim() ? form.thumbnailUrl : undefined}
@@ -1110,7 +1117,7 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
 
                     <div>
                       <label className="text-[10px] text-gray-500 block mb-1">Ảnh phiên bản</label>
-                      <p className="text-[9px] text-gray-600 mb-2">Upload nhiều ảnh cho phiên bản này. Ảnh đầu tiên sẽ lưu vào variant.color_image_url.</p>
+                      
                       <div className="flex flex-wrap items-center gap-3">
                         {(variant.images || []).map((img, imageIndex) => img && img.trim() && (
                           <div key={`${img}-${imageIndex}`} className="relative group w-16 h-16">

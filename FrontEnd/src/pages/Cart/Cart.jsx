@@ -160,6 +160,12 @@ export const Cart = () => {
       alert('Vui lòng chọn ít nhất 1 sản phẩm.');
       return;
     }
+    const outOfStock = selected.filter((i) => Number(i.stock ?? i.quantityOnHand ?? 0) <= 0);
+    if (outOfStock.length > 0) {
+      const names = outOfStock.map((i) => i.name).join(', ');
+      alert(`Có sản phẩm đã hết hàng, vui lòng bỏ chọn hoặc xoá: ${names}`);
+      return;
+    }
     const params = new URLSearchParams();
     params.set('items', JSON.stringify([...selectedIds]));
     if (appliedVoucher) {
