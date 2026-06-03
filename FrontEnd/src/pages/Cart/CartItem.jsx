@@ -33,9 +33,14 @@ const CartItem = ({ item, checked, onToggle, onQtyChange, onRemove }) => {
   ].filter((part) => part && String(part).trim());
   const variantLabel = variantParts.join(' · ');
 
+  const availableStock = Number(item.stock ?? item.quantityOnHand ?? 0);
+  const isOutOfStock = availableStock <= 0;
+  const maxStock = Math.min(99, Math.max(0, availableStock));
+
   const handleQty = (delta) => {
     const next = item.quantity + delta;
-    if (next < 1 || next > 99) return;
+    if (next < 1) return;
+    if (maxStock > 0 && next > maxStock) return;
     onQtyChange(next);
   };
 
@@ -116,12 +121,12 @@ const CartItem = ({ item, checked, onToggle, onQtyChange, onRemove }) => {
       </div>
 
       {/* ── Quantity control ── */}
-      <div className="flex justify-center">
-        <div className="flex items-center border border-gray-300 rounded-md overflow-hidden">
+      <div className="flex flex-col items-center gap-1">
+        <div className={`flex items-center border rounded-md overflow-hidden ${isOutOfStock ? 'border-gray-200 opacity-60' : 'border-gray-300'}`}>
           <button
             type="button"
             onClick={() => handleQty(-1)}
-            disabled={item.quantity <= 1}
+            disabled={isOutOfStock || item.quantity <= 1}
             className="w-8 h-8 flex items-center justify-center text-gray-500 bg-white
                        hover:bg-gray-100 hover:text-red-500 transition-colors
                        disabled:opacity-30 disabled:cursor-not-allowed text-lg select-none"
@@ -132,10 +137,13 @@ const CartItem = ({ item, checked, onToggle, onQtyChange, onRemove }) => {
             type="number"
             value={item.quantity}
             min={1}
-            max={99}
+            max={maxStock || 99}
             onChange={(e) => {
               const v = parseInt(e.target.value, 10);
-              if (!isNaN(v) && v >= 1 && v <= 99) onQtyChange(v);
+              if (isNaN(v) || v < 1) return;
+              const cap = maxStock > 0 ? maxStock : 99;
+              if (v > cap) onQtyChange(cap);
+              else onQtyChange(v);
             }}
             className="w-10 h-8 border-x border-gray-300 text-center text-[13px]
                        text-gray-800 bg-white focus:outline-none
@@ -146,7 +154,7 @@ const CartItem = ({ item, checked, onToggle, onQtyChange, onRemove }) => {
           <button
             type="button"
             onClick={() => handleQty(1)}
-            disabled={item.quantity >= 99}
+            disabled={isOutOfStock || (maxStock > 0 && item.quantity >= maxStock)}
             className="w-8 h-8 flex items-center justify-center text-gray-500 bg-white
                        hover:bg-gray-100 hover:text-red-500 transition-colors
                        disabled:opacity-30 disabled:cursor-not-allowed text-lg select-none"
@@ -154,6 +162,12 @@ const CartItem = ({ item, checked, onToggle, onQtyChange, onRemove }) => {
             +
           </button>
         </div>
+        {isOutOfStock && (
+          <span className="text-[11px] font-semibold text-red-500">Hết hàng</span>
+        )}
+        {!isOutOfStock && maxStock > 0 && item.quantity >= maxStock && (
+          <span className="text-[11px] text-gray-500">Đã đạt tối đa ({maxStock})</span>
+        )}
       </div>
 
       {/* ── Subtotal ── */}

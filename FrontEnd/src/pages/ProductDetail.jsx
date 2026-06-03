@@ -307,9 +307,9 @@ export const ProductDetail = () => {
   }, [originalPrice, currentPrice]);
 
   const maxQuantity = useMemo(() => {
-    if (selectedVariant?.stock != null) return Math.max(1, Number(selectedVariant.stock));
-    if (product?.stock != null) return Math.max(1, Number(product.stock));
-    return 1;
+    if (selectedVariant?.stock != null) return Math.max(0, Number(selectedVariant.stock));
+    if (product?.stock != null) return Math.max(0, Number(product.stock));
+    return 0;
   }, [selectedVariant, product]);
 
   const handleQuantityChange = (e) => {

@@ -23,7 +23,7 @@ export const PaymentSuccess = () => {
 
     const checkOrder = async () => {
       try {
-        const res = await PaymentService.getOrderByCode(orderCode);
+        const res = await PaymentService.getOrderByCodePublic(orderCode);
         setOrder(res.data);
         setLoading(false);
         return;

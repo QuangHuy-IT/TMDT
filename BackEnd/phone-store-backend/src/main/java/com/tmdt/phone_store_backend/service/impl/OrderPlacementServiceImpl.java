@@ -1,5 +1,6 @@
 package com.tmdt.phone_store_backend.service.impl;
 
+import com.tmdt.phone_store_backend.domain.entity.Inventory;
 import com.tmdt.phone_store_backend.domain.entity.Order;
 import com.tmdt.phone_store_backend.domain.entity.OrderItem;
 import com.tmdt.phone_store_backend.domain.entity.ProductVariant;
@@ -8,6 +9,7 @@ import com.tmdt.phone_store_backend.domain.entity.Voucher;
 import com.tmdt.phone_store_backend.domain.enums.OrderStatus;
 import com.tmdt.phone_store_backend.domain.enums.PaymentMethod;
 import com.tmdt.phone_store_backend.domain.enums.PaymentStatus;
+import com.tmdt.phone_store_backend.domain.enums.StockStatus;
 import com.tmdt.phone_store_backend.domain.enums.VoucherDiscountType;
 import com.tmdt.phone_store_backend.dto.CreateOrderRequestDto;
 import com.tmdt.phone_store_backend.dto.OrderDto;
@@ -46,8 +48,7 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
     private final VoucherRepository voucherRepository;
     private final InventoryRepository inventoryRepository;
 
-    private static final BigDecimal FREE_SHIPPING_THRESHOLD = new BigDecimal("500000");
-    private static final BigDecimal SHIPPING_FEE = new BigDecimal("30000");
+    private static final BigDecimal SHIPPING_FEE = BigDecimal.ZERO;
     private static final BigDecimal TOLERANCE = new BigDecimal("0.01");
 
     @Override
@@ -74,8 +75,7 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
 
         BigDecimal calculatedSubtotal = calculateSubtotalFromItems(request);
 
-        BigDecimal shippingFee = calculatedSubtotal.compareTo(FREE_SHIPPING_THRESHOLD) >= 0
-                ? BigDecimal.ZERO : SHIPPING_FEE;
+        BigDecimal shippingFee = BigDecimal.ZERO;
 
         BigDecimal calculatedTotal = calculatedSubtotal.add(shippingFee).subtract(discountAmount);
         if (calculatedTotal.compareTo(BigDecimal.ZERO) < 0) {
@@ -84,7 +84,10 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
 
         BigDecimal submittedTotal = request.getTotalAmount();
         if (submittedTotal != null) {
-            BigDecimal difference = submittedTotal.subtract(calculatedTotal).abs();
+            BigDecimal submittedRounded = submittedTotal.setScale(0, RoundingMode.HALF_UP);
+            BigDecimal calculatedRounded = calculatedTotal.setScale(0, RoundingMode.HALF_UP);
+            BigDecimal difference = submittedRounded.subtract(calculatedRounded).abs();
+            log.info("Price check: submitted={}, calculated={}, diff={}", submittedRounded, calculatedRounded, difference);
             if (difference.compareTo(TOLERANCE) > 0) {
                 log.warn("Price manipulation detected! Submitted: {}, Calculated: {}", submittedTotal, calculatedTotal);
                 throw new BadRequestException("Gia khong hop le. Vui long thu lai.");
@@ -140,6 +143,8 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
 
         orderItemRepository.saveAll(orderItems);
         savedOrder.setOrderItems(orderItems);
+
+        deductStock(request.getItems());
 
         if (voucher != null) {
             voucher.setUsedCount(voucher.getUsedCount() + 1);
@@ -212,6 +217,68 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
                         variant.getId(), itemDto.getUnitPrice(), maxAllowedPrice);
                 throw new BadRequestException("Gia san pham khong hop le");
             }
+        }
+    }
+
+    private void deductStock(List<CreateOrderRequestDto.OrderItemRequestDto> items) {
+        for (CreateOrderRequestDto.OrderItemRequestDto item : items) {
+            if (item.getVariantId() == null || item.getQuantity() == null) continue;
+
+            Inventory inventory = inventoryRepository.findByVariantId(item.getVariantId()).orElse(null);
+            if (inventory == null) {
+                log.warn("Inventory not found for variant {}, skipping stock deduction", item.getVariantId());
+                continue;
+            }
+
+            int currentStock = inventory.getQuantityOnHand();
+            int requestedQty = item.getQuantity();
+            int newStock = Math.max(0, currentStock - requestedQty);
+
+            inventory.setQuantityOnHand(newStock);
+            inventory.setUpdatedAt(LocalDateTime.now());
+
+            if (newStock <= 0) {
+                inventory.setStockStatus(StockStatus.OUT_OF_STOCK);
+            } else if (newStock <= 5) {
+                inventory.setStockStatus(StockStatus.LOW_STOCK);
+            } else {
+                inventory.setStockStatus(StockStatus.IN_STOCK);
+            }
+
+            inventoryRepository.save(inventory);
+            log.info("Stock deducted for variant {}: {} -> {} (status={})",
+                    item.getVariantId(), currentStock, newStock, inventory.getStockStatus());
+        }
+    }
+
+    public void restoreStock(List<OrderItem> orderItems) {
+        for (OrderItem item : orderItems) {
+            if (item.getVariant() == null || item.getQuantity() == null) continue;
+
+            Inventory inventory = inventoryRepository.findByVariantId(item.getVariant().getId()).orElse(null);
+            if (inventory == null) {
+                log.warn("Inventory not found for variant {} during restore, skipping", item.getVariant().getId());
+                continue;
+            }
+
+            int currentStock = inventory.getQuantityOnHand();
+            int restoreQty = item.getQuantity();
+            int newStock = currentStock + restoreQty;
+
+            inventory.setQuantityOnHand(newStock);
+            inventory.setUpdatedAt(LocalDateTime.now());
+
+            if (newStock <= 0) {
+                inventory.setStockStatus(StockStatus.OUT_OF_STOCK);
+            } else if (newStock <= 5) {
+                inventory.setStockStatus(StockStatus.LOW_STOCK);
+            } else {
+                inventory.setStockStatus(StockStatus.IN_STOCK);
+            }
+
+            inventoryRepository.save(inventory);
+            log.info("Stock restored for variant {}: {} + {} = {} (status={})",
+                    item.getVariant().getId(), currentStock, restoreQty, newStock, inventory.getStockStatus());
         }
     }
 

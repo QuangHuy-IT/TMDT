@@ -2,6 +2,7 @@ package com.tmdt.phone_store_backend.dto;
 
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import java.util.List;
 import lombok.Getter;
@@ -32,7 +33,8 @@ public class AdminProductVariantRequestDto {
     @DecimalMin(value = "0", message = "Giá nhập phải lớn hơn hoặc bằng 0")
     private BigDecimal costPrice;
 
-    @Min(value = 0, message = "Tồn kho biến thể phải lớn hơn hoặc bằng 0")
+    @NotNull(message = "Tồn kho không được để trống")
+    @Min(value = 0, message = "Tồn kho không được nhỏ hơn 0")
     private Integer stock;
 
     private String colorImageUrl;
