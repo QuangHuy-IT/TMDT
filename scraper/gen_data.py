@@ -486,8 +486,8 @@ try:
         total = subtotal - discount + 30000
 
         query_order = """
-            INSERT INTO orders (order_code, user_id, voucher_id, receiver_name, receiver_phone, shipping_address_text, subtotal_amount, discount_amount, shipping_fee, total_amount, payment_method, payment_status, order_status, created_at, updated_at)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            INSERT INTO orders (order_code, user_id, voucher_id, receiver_name, receiver_phone, shipping_address_text, subtotal_amount, discount_amount, shipping_fee, total_amount, payment_method, payment_status, order_status, placed_at, created_at, updated_at)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
         cursor.execute(
             query_order,
@@ -505,6 +505,7 @@ try:
                 random.choice(["COD", "VNPAY", "MOMO"]),
                 random.choice(["UNPAID", "PAID"]),
                 random.choice(["PENDING", "DELIVERED", "CANCELED"]),
+                c_at.strftime("%Y-%m-%d %H:%M:%S"),
                 c_at.strftime("%Y-%m-%d %H:%M:%S"),
                 u_at.strftime("%Y-%m-%d %H:%M:%S"),
             ),

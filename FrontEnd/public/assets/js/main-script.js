@@ -74,7 +74,7 @@ function scrollToRight() {
 var loginBtn_clicked;
 var registerBtn_clicked;
 
-const AUTH_API_BASE_URL = "http://localhost:8080/api/auth";
+const AUTH_API_BASE_URL = `${window.location.origin}/api/auth`;
 
 function getErrorMessage(error, fallbackMessage) {
     if (error && error.message) {
