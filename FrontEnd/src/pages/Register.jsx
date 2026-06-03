@@ -133,14 +133,15 @@ export const Register = () => {
     }
   };
 
-  React.useEffect(() => {
-    const initGoogle = () => {
+  const handleGoogleRegister = async () => {
+    setError('');
+    setGoogleLoading(true);
+
+    try {
       if (window.google) {
         window.google.accounts.id.initialize({
           client_id: '762465115125-doe0qlvt9ffgih9rtpk46isoah0h7kiu.apps.googleusercontent.com',
-          use_fedcm: false,
           callback: async (response) => {
-            setGoogleLoading(true);
             try {
               const payload = decodeJwtPayload(response.credential);
 
@@ -160,28 +161,16 @@ export const Register = () => {
           }
         });
 
-        const btnContainer = document.getElementById('google-register-btn');
-        if (btnContainer) {
-          window.google.accounts.id.renderButton(
-            btnContainer,
-            { theme: 'outline', size: 'large', width: btnContainer.offsetWidth || 380, shape: 'pill' }
-          );
-        }
+        window.google.accounts.id.prompt();
+      } else {
+        setGoogleLoading(false);
+        setError('Google OAuth chưa được tải. Vui lòng làm mới trang!');
       }
-    };
-
-    if (window.google) {
-      initGoogle();
-    } else {
-      const interval = setInterval(() => {
-        if (window.google) {
-          initGoogle();
-          clearInterval(interval);
-        }
-      }, 100);
-      return () => clearInterval(interval);
+    } catch (err) {
+      setGoogleLoading(false);
+      setError('Đăng ký Google thất bại. Vui lòng thử lại!');
     }
-  }, []);
+  };
 
   const handleGoogleResponse = (res, googleAvatarUrl = '') => {
     setGoogleLoading(false);
@@ -398,18 +387,22 @@ export const Register = () => {
             ) : 'TẠO TÀI KHOẢN NGAY'}
           </button>
 
-          <div className="mt-4 flex flex-col items-center justify-center">
-            {googleLoading && (
-              <div className="flex items-center text-sm font-bold text-gray-500 mb-2">
-                <svg className="animate-spin h-4 w-4 text-gray-500 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Đang xử lý thông tin Google...
-              </div>
+          <button
+            type="button"
+            onClick={handleGoogleRegister}
+            disabled={googleLoading}
+            className="group relative w-full flex justify-center items-center py-4 px-4 border border-gray-300 text-sm font-bold rounded-2xl text-gray-700 bg-white hover:bg-gray-50 focus:outline-none transition-all shadow-sm active:scale-95 disabled:opacity-70 mt-4"
+          >
+            {googleLoading ? (
+              <svg className="animate-spin h-5 w-5 text-gray-500 mr-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            ) : (
+              <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google logo" className="w-5 h-5 mr-3" />
             )}
-            <div id="google-register-btn" className="w-full flex justify-center"></div>
-          </div>
+            {googleLoading ? 'ĐANG XỬ LÝ...' : 'ĐĂNG KÝ BẰNG GOOGLE'}
+          </button>
         </form>
 
         <div className="text-center mt-6">
