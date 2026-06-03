@@ -2,6 +2,13 @@ import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import AdminService from '../../services/adminService';
 import ProductService from '../../services/productService';
 
+const formatNumberWithDots = (val) => {
+  if (val === undefined || val === null || val === '') return '';
+  const clean = String(val).replace(/\D/g, '');
+  if (!clean) return '';
+  return Number(clean).toLocaleString('vi-VN');
+};
+
 const buildVariantLabel = (productName, variant) => {
   const parts = [productName];
   if (variant?.ramGb) parts.push(`${variant.ramGb}GB RAM`);
@@ -97,7 +104,7 @@ export const AdminDiscounts = () => {
       setFormData({
         discountType: existing.discountType || (isPercent ? 'PERCENT' : 'FIXED'),
         discountPercent: isPercent ? String(existing.discountPercent) : '',
-        discountAmount: !isPercent && existing.discountPrice ? String(existing.discountPrice) : '',
+        discountAmount: !isPercent && existing.discountAmount ? String(Math.round(existing.discountAmount)) : '',
         startAt: existing.startAt ? toDatetimeLocal(existing.startAt) : '',
         endAt: existing.endAt ? toDatetimeLocal(existing.endAt) : '',
       });
@@ -112,8 +119,7 @@ export const AdminDiscounts = () => {
     if (!selectedVariant) return null;
     const base = selectedVariant.variant.price;
     if (formData.discountType === 'FIXED' && formData.discountAmount) {
-      const amt = Number(formData.discountAmount);
-      // formData.discountAmount = GIÁ SAU GIẢM → số tiền giảm = base - amt
+      const amt = Number(String(formData.discountAmount).replace(/\D/g, ''));
       return Math.max(0, base - amt);
     }
     if (formData.discountType === 'PERCENT' && formData.discountPercent) {
@@ -122,21 +128,20 @@ export const AdminDiscounts = () => {
     }
     return null;
   }, [selectedVariant, formData]);
-
   const handleSave = async () => {
     if (!selectedVariant) { alert('Vui lòng chọn một phiên bản sản phẩm.'); return; }
     const pct = Number(formData.discountPercent);
-    const amt = Number(formData.discountAmount);
+    const amt = Number(String(formData.discountAmount).replace(/\D/g, ''));
     if (formData.discountType === 'PERCENT') {
-      if (!formData.discountPercent || pct < 1 || pct > 99) {
-        alert('Phần trăm giảm giá phải từ 1% đến 99%.'); return;
+      if (!formData.discountPercent || pct < 1 || pct > 100) {
+        alert('Phần trăm giảm giá phải từ 1% đến 100%.'); return;
       }
     } else {
       if (!formData.discountAmount || amt <= 0) {
-        alert('Giá sau giảm phải lớn hơn 0.'); return;
+        alert('Số tiền giảm phải lớn hơn 0.'); return;
       }
       if (amt >= selectedVariant.variant.price) {
-        alert('Giá sau giảm phải nhỏ hơn giá gốc.'); return;
+        alert('Số tiền giảm phải nhỏ hơn giá gốc.'); return;
       }
     }
     if (!formData.startAt || !formData.endAt) { alert('Vui lòng chọn thời gian bắt đầu và kết thúc.'); return; }
@@ -151,7 +156,7 @@ export const AdminDiscounts = () => {
         variantId: selectedVariant.variant.id,
         discountType: formData.discountType,
         discountPercent: formData.discountType === 'PERCENT' ? pct : null,
-        discountAmount: formData.discountType === 'FIXED' ? amt : null,
+        discountAmount: formData.discountType === 'FIXED' ? (selectedVariant.variant.price - amt) : null,
         startAt: toISO(formData.startAt),
         endAt: toISO(formData.endAt),
       };
@@ -179,6 +184,12 @@ export const AdminDiscounts = () => {
       await AdminService.deleteDiscount(id);
       setDiscounts((prev) => prev.filter((d) => d.id !== id));
       setDeletingId(null);
+      // Reset form if the deleted discount is currently being edited
+      if (editingId === id) {
+        setSelectedVariant(null);
+        setFormData({ discountType: 'PERCENT', discountPercent: '', discountAmount: '', startAt: '', endAt: '' });
+        setEditingId(null);
+      }
     } catch {
       alert('Xóa thất bại.');
     }
@@ -191,7 +202,7 @@ export const AdminDiscounts = () => {
         <p className="text-sm text-gray-500 mt-1">Thiết lập giảm giá cho từng phiên bản sản phẩm</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
         {/* Left: Product list */}
         <div className="lg:col-span-2">
           <div className="relative mb-3">
@@ -319,7 +330,7 @@ export const AdminDiscounts = () => {
         </div>
 
         {/* Right: Discount form */}
-        <div className="bg-[#13151e] border border-white/5 rounded-2xl p-4 h-fit space-y-4">
+        <div className="lg:sticky lg:top-6 lg:max-h-[calc(100vh-110px)] lg:overflow-y-auto scrollbar-hide bg-[#13151e] border border-white/5 rounded-2xl p-4 space-y-4">
           <h3 className="text-sm font-bold text-white">
             {editingId ? 'Sửa giảm giá' : 'Thiết lập giảm giá'}
           </h3>
@@ -344,9 +355,10 @@ export const AdminDiscounts = () => {
                   value={formData.discountType}
                   onChange={(e) => setFormData((p) => ({ ...p, discountType: e.target.value }))}
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-gray-200 focus:outline-none focus:border-red-500/50"
+                  style={{ color: '#e5e7eb' }}
                 >
-                  <option value="PERCENT">Phần trăm (%)</option>
-                  <option value="FIXED">Số tiền muốn giảm (VNĐ)</option>
+                  <option value="PERCENT" className="bg-[#13151e] text-gray-200" style={{ backgroundColor: '#13151e', color: '#e5e7eb' }}>Phần trăm (%)</option>
+                  <option value="FIXED" className="bg-[#13151e] text-gray-200" style={{ backgroundColor: '#13151e', color: '#e5e7eb' }}>Số tiền muốn giảm (VNĐ)</option>
                 </select>
               </div>
 
@@ -357,11 +369,11 @@ export const AdminDiscounts = () => {
                   <input
                     type="number"
                     min="1"
-                    max="99"
+                    max="100"
                     value={formData.discountPercent}
                     onChange={(e) => setFormData((p) => ({ ...p, discountPercent: e.target.value }))}
                     placeholder="VD: 15"
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-red-500/50"
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-red-500/50 no-spinner"
                   />
                   {formData.discountPercent && (
                     <p className="text-[10px] text-emerald-400 mt-1">
@@ -371,18 +383,20 @@ export const AdminDiscounts = () => {
                 </div>
               ) : (
                 <div>
-                  <label className="text-[10px] text-gray-500 block mb-1.5">Giá sau giảm (VNĐ) *</label>
+                  <label className="text-[10px] text-gray-500 block mb-1.5">Số tiền muốn giảm (VNĐ) *</label>
                   <input
-                    type="number"
-                    min="1"
-                    value={formData.discountAmount}
-                    onChange={(e) => setFormData((p) => ({ ...p, discountAmount: e.target.value }))}
-                    placeholder="VD: 10000000"
+                    type="text"
+                    value={formatNumberWithDots(formData.discountAmount)}
+                    onChange={(e) => {
+                      const rawVal = e.target.value.replace(/\D/g, '');
+                      setFormData((p) => ({ ...p, discountAmount: rawVal }));
+                    }}
+                    placeholder="VD: 50.000"
                     className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-red-500/50"
                   />
                   {formData.discountAmount && (
                     <p className="text-[10px] text-emerald-400 mt-1">
-                      Giảm {calcDiscountPrice()?.toLocaleString()}đ → Còn {Number(formData.discountAmount).toLocaleString()}đ
+                      Giảm {formatNumberWithDots(formData.discountAmount)}đ → Còn {calcDiscountPrice()?.toLocaleString()}đ
                     </p>
                   )}
                 </div>
@@ -409,24 +423,35 @@ export const AdminDiscounts = () => {
                 </div>
               </div>
 
-              <div className="flex gap-2">
-                <button
-                  onClick={() => {
-                    setSelectedVariant(null);
-                    setFormData({ discountType: 'PERCENT', discountPercent: '', discountAmount: '', startAt: '', endAt: '' });
-                    setEditingId(null);
-                  }}
-                  className="flex-1 py-2 rounded-xl border border-white/10 text-sm text-gray-400 hover:text-white transition-all"
-                >
-                  Hủy
-                </button>
-                <button
-                  onClick={handleSave}
-                  disabled={saving}
-                  className="flex-1 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-sm font-bold text-white transition-all disabled:opacity-50"
-                >
-                  {saving ? 'Đang lưu...' : editingId ? 'Lưu thay đổi' : 'Thiết lập giảm giá'}
-                </button>
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      setSelectedVariant(null);
+                      setFormData({ discountType: 'PERCENT', discountPercent: '', discountAmount: '', startAt: '', endAt: '' });
+                      setEditingId(null);
+                    }}
+                    className="flex-1 py-2 rounded-xl border border-white/10 text-sm text-gray-400 hover:text-white transition-all"
+                  >
+                    Hủy
+                  </button>
+                  <button
+                    onClick={handleSave}
+                    disabled={saving}
+                    className="flex-1 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-sm font-bold text-white transition-all disabled:opacity-50"
+                  >
+                    {saving ? 'Đang lưu...' : editingId ? 'Lưu thay đổi' : 'Thiết lập giảm giá'}
+                  </button>
+                </div>
+                {editingId && (
+                  <button
+                    type="button"
+                    onClick={() => setDeletingId(editingId)}
+                    className="w-full py-2 rounded-xl bg-red-600/10 hover:bg-red-600 border border-red-500/20 hover:border-red-600 text-sm font-bold text-red-400 hover:text-white transition-all"
+                  >
+                    Xóa giảm giá
+                  </button>
+                )}
               </div>
             </>
           ) : (
@@ -446,7 +471,7 @@ export const AdminDiscounts = () => {
           {discounts.filter((d) => d.status === 'ACTIVE').length > 0 && (
             <div className="border-t border-white/5 pt-4">
               <p className="text-xs font-bold text-gray-500 mb-2">Đang giảm giá ({discounts.filter((d) => d.status === 'ACTIVE').length})</p>
-              <div className="space-y-1.5 max-h-56 overflow-y-auto">
+              <div className="space-y-1.5 max-h-56 overflow-y-auto scrollbar-hide">
                 {discounts
                   .filter((d) => d.status === 'ACTIVE')
                   .map((d) => {

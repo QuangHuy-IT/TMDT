@@ -205,7 +205,7 @@ export const AdminLayout = () => {
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 py-4 px-2 space-y-1 overflow-y-auto">
+        <nav className="flex-1 py-4 px-2 space-y-1 overflow-y-auto scrollbar-hide">
           {navItems.map((item) => {
             // Group item (collapsible)
             if (item.group) {
@@ -370,7 +370,7 @@ export const AdminLayout = () => {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto p-6 bg-[#0f1117]">
+        <main className="flex-1 overflow-y-auto scrollbar-hide p-6 bg-[#0f1117]">
           <Outlet />
         </main>
       </div>

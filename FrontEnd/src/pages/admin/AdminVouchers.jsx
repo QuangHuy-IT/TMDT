@@ -1,6 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import AdminService from '../../services/adminService';
 
+const formatNumberWithDots = (val) => {
+  if (val === undefined || val === null || val === '') return '';
+  const clean = String(val).replace(/\D/g, '');
+  if (!clean) return '';
+  return Number(clean).toLocaleString('vi-VN');
+};
+
 const toDatetimeLocal = (dt) => {
   if (!dt) return '';
   const d = dt instanceof Date ? dt : new Date(dt);
@@ -111,9 +118,10 @@ const VoucherModal = ({ voucher, onClose, onSave, saving }) => {
             <select value={form.discountType}
               onChange={(e) => set('discountType', e.target.value)}
               className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-gray-200
-                         focus:outline-none focus:border-red-500/50">
-              <option value="PERCENT">Phần trăm (%)</option>
-              <option value="FIXED">Số tiền cố định (VNĐ)</option>
+                         focus:outline-none focus:border-red-500/50"
+              style={{ color: '#e5e7eb' }}>
+              <option value="PERCENT" className="bg-[#13151e] text-gray-200" style={{ backgroundColor: '#13151e', color: '#e5e7eb' }}>Phần trăm (%)</option>
+              <option value="FIXED" className="bg-[#13151e] text-gray-200" style={{ backgroundColor: '#13151e', color: '#e5e7eb' }}>Số tiền cố định (VNĐ)</option>
             </select>
           </div>
 
@@ -123,10 +131,18 @@ const VoucherModal = ({ voucher, onClose, onSave, saving }) => {
               Giá trị giảm {isPercent ? '(%) *' : '(VNĐ) *'}
             </label>
             <input
-              type="number" value={form.discountValue}
-              onChange={(e) => set('discountValue', e.target.value)}
-              placeholder={isPercent ? 'VD: 10' : 'VD: 100000'}
-              min="0"
+              type={isPercent ? "number" : "text"}
+              value={isPercent ? form.discountValue : formatNumberWithDots(form.discountValue)}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (isPercent) {
+                  set('discountValue', val);
+                } else {
+                  set('discountValue', val.replace(/\D/g, ''));
+                }
+              }}
+              placeholder={isPercent ? 'VD: 10' : 'VD: 100.000'}
+              min={isPercent ? "0" : undefined}
               className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-gray-200
                          placeholder-gray-600 focus:outline-none focus:border-red-500/50"
             />
@@ -139,10 +155,10 @@ const VoucherModal = ({ voucher, onClose, onSave, saving }) => {
                 Giảm tối đa (VNĐ)
               </label>
               <input
-                type="number" value={form.maxDiscountAmount}
-                onChange={(e) => set('maxDiscountAmount', e.target.value)}
-                placeholder="VD: 200000"
-                min="0"
+                type="text"
+                value={formatNumberWithDots(form.maxDiscountAmount)}
+                onChange={(e) => set('maxDiscountAmount', e.target.value.replace(/\D/g, ''))}
+                placeholder="VD: 200.000"
                 className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-gray-200
                            placeholder-gray-600 focus:outline-none focus:border-red-500/50"
               />
@@ -155,10 +171,10 @@ const VoucherModal = ({ voucher, onClose, onSave, saving }) => {
               Đơn hàng tối thiểu (VNĐ)
             </label>
             <input
-              type="number" value={form.minOrderAmount}
-              onChange={(e) => set('minOrderAmount', e.target.value)}
-              placeholder="VD: 500000 (0 = không giới hạn)"
-              min="0"
+              type="text"
+              value={formatNumberWithDots(form.minOrderAmount)}
+              onChange={(e) => set('minOrderAmount', e.target.value.replace(/\D/g, ''))}
+              placeholder="VD: 500.000 (0 = không giới hạn)"
               className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-gray-200
                          placeholder-gray-600 focus:outline-none focus:border-red-500/50"
             />

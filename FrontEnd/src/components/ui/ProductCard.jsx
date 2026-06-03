@@ -11,6 +11,7 @@ export const ProductCard = ({ product, variant = 'default', className }) => {
   const [isFav, setIsFav] = useState(false);
 
   const isFlashSale = variant === 'flash-sale';
+  const isFlashSaleActive = (variant === 'flash-sale' || product.isFlashSale) && !(product.soldQuantity >= product.quantity);
 
   // === Shared mappings ===
   const selectedVariant = product.selectedVariant && typeof product.selectedVariant === 'object'
@@ -91,7 +92,7 @@ export const ProductCard = ({ product, variant = 'default', className }) => {
     >
       {/* ===== BADGES ===== */}
       <div className="absolute top-3 left-3 z-10 flex flex-col gap-2">
-        {isFlashSale && discountPercent > 0 ? (
+        {isFlashSaleActive && discountPercent > 0 ? (
           <span className="bg-gradient-to-r from-red-600 to-red-500 text-white text-[10px] font-black px-2 py-1 rounded-lg shadow-lg flex items-center gap-1">
             <Zap size={10} className="fill-white" />
             -{discountPercent}%
@@ -176,20 +177,20 @@ export const ProductCard = ({ product, variant = 'default', className }) => {
         </h3>
 
         {/* Price */}
-        <div className={cn('flex flex-col', isFlashSale ? 'mt-auto pt-2' : 'mt-auto pt-4')}>
+        <div className={cn('flex flex-col', isFlashSaleActive ? 'mt-auto pt-2' : 'mt-auto pt-4')}>
           <div className="flex flex-col">
             <span
               className={cn(
                 'font-black tracking-tight leading-none',
-                isFlashSale ? 'text-base text-red-600' : 'text-lg md:text-xl text-red-600'
+                isFlashSaleActive ? 'text-base text-red-600' : 'text-lg md:text-xl text-red-600'
               )}
             >
-              {isFlashSale
+              {isFlashSaleActive
                 ? Number(flashPrice).toLocaleString('vi-VN') + '₫'
                 : Number(price).toLocaleString('vi-VN') + '₫'}
             </span>
 
-            {isFlashSale ? (
+            {isFlashSaleActive ? (
               originalPrice > flashPrice && (
                 <span className="text-[10px] font-bold text-slate-400 line-through mt-1">
                   {Number(originalPrice).toLocaleString('vi-VN')}₫

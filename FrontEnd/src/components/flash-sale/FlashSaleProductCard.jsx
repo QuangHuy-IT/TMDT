@@ -157,13 +157,18 @@ const FlashSaleProductCard = ({ product, className }) => {
         <div className="flex flex-col gap-0.5 mt-auto">
           {/* Sale price */}
           <div className="flex items-end gap-2">
-            <span className="text-base font-black leading-none bg-gradient-to-r from-red-600 to-orange-500 bg-clip-text text-transparent drop-shadow-sm">
-              {formatPrice(flashPrice)}đ
+            <span className={cn(
+              "text-base font-black leading-none drop-shadow-sm",
+              isSoldOut 
+                ? "text-slate-600" 
+                : "bg-gradient-to-r from-red-600 to-orange-500 bg-clip-text text-transparent"
+            )}>
+              {formatPrice(isSoldOut ? (originalPrice || flashPrice) : flashPrice)}đ
             </span>
           </div>
 
           {/* Original price */}
-          {originalPrice > flashPrice && (
+          {!isSoldOut && originalPrice > flashPrice && (
             <span className="text-[10px] font-bold text-slate-400 line-through">
               {formatPrice(originalPrice)}đ
             </span>
