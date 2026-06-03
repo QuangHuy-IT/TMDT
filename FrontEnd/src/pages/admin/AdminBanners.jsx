@@ -4,8 +4,8 @@ import ProductService from '../../services/productService';
 import { getSafeProductSlug } from '../../utils/slug';
 
 const BANNER_POSITIONS = [
-  { value: 'home_hero', label: 'Trang chủ (Hero Slider)' },
-  { value: 'sidebar', label: 'Thanh bên (Sidebar)' },
+  { value: 'home_hero', label: 'Trang chính' },
+  { value: 'sidebar', label: 'Thanh bên' },
 ];
 
 const AdminBanners = () => {
@@ -380,7 +380,7 @@ const AdminBanners = () => {
               <div className="grid grid-cols-4 gap-6 mb-6">
                 {/* Ảnh banner: col-span-2, row-span-2, fill full */}
                 <div className="col-span-2 row-span-2">
-                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 block">Ảnh banner *</label>
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 block">Ảnh banner </label>
                   {form.imageUrl ? (
                     <div className="relative group w-full aspect-[3/1] rounded-xl overflow-hidden border border-white/10">
                       <img src={form.imageUrl} alt="banner" className="w-full h-full object-cover" />
@@ -398,14 +398,14 @@ const AdminBanners = () => {
 
                 {/* Tiêu đề: col-span-2 (cột 3-4) */}
                 <div className="col-span-2">
-                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 block">Tiêu đề *</label>
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 block">Tiêu đề</label>
                   <input type="text" value={form.title} onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))} placeholder="VD: Khuyến mãi mùa hè 2026"
                     className="w-full bg-[#1a1d2e] border border-white/10 rounded-xl px-4 py-3 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-red-500/50" />
                 </div>
 
                 {/* Vị trí hiển thị: cột 3 dòng 2 */}
                 <div className="col-span-1">
-                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 block">Vị trí hiển thị *</label>
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 block">Vị trí hiển thị</label>
                   <div className="relative">
                     <select value={form.position} onChange={(e) => setForm((p) => ({ ...p, position: e.target.value }))}
                       className="w-full bg-[#1a1d2e] border border-white/10 rounded-xl px-4 py-3 text-sm text-gray-200 focus:outline-none focus:border-red-500/50 appearance-none cursor-pointer pr-10">

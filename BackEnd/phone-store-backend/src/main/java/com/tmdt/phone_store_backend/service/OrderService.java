@@ -12,6 +12,7 @@ import com.tmdt.phone_store_backend.exception.ResourceNotFoundException;
 import com.tmdt.phone_store_backend.repository.InventoryRepository;
 import com.tmdt.phone_store_backend.repository.OrderRepository;
 import com.tmdt.phone_store_backend.repository.ProductImageRepository;
+import com.tmdt.phone_store_backend.service.OrderPlacementService;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -33,6 +34,7 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final ProductImageRepository productImageRepository;
     private final InventoryRepository inventoryRepository;
+    private final OrderPlacementService orderPlacementService;
 
     public List<OrderDto> getOrdersByUserId(Long userId) {
         List<Order> orders = orderRepository.findByUserIdWithItemsOrderByPlacedAtDesc(userId);
@@ -64,7 +66,9 @@ public class OrderService {
             throw new BadRequestException("Chỉ có thể xóa đơn hàng đang chờ thanh toán.");
         }
 
+        List<OrderItem> orderItems = order.getOrderItems();
         orderRepository.delete(order);
+        orderPlacementService.restoreStock(orderItems);
         log.info("Deleted pending order {} for user {}", orderCode, userId);
     }
 
@@ -79,9 +83,12 @@ public class OrderService {
             throw new BadRequestException("Chỉ có thể hủy đơn hàng đang ở trạng thái Chờ xác nhận.");
         }
 
+        List<OrderItem> orderItems = order.getOrderItems();
         order.setOrderStatus(OrderStatus.CANCELED);
         order.setUpdatedAt(LocalDateTime.now());
         Order saved = orderRepository.save(order);
+
+        orderPlacementService.restoreStock(orderItems);
         return toDto(saved);
     }
 

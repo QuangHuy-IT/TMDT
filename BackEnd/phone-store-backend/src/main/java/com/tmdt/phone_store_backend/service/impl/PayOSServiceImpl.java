@@ -2,6 +2,7 @@ package com.tmdt.phone_store_backend.service.impl;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tmdt.phone_store_backend.domain.entity.Inventory;
 import com.tmdt.phone_store_backend.domain.entity.Order;
 import com.tmdt.phone_store_backend.domain.entity.OrderItem;
 import com.tmdt.phone_store_backend.domain.entity.PendingOrder;
@@ -11,9 +12,12 @@ import com.tmdt.phone_store_backend.domain.entity.Voucher;
 import com.tmdt.phone_store_backend.domain.enums.OrderStatus;
 import com.tmdt.phone_store_backend.domain.enums.PaymentMethod;
 import com.tmdt.phone_store_backend.domain.enums.PaymentStatus;
+import com.tmdt.phone_store_backend.domain.enums.StockStatus;
+import com.tmdt.phone_store_backend.domain.enums.VoucherDiscountType;
 import com.tmdt.phone_store_backend.dto.CreateOrderRequestDto.OrderItemRequestDto;
 import com.tmdt.phone_store_backend.dto.PayOSPaymentResponseDto;
 import com.tmdt.phone_store_backend.exception.BadRequestException;
+import com.tmdt.phone_store_backend.repository.InventoryRepository;
 import com.tmdt.phone_store_backend.repository.OrderItemRepository;
 import com.tmdt.phone_store_backend.repository.OrderRepository;
 import com.tmdt.phone_store_backend.repository.PendingOrderRepository;
@@ -56,6 +60,7 @@ public class PayOSServiceImpl implements PayOSService {
     private final UserRepository userRepository;
     private final ProductVariantRepository productVariantRepository;
     private final VoucherRepository voucherRepository;
+    private final InventoryRepository inventoryRepository;
     private final ObjectMapper objectMapper;
 
     @Value("${payos.client-id}")
@@ -157,6 +162,7 @@ public class PayOSServiceImpl implements PayOSService {
                     return;
                 }
                 Order order = createOrderFromPending(pending);
+                deductWebhookStock(pending);
                 pendingOrderRepository.delete(pending);
                 log.info("Order {} created successfully via PayOS webhook", order.getOrderCode());
                 return;
@@ -293,6 +299,46 @@ public class PayOSServiceImpl implements PayOSService {
             pendingOrderRepository.delete(pendingOrder);
             log.info("Deleted pending order: {}", payosOrderCode);
         });
+    }
+
+    private void deductWebhookStock(PendingOrder pending) {
+        try {
+            List<OrderItemRequestDto> itemDtos = objectMapper.readValue(
+                    pending.getItemsJson(),
+                    objectMapper.getTypeFactory().constructCollectionType(List.class, OrderItemRequestDto.class)
+            );
+
+            for (OrderItemRequestDto item : itemDtos) {
+                if (item.getVariantId() == null || item.getQuantity() == null) continue;
+
+                Inventory inventory = inventoryRepository.findByVariantId(item.getVariantId()).orElse(null);
+                if (inventory == null) {
+                    log.warn("Webhook: Inventory not found for variant {}", item.getVariantId());
+                    continue;
+                }
+
+                int currentStock = inventory.getQuantityOnHand();
+                int requestedQty = item.getQuantity();
+                int newStock = Math.max(0, currentStock - requestedQty);
+
+                inventory.setQuantityOnHand(newStock);
+                inventory.setUpdatedAt(java.time.LocalDateTime.now());
+
+                if (newStock <= 0) {
+                    inventory.setStockStatus(StockStatus.OUT_OF_STOCK);
+                } else if (newStock <= 5) {
+                    inventory.setStockStatus(StockStatus.LOW_STOCK);
+                } else {
+                    inventory.setStockStatus(StockStatus.IN_STOCK);
+                }
+
+                inventoryRepository.save(inventory);
+                log.info("Webhook stock deducted for variant {}: {} -> {} (status={})",
+                        item.getVariantId(), currentStock, newStock, inventory.getStockStatus());
+            }
+        } catch (JsonProcessingException e) {
+            log.error("Failed to parse itemsJson for webhook stock deduction: {}", e.getMessage());
+        }
     }
 
     @Override

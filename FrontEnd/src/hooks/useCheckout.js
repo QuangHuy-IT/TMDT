@@ -77,7 +77,7 @@ const useCheckout = () => {
     [selectedCart]
   );
 
-  const shippingFee = subtotal >= 500000 ? 0 : 0;
+  const shippingFee = 0;
 
   const discountAmount = useMemo(() => {
     if (!voucherCode) return 0;
