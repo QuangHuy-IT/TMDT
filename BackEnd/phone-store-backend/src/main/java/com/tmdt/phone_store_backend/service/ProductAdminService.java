@@ -274,6 +274,7 @@ public class ProductAdminService {
                             vdto.setFlashSalePrice(fp.getFlashPrice());
                             vdto.setFlashSaleQuantity(fp.getQuantity());
                             vdto.setFlashSaleSoldQuantity(fp.getSoldQuantity());
+                            vdto.setFlashSaleLimitPerUser(fp.getLimitPerUser());
                             if (!fp.isSoldOut()) {
                                 BigDecimal flashPrice = fp.getFlashPrice();
                                 if (minFlashPrice == null || flashPrice.compareTo(minFlashPrice) < 0) {
@@ -292,6 +293,7 @@ public class ProductAdminService {
                     dto.getSelectedVariant().setFlashSalePrice(fp.getFlashPrice());
                     dto.getSelectedVariant().setFlashSaleQuantity(fp.getQuantity());
                     dto.getSelectedVariant().setFlashSaleSoldQuantity(fp.getSoldQuantity());
+                    dto.getSelectedVariant().setFlashSaleLimitPerUser(fp.getLimitPerUser());
                     if (!fp.isSoldOut()) {
                         dto.getSelectedVariant().setPrice(fp.getFlashPrice());
                         dto.getSelectedVariant().setCompareAtPrice(v.getPrice());
@@ -629,6 +631,7 @@ public class ProductAdminService {
                             vdto.setFlashSalePrice(vfp.getFlashPrice());
                             vdto.setFlashSaleQuantity(vfp.getQuantity());
                             vdto.setFlashSaleSoldQuantity(vfp.getSoldQuantity());
+                            vdto.setFlashSaleLimitPerUser(vfp.getLimitPerUser());
                             if (!vfp.isSoldOut()) {
                                 vdto.setPrice(vfp.getFlashPrice());
                                 vdto.setCompareAtPrice(v.getPrice());
@@ -667,6 +670,7 @@ public class ProductAdminService {
                 selectedVdto.setFlashSalePrice(fp.getFlashPrice());
                 selectedVdto.setFlashSaleQuantity(fp.getQuantity());
                 selectedVdto.setFlashSaleSoldQuantity(fp.getSoldQuantity());
+                selectedVdto.setFlashSaleLimitPerUser(fp.getLimitPerUser());
                 selectedVdto.setPrice(fp.getFlashPrice());
                 selectedVdto.setCompareAtPrice(variant.getPrice());
             } else if (fp != null) {
@@ -674,6 +678,7 @@ public class ProductAdminService {
                 selectedVdto.setFlashSalePrice(fp.getFlashPrice());
                 selectedVdto.setFlashSaleQuantity(fp.getQuantity());
                 selectedVdto.setFlashSaleSoldQuantity(fp.getSoldQuantity());
+                selectedVdto.setFlashSaleLimitPerUser(fp.getLimitPerUser());
             }
             
             dto.setSelectedVariant(selectedVdto);
@@ -1106,6 +1111,13 @@ public class ProductAdminService {
         dto.setCreatedAt(product.getCreatedAt());
         dto.setReleaseDate(product.getCreatedAt());
         dto.setSelectedVariant(toVariantDto(variant, flashStock));
+        if (dto.getSelectedVariant() != null) {
+            dto.getSelectedVariant().setIsFlashSale(true);
+            dto.getSelectedVariant().setFlashSalePrice(flashPrice);
+            dto.getSelectedVariant().setFlashSaleQuantity(flashStock);
+            dto.getSelectedVariant().setFlashSaleSoldQuantity(fp.getSoldQuantity());
+            dto.getSelectedVariant().setFlashSaleLimitPerUser(fp.getLimitPerUser());
+        }
         dto.setIsFlashSale(true);
         dto.setFlashSalePrice(flashPrice);
         return dto;

@@ -71,4 +71,16 @@ public interface FlashSaleProductRepository extends JpaRepository<FlashSaleProdu
 
     @Query("SELECT COUNT(fp) FROM FlashSaleProduct fp WHERE fp.session.id = :sessionId")
     long countBySessionId(@Param("sessionId") Long sessionId);
+
+    @Query("""
+            SELECT fp FROM FlashSaleProduct fp
+            JOIN FETCH fp.session s
+            JOIN FETCH fp.variant v
+            WHERE v.id = :variantId
+              AND s.startAt <= :time
+              AND s.endAt >= :time
+            """)
+    List<FlashSaleProduct> findActiveByVariantIdAndTime(
+            @Param("variantId") Long variantId,
+            @Param("time") java.time.LocalDateTime time);
 }

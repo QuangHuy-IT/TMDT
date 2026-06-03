@@ -35,7 +35,20 @@ const CartItem = ({ item, checked, onToggle, onQtyChange, onRemove }) => {
 
   const availableStock = Number(item.stock ?? item.quantityOnHand ?? 0);
   const isOutOfStock = availableStock <= 0;
-  const maxStock = Math.min(99, Math.max(0, availableStock));
+  
+  const maxStock = React.useMemo(() => {
+    let cap = Math.min(99, Math.max(0, availableStock));
+    if (item.isFlashSale) {
+      const fsQty = Number(item.flashSaleQuantity || 0);
+      const fsSold = Number(item.flashSaleSoldQuantity || 0);
+      const remainingFs = fsQty - fsSold;
+      if (remainingFs > 0) {
+        const limit = Number(item.flashSaleLimitPerUser || item.limitPerUser || 1);
+        cap = Math.min(cap, remainingFs, limit);
+      }
+    }
+    return cap;
+  }, [availableStock, item]);
 
   const handleQty = (delta) => {
     const next = item.quantity + delta;

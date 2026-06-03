@@ -307,9 +307,21 @@ export const ProductDetail = () => {
   }, [originalPrice, currentPrice]);
 
   const maxQuantity = useMemo(() => {
-    if (selectedVariant?.stock != null) return Math.max(0, Number(selectedVariant.stock));
-    if (product?.stock != null) return Math.max(0, Number(product.stock));
-    return 0;
+    const regularStock = selectedVariant?.stock != null 
+      ? Math.max(0, Number(selectedVariant.stock)) 
+      : (product?.stock != null ? Math.max(0, Number(product.stock)) : 0);
+    
+    if (selectedVariant?.isFlashSale) {
+      const fsQty = Number(selectedVariant.flashSaleQuantity || 0);
+      const fsSold = Number(selectedVariant.flashSaleSoldQuantity || 0);
+      const remainingFs = fsQty - fsSold;
+      
+      if (remainingFs > 0) {
+        const limit = Number(selectedVariant.flashSaleLimitPerUser || selectedVariant.limitPerUser || 1);
+        return Math.max(1, Math.min(regularStock, remainingFs, limit));
+      }
+    }
+    return Math.max(1, regularStock);
   }, [selectedVariant, product]);
 
   const handleQuantityChange = (e) => {
@@ -464,6 +476,12 @@ export const ProductDetail = () => {
         thumbnailUrl: images[0] || '',
         images,
         brand: product.brand || '',
+        isFlashSale: selectedVariant?.isFlashSale || false,
+        flashSalePrice: selectedVariant?.flashSalePrice || null,
+        flashSaleQuantity: selectedVariant?.flashSaleQuantity || null,
+        flashSaleSoldQuantity: selectedVariant?.flashSaleSoldQuantity || null,
+        flashSaleLimitPerUser: selectedVariant?.flashSaleLimitPerUser || selectedVariant?.limitPerUser || null,
+        stock: selectedVariant?.stock || product.stock || 0,
       },
     });
   };

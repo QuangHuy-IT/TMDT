@@ -37,5 +37,6 @@ public class AdminProductVariantDto {
     private BigDecimal flashSalePrice;
     private Integer flashSaleQuantity;
     private Integer flashSaleSoldQuantity;
+    private Integer flashSaleLimitPerUser;
 }
 
