@@ -168,8 +168,15 @@ def insert_variant(cursor, product_id, variant_data):
     
     # Insert inventory
     cursor.execute("""
-        INSERT INTO inventories (variant_id, quantity_on_hand, stock_status, updated_at)
-        VALUES (%s, 100, 'IN_STOCK', %s)
+        INSERT INTO inventories (
+            variant_id,
+            quantity_on_hand,
+            quantity_reserved,
+            reorder_level,
+            stock_status,
+            updated_at
+        )
+        VALUES (%s, 100, 0, 5, 'IN_STOCK', %s)
     """, (variant_id, now))
     
     # Insert discount
