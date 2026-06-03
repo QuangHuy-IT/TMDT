@@ -3,20 +3,6 @@ import { cn } from '../../utils/cn';
 import { parseLocalDateTime } from '../../utils/flashSaleTime';
 
 const FlipDigit = ({ value, label, glow }) => {
-  const [prevValue, setPrevValue] = useState(value);
-  const [isFlipping, setIsFlipping] = useState(false);
-
-  useEffect(() => {
-    if (value !== prevValue) {
-      setIsFlipping(true);
-      const timer = setTimeout(() => {
-        setPrevValue(value);
-        setIsFlipping(false);
-      }, 350);
-      return () => clearTimeout(timer);
-    }
-  }, [value, prevValue]);
-
   const display = value.toString().padStart(2, '0');
 
   return (
@@ -27,55 +13,17 @@ const FlipDigit = ({ value, label, glow }) => {
           ? "bg-gradient-to-b from-white to-slate-100 shadow-[0_2px_12px_rgba(253,224,71,0.5),0_0_20px_rgba(253,224,71,0.2)]"
           : "bg-gradient-to-b from-white to-slate-100 shadow-[0_2px_12px_rgba(0,0,0,0.15)]"
       )}>
-        {/* Top half */}
+        {/* Number container */}
         <div className="relative h-8 sm:h-9 md:h-11 px-2 sm:px-2.5 md:px-3 flex items-center justify-center overflow-hidden">
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-red-300/40 to-transparent" />
           <span
             className={cn(
-              "font-black text-lg sm:text-xl md:text-2xl leading-none select-none transition-all",
-              glow ? "text-red-600" : "text-red-600"
+              "font-black text-lg sm:text-xl md:text-2xl leading-none select-none transition-all text-red-600"
             )}
           >
             {display}
           </span>
         </div>
-
-        {/* Middle divider */}
-        <div className="relative h-px mx-1 bg-gradient-to-r from-transparent via-red-300/60 to-transparent">
-          <div className="absolute inset-0 bg-red-200/20" />
-        </div>
-
-        {/* Bottom half */}
-        <div className="relative h-8 sm:h-9 md:h-11 px-2 sm:px-2.5 md:px-3 flex items-center justify-center overflow-hidden">
-          <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-red-200/30 to-transparent" />
-          <span
-            className={cn(
-              "font-black text-lg sm:text-xl md:text-2xl leading-none select-none transition-all",
-              glow ? "text-red-600" : "text-red-600"
-            )}
-          >
-            {display}
-          </span>
-        </div>
-
-        {/* Flip animation overlay */}
-        {isFlipping && (
-          <div className="absolute inset-0 overflow-hidden">
-            <div
-              className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white via-white to-slate-100 animate-flip-top"
-              style={{
-                transformOrigin: 'bottom center',
-                animation: 'flipTop 0.35s ease-in-out forwards'
-              }}
-            >
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="font-black text-lg sm:text-xl md:text-2xl leading-none text-red-600">
-                  {display}
-                </span>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
 
       <span className="text-[9px] sm:text-[10px] md:text-[11px] font-bold text-white/60 uppercase tracking-widest">
@@ -87,7 +35,7 @@ const FlipDigit = ({ value, label, glow }) => {
 
 const Colon = ({ glow }) => (
   <span className={cn(
-    "font-black text-white/70 mb-5 select-none animate-colon-blink",
+    "font-black text-white/70 mb-3 select-none animate-colon-blink",
     glow ? "drop-shadow-[0_0_8px_rgba(253,224,71,0.8)]" : ""
   )}>
     :

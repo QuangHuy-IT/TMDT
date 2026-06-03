@@ -12,6 +12,7 @@ import {
   formatFlashSaleDate,
   formatFlashSaleTime,
   withFlashSaleStatus,
+  parseLocalDateTime,
 } from '../../utils/flashSaleTime';
 
 // ===== SKELETON =====
@@ -178,12 +179,79 @@ const FlashSaleSection = ({ flashSaleData, isLoading }) => {
     setActiveSessionId(sessionId);
   };
 
+  const getLocalDateString = (dateStr) => {
+    const d = parseLocalDateTime(dateStr);
+    if (!d) return '';
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+
+  // Group active campaign sessions by local date (YYYY-MM-DD)
+  const uniqueDays = useMemo(() => {
+    const activeCampaign = campaigns[activeCampaignIdx];
+    if (!activeCampaign?.sessions) return [];
+    const daysMap = new Map();
+    
+    activeCampaign.sessions.forEach((session) => {
+      const dateStr = getLocalDateString(session.startAt);
+      if (!dateStr) return;
+      
+      if (!daysMap.has(dateStr)) {
+        daysMap.set(dateStr, []);
+      }
+      daysMap.get(dateStr).push(session);
+    });
+
+    return Array.from(daysMap.entries()).map(([dateStr, daySessions]) => {
+      const isRunning = daySessions.some(s => s.isRunning);
+      const isEnded = daySessions.every(s => s.isEnded);
+      const isUpcoming = !isRunning && !isEnded;
+      const repSession = daySessions[0];
+
+      return {
+        dateStr,
+        isRunning,
+        isEnded,
+        isUpcoming,
+        repSession,
+        sessions: daySessions
+      };
+    });
+  }, [campaigns, activeCampaignIdx]);
+
+  // Selected date based on activeSessionId
+  const selectedDate = useMemo(() => {
+    if (!activeSessionId || campaigns.length === 0) return null;
+    const campaign = campaigns[activeCampaignIdx];
+    if (!campaign?.sessions) return null;
+    const session = campaign.sessions.find(s => s.id === activeSessionId);
+    if (!session) return null;
+    return getLocalDateString(session.startAt);
+  }, [activeSessionId, campaigns, activeCampaignIdx]);
+
+  // Sessions for the currently selected date
+  const filteredSessions = useMemo(() => {
+    const activeCampaign = campaigns[activeCampaignIdx];
+    if (!selectedDate || !activeCampaign?.sessions) return [];
+    return activeCampaign.sessions.filter(s => getLocalDateString(s.startAt) === selectedDate);
+  }, [selectedDate, campaigns, activeCampaignIdx]);
+
+  // Handle switching to a different date
+  const handleDateChange = (dateStr) => {
+    const dayObj = uniqueDays.find(d => d.dateStr === dateStr);
+    if (!dayObj || dayObj.sessions.length === 0) return;
+
+    const runningSession = dayObj.sessions.find(s => s.isRunning);
+    const upcomingSession = dayObj.sessions.find(s => s.isUpcoming);
+    const nextSession = runningSession || upcomingSession || dayObj.sessions[0];
+    
+    setActiveSessionId(nextSession.id);
+  };
+
   if (isLoading) return <FlashSaleSkeleton />;
   if (!campaigns || campaigns.length === 0) return <EmptyState />;
 
   const activeCampaign = campaigns[activeCampaignIdx];
   const hasMultipleCampaigns = campaigns.length > 1;
-  const hasMultipleSessions = (activeCampaign?.sessions?.length || 0) > 1;
   const isSessionRunning = featuredSession?.isRunning;
   const isSessionEnded = featuredSession?.isEnded;
 
@@ -292,24 +360,24 @@ const FlashSaleSection = ({ flashSaleData, isLoading }) => {
           )}
 
           {/* Session date selector */}
-          {hasMultipleSessions && (
+          {uniqueDays.length > 1 && (
             <div className="mb-4">
               <div className="flex items-center gap-2 mb-2.5">
                 <Flame size={13} className="text-yellow-400 fill-yellow-400" />
-                <span className="text-white/80 text-xs font-bold uppercase tracking-wider">Chọn khung giờ</span>
+                <span className="text-white/80 text-xs font-bold uppercase tracking-wider">Chọn ngày</span>
               </div>
               <FlashSaleDateSelector
-                sessions={activeCampaign?.sessions || []}
-                activeSessionId={activeSessionId}
-                onSessionClick={handleSessionChange}
+                days={uniqueDays}
+                selectedDate={selectedDate}
+                onDateClick={handleDateChange}
               />
             </div>
           )}
 
           {/* Session quick bar */}
-          {hasMultipleSessions && (
+          {filteredSessions.length > 0 && (
             <div className="flex items-center gap-2 mb-5 overflow-x-auto scrollbar-hide">
-              {activeCampaign?.sessions?.map((session) => {
+              {filteredSessions.map((session) => {
                 const isActive = session.id === activeSessionId;
                 const isRunning = session.isRunning;
                 const isEnded = session.isEnded;
@@ -317,15 +385,16 @@ const FlashSaleSection = ({ flashSaleData, isLoading }) => {
                 return (
                   <button
                     key={session.id}
+                    disabled={session.isEnded}
                     onClick={() => handleSessionChange(session.id)}
                     className={`
                       flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all duration-300 shrink-0
                       ${isActive && isRunning ? 'bg-yellow-400 text-red-800 shadow-lg shadow-yellow-400/40 ring-2 ring-yellow-300/50' : ''}
                       ${isActive && !isRunning && !isEnded ? 'bg-orange-400 text-white shadow-lg shadow-orange-400/40 ring-2 ring-orange-300/50' : ''}
-                      ${isActive && isEnded ? 'bg-slate-400 text-white shadow-lg ring-2 ring-slate-300/50' : ''}
+                      ${isActive && isEnded ? 'bg-slate-400 text-white shadow-lg ring-2 ring-slate-300/50 cursor-not-allowed opacity-50' : ''}
                       ${!isActive && isRunning ? 'bg-white/10 text-white/70 hover:bg-white/20 border border-white/20' : ''}
                       ${!isActive && !isRunning && !isEnded ? 'bg-white/5 text-white/50 hover:bg-white/15 border border-white/10' : ''}
-                      ${!isActive && isEnded ? 'bg-white/5 text-white/40 border border-white/10' : ''}
+                      ${!isActive && isEnded ? 'bg-white/5 text-white/40 border border-white/10 cursor-not-allowed opacity-50' : ''}
                     `}
                   >
                     <span className="uppercase font-black tracking-wide">
