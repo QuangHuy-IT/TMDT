@@ -655,28 +655,52 @@ const ProductFormPage = ({ editingProduct, onClose, onSaveSuccess }) => {
       return;
     }
 
-    const validVariants = (form.variants || []).filter(v =>
-      v.storageLabel || v.price || v.stock || v.ramGb || v.color
-    );
+    const validVariants = form.variants || [];
 
     if (validVariants.length === 0) {
       alert('Vui lòng thêm ít nhất 1 phiên bản.');
       return;
     }
 
-    // Every variant must have storage and stock
-    const missingStorage = validVariants.find(v => !v.storageLabel);
-    if (missingStorage) {
-      const idx = (form.variants || []).indexOf(missingStorage) + 1;
-      alert(`Phiên bản #${idx} thiếu Dung lượng. Vui lòng chọn Dung lượng cho tất cả các phiên bản.`);
-      return;
-    }
+    // Ensure all fields are filled for every variant
+    for (let i = 0; i < validVariants.length; i++) {
+      const v = validVariants[i];
+      const idx = i + 1;
 
-    const missingStock = validVariants.find(v => v.stock === '' || v.stock === null || v.stock === undefined);
-    if (missingStock) {
-      const idx = (form.variants || []).indexOf(missingStock) + 1;
-      alert(`Phiên bản #${idx} chưa nhập Tồn kho. Vui lòng nhập số lượng tồn kho cho tất cả các phiên bản.`);
-      return;
+      if (!v.color || !v.color.trim()) {
+        alert(`Phiên bản #${idx} thiếu Màu sắc. Vui lòng nhập màu sắc cho tất cả các phiên bản.`);
+        return;
+      }
+
+      if (!v.storageLabel || !v.storageLabel.trim()) {
+        alert(`Phiên bản #${idx} thiếu Dung lượng. Vui lòng nhập dung lượng cho tất cả các phiên bản.`);
+        return;
+      }
+
+      if (v.ramGb === '' || v.ramGb === null || v.ramGb === undefined || Number(v.ramGb) <= 0) {
+        alert(`Phiên bản #${idx} thiếu RAM hoặc RAM không hợp lệ. Vui lòng nhập RAM lớn hơn 0 cho tất cả các phiên bản.`);
+        return;
+      }
+
+      if (v.costPrice === '' || v.costPrice === null || v.costPrice === undefined || Number(v.costPrice) <= 0) {
+        alert(`Phiên bản #${idx} thiếu Giá nhập hoặc giá nhập không hợp lệ. Vui lòng nhập giá nhập lớn hơn 0 cho tất cả các phiên bản.`);
+        return;
+      }
+
+      if (v.price === '' || v.price === null || v.price === undefined || Number(v.price) <= 0) {
+        alert(`Phiên bản #${idx} thiếu Giá bán hoặc giá bán không hợp lệ. Vui lòng nhập giá bán lớn hơn 0 cho tất cả các phiên bản.`);
+        return;
+      }
+
+      if (v.stock === '' || v.stock === null || v.stock === undefined || Number(v.stock) < 0) {
+        alert(`Phiên bản #${idx} thiếu Tồn kho hoặc tồn kho không hợp lệ. Vui lòng nhập số lượng tồn kho hợp lệ cho tất cả các phiên bản.`);
+        return;
+      }
+
+      if (!v.images || v.images.length === 0 || !v.images[0]?.trim()) {
+        alert(`Phiên bản #${idx} thiếu Ảnh phiên bản. Vui lòng tải lên ít nhất 1 ảnh cho tất cả các phiên bản.`);
+        return;
+      }
     }
 
     // Build flat specs map and specificationRows from extraGroups only
