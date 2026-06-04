@@ -101,6 +101,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/brands/**").permitAll()
                         .requestMatchers("/api/banners/**").permitAll()
                         .requestMatchers("/api/flash-sales/**").permitAll()
+                        .requestMatchers("/api/news/**").permitAll()
                         .requestMatchers("/api/chat/**").permitAll()
                         .requestMatchers("/api/ai/**").permitAll()
                         

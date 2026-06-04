@@ -204,7 +204,7 @@ export const AdminInventory = () => {
         <p className="text-sm text-gray-500 mt-1">Chọn sản phẩm để điều chỉnh tồn kho, xác nhận nhiều sản phẩm cùng lúc</p>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 xl:grid-cols-5 gap-4 items-start">
         {/* Left: Product list */}
         <div className="xl:col-span-3 space-y-3">
           <div className="relative">
@@ -291,7 +291,7 @@ export const AdminInventory = () => {
                                 value={deltaByVariant[variantId] ?? ''}
                                 onChange={(e) => updateDelta(variantId, e.target.value)}
                                 placeholder="0"
-                                className="w-full h-9 text-center bg-white/5 border border-white/10 rounded-lg text-sm text-gray-200 focus:outline-none focus:border-red-500/50"
+                                className="w-full h-9 text-center bg-white/5 border border-white/10 rounded-lg text-sm text-gray-200 focus:outline-none focus:border-red-500/50 no-spinner"
                               />
                               <button
                                 type="button"
@@ -328,7 +328,7 @@ export const AdminInventory = () => {
         </div>
 
         {/* Right: Pending list + Log history */}
-        <div className="xl:col-span-2 space-y-4">
+        <div className="xl:sticky xl:top-6 xl:max-h-[calc(100vh-110px)] xl:overflow-y-auto scrollbar-hide xl:col-span-2 space-y-4">
 
           {/* Ghi chú + Pending */}
           <div className="bg-[#13151e] border border-white/5 rounded-2xl p-4 space-y-4">
@@ -348,7 +348,7 @@ export const AdminInventory = () => {
                   <p className="text-xs font-bold text-gray-400">Sản phẩm chờ xác nhận</p>
                   <p className="text-[10px] text-gray-500">{pendingStats.totalProducts} sản phẩm · {pendingStats.totalAdjustments} phiên bản</p>
                 </div>
-                <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1">
+                <div className="space-y-1.5 max-h-64 overflow-y-auto scrollbar-hide pr-1">
                   {pendingItems.map((item) => (
                     <div key={item.variantId} className="flex items-center justify-between p-2.5 rounded-xl border border-white/10 bg-white/[0.02]">
                       <div className="min-w-0 flex-1">

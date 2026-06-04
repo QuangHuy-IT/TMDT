@@ -48,18 +48,63 @@ const shopReducer = (state, action) => {
 
       let updatedCart;
       if (existingItem) {
-        updatedCart = state.cart.map(item =>
-          String(item.cartKey || item.variantId || item.variantSlug || item.slug || item.id || item._id) === actionCartId
-            ? {
+        updatedCart = state.cart.map(item => {
+          if (String(item.cartKey || item.variantId || item.variantSlug || item.slug || item.id || item._id) === actionCartId) {
+            let nextQuantity = item.quantity + (action.payload.quantity || 1);
+            
+            // Check if flash sale and cap the quantity
+            const isFs = action.payload.isFlashSale ?? item.isFlashSale ?? false;
+            if (isFs) {
+              const fsQty = Number(action.payload.flashSaleQuantity ?? item.flashSaleQuantity ?? 0);
+              const fsSold = Number(action.payload.flashSaleSoldQuantity ?? item.flashSaleSoldQuantity ?? 0);
+              const remainingFs = fsQty - fsSold;
+              const limit = Number(action.payload.flashSaleLimitPerUser ?? action.payload.limitPerUser ?? item.flashSaleLimitPerUser ?? item.limitPerUser ?? 1);
+              const regularStock = Number(action.payload.stock ?? item.stock ?? 99);
+              
+              if (remainingFs > 0) {
+                const maxFsAllowed = Math.max(1, Math.min(regularStock, remainingFs, limit));
+                if (nextQuantity > maxFsAllowed) {
+                  nextQuantity = maxFsAllowed;
+                }
+              }
+            } else {
+              const regularStock = Number(action.payload.stock ?? item.stock ?? 99);
+              if (nextQuantity > regularStock) {
+                nextQuantity = regularStock;
+              }
+            }
+            
+            return {
               ...item,
               ...action.payload,
               cartKey: actionCartId,
-              quantity: item.quantity + (action.payload.quantity || 1),
-            }
-            : item
-        );
+              quantity: nextQuantity,
+            };
+          }
+          return item;
+        });
       } else {
-        updatedCart = [...state.cart, { ...action.payload, cartKey: actionCartId, quantity: action.payload.quantity || 1 }];
+        let finalQty = action.payload.quantity || 1;
+        const isFs = action.payload.isFlashSale || false;
+        if (isFs) {
+          const fsQty = Number(action.payload.flashSaleQuantity || 0);
+          const fsSold = Number(action.payload.flashSaleSoldQuantity || 0);
+          const remainingFs = fsQty - fsSold;
+          const limit = Number(action.payload.flashSaleLimitPerUser ?? action.payload.limitPerUser ?? 1);
+          const regularStock = Number(action.payload.stock ?? 99);
+          if (remainingFs > 0) {
+            const maxFsAllowed = Math.max(1, Math.min(regularStock, remainingFs, limit));
+            if (finalQty > maxFsAllowed) {
+              finalQty = maxFsAllowed;
+            }
+          }
+        } else {
+          const regularStock = Number(action.payload.stock ?? 99);
+          if (finalQty > regularStock) {
+            finalQty = regularStock;
+          }
+        }
+        updatedCart = [...state.cart, { ...action.payload, cartKey: actionCartId, quantity: finalQty }];
       }
 
       localStorage.setItem('cart', JSON.stringify(updatedCart)); // ← thiếu dòng này
@@ -68,11 +113,32 @@ const shopReducer = (state, action) => {
 
     case 'UPDATE_CART_QUANTITY': {
       const targetCartId = String(action.payload.cartKey || action.payload.id || action.payload._id);
-      const cartAfterUpdate = state.cart.map(item =>
-        String(item.cartKey || item.variantId || item.variantSlug || item.slug || item.id || item._id) === targetCartId
-          ? { ...item, quantity: action.payload.quantity }
-          : item
-      );
+      const cartAfterUpdate = state.cart.map(item => {
+        if (String(item.cartKey || item.variantId || item.variantSlug || item.slug || item.id || item._id) === targetCartId) {
+          let nextQty = action.payload.quantity;
+          const isFs = item.isFlashSale || false;
+          if (isFs) {
+            const fsQty = Number(item.flashSaleQuantity || 0);
+            const fsSold = Number(item.flashSaleSoldQuantity || 0);
+            const remainingFs = fsQty - fsSold;
+            const limit = Number(item.flashSaleLimitPerUser ?? item.limitPerUser ?? 1);
+            const regularStock = Number(item.stock ?? 99);
+            if (remainingFs > 0) {
+              const maxFsAllowed = Math.max(1, Math.min(regularStock, remainingFs, limit));
+              if (nextQty > maxFsAllowed) {
+                nextQty = maxFsAllowed;
+              }
+            }
+          } else {
+            const regularStock = Number(item.stock ?? 99);
+            if (nextQty > regularStock) {
+              nextQty = regularStock;
+            }
+          }
+          return { ...item, quantity: nextQty };
+        }
+        return item;
+      });
       localStorage.setItem('cart', JSON.stringify(cartAfterUpdate));
       return { ...state, cart: cartAfterUpdate };
     }

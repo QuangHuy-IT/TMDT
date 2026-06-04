@@ -2,40 +2,16 @@ import React, { useState, useEffect, useRef } from 'react';
 import { cn } from '../../utils/cn';
 
 const FlipUnit = ({ value, label }) => {
-  const [prevValue, setPrevValue] = useState(value);
-  const [isFlipping, setIsFlipping] = useState(false);
-
-  useEffect(() => {
-    if (value !== prevValue) {
-      setIsFlipping(true);
-      const timer = setTimeout(() => {
-        setPrevValue(value);
-        setIsFlipping(false);
-      }, 300);
-      return () => clearTimeout(timer);
-    }
-  }, [value, prevValue]);
-
   const display = value.toString().padStart(2, '0');
 
   return (
     <div className="flex flex-col items-center gap-1">
-      <div className="relative w-10 h-12 sm:w-12 sm:h-14 md:w-14 md:h-16">
+      <div className="relative w-10 h-6 sm:w-12 sm:h-7 md:w-14 md:h-8">
         {/* Card chính */}
         <div className={cn(
-          "absolute inset-0 rounded-lg bg-white shadow-xl overflow-hidden",
-          isFlipping ? "animate-flip-top" : ""
+          "absolute inset-0 rounded-lg bg-white shadow-xl overflow-hidden"
         )}>
-          {/* Nửa trên */}
-          <div className="absolute top-0 left-0 right-0 h-1/2 bg-gradient-to-b from-white to-slate-100 flex items-center justify-center">
-            <span className="text-red-600 font-black text-xl sm:text-2xl md:text-3xl leading-none select-none">
-              {display}
-            </span>
-          </div>
-          {/* Đường chia đôi */}
-          <div className="absolute top-1/2 left-0 right-0 h-[1px] bg-red-300/50 z-10" />
-          {/* Nửa dưới */}
-          <div className="absolute bottom-0 left-0 right-0 h-1/2 bg-gradient-to-t from-slate-200 to-white flex items-center justify-center">
+          <div className="absolute inset-0 bg-gradient-to-b from-white to-slate-100 flex items-center justify-center">
             <span className="text-red-600 font-black text-xl sm:text-2xl md:text-3xl leading-none select-none">
               {display}
             </span>
@@ -96,13 +72,13 @@ const FlipCountdown = ({ remainingSeconds, endAt }) => {
       {days > 0 && (
         <>
           <FlipUnit value={days} label="Ngày" />
-          <span className="text-white text-xl sm:text-2xl md:text-3xl font-black mb-4">:</span>
+          <span className="text-white text-xl sm:text-2xl md:text-3xl font-black mb-2">:</span>
         </>
       )}
       <FlipUnit value={hours} label="Giờ" />
-      <span className="text-white text-xl sm:text-2xl md:text-3xl font-black mb-4">:</span>
+      <span className="text-white text-xl sm:text-2xl md:text-3xl font-black mb-2">:</span>
       <FlipUnit value={minutes} label="Phút" />
-      <span className="text-white text-xl sm:text-2xl md:text-3xl font-black mb-4">:</span>
+      <span className="text-white text-xl sm:text-2xl md:text-3xl font-black mb-2">:</span>
       <FlipUnit value={seconds} label="Giây" />
     </div>
   );

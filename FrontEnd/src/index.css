@@ -160,3 +160,21 @@ button {
 .flash-card-hover:hover {
   box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.3), 0 8px 24px rgba(239, 68, 68, 0.15);
 }
+
+/* ===== Hide number input spin buttons (arrows) ===== */
+.no-spinner::-webkit-outer-spin-button,
+.no-spinner::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.no-spinner[type='number'] {
+  -moz-appearance: textfield;
+}
+
+/* Style option tags inside selects globally for dark mode readability */
+select option {
+  background-color: #13151e !important;
+  color: #e5e7eb !important;
+}
+
+

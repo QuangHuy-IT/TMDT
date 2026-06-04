@@ -267,23 +267,37 @@ public class ProductAdminService {
             // Then check flash sale (flash sale overrides product discount)
             FlashSaleProduct fp = getActiveFlashSale(v.getId(), activeFlashSales);
             if (fp != null) {
-                BigDecimal flashPrice = fp.getFlashPrice();
-                if (minFlashPrice == null || flashPrice.compareTo(minFlashPrice) < 0) {
-                    minFlashPrice = flashPrice;
-                    flashSaleSessionId = fp.getSession().getId();
-                }
-                // Update variant price in-place
                 if (dto.getVariants() != null) {
                     for (AdminProductVariantDto vdto : dto.getVariants()) {
                         if (vdto.getId().equals(v.getId())) {
-                            vdto.setPrice(flashPrice);
+                            vdto.setIsFlashSale(true);
+                            vdto.setFlashSalePrice(fp.getFlashPrice());
+                            vdto.setFlashSaleQuantity(fp.getQuantity());
+                            vdto.setFlashSaleSoldQuantity(fp.getSoldQuantity());
+                            vdto.setFlashSaleLimitPerUser(fp.getLimitPerUser());
+                            if (!fp.isSoldOut()) {
+                                BigDecimal flashPrice = fp.getFlashPrice();
+                                if (minFlashPrice == null || flashPrice.compareTo(minFlashPrice) < 0) {
+                                    minFlashPrice = flashPrice;
+                                    flashSaleSessionId = fp.getSession().getId();
+                                }
+                                vdto.setPrice(flashPrice);
+                                vdto.setCompareAtPrice(v.getPrice());
+                            }
                             break;
                         }
                     }
                 }
-                // Update selected variant if it matches
                 if (dto.getSelectedVariant() != null && dto.getSelectedVariant().getId().equals(v.getId())) {
-                    dto.getSelectedVariant().setPrice(flashPrice);
+                    dto.getSelectedVariant().setIsFlashSale(true);
+                    dto.getSelectedVariant().setFlashSalePrice(fp.getFlashPrice());
+                    dto.getSelectedVariant().setFlashSaleQuantity(fp.getQuantity());
+                    dto.getSelectedVariant().setFlashSaleSoldQuantity(fp.getSoldQuantity());
+                    dto.getSelectedVariant().setFlashSaleLimitPerUser(fp.getLimitPerUser());
+                    if (!fp.isSoldOut()) {
+                        dto.getSelectedVariant().setPrice(fp.getFlashPrice());
+                        dto.getSelectedVariant().setCompareAtPrice(v.getPrice());
+                    }
                 }
             }
         }
@@ -293,6 +307,13 @@ public class ProductAdminService {
             dto.setFlashSalePrice(minFlashPrice);
             dto.setFlashSaleId(flashSaleSessionId);
             dto.setIsFlashSale(true);
+            BigDecimal originalPriceVal = dto.getOriginalPrice() != null ? dto.getOriginalPrice() : BigDecimal.ZERO;
+            if (originalPriceVal.compareTo(BigDecimal.ZERO) > 0) {
+                int salePercent = originalPriceVal.subtract(minFlashPrice)
+                        .multiply(BigDecimal.valueOf(100))
+                        .divide(originalPriceVal, 0, RoundingMode.HALF_UP).intValue();
+                dto.setSale(salePercent);
+            }
         }
 
         return dto;
@@ -585,8 +606,39 @@ public class ProductAdminService {
             BigDecimal basePrice = variant.getPrice() != null ? variant.getPrice() : BigDecimal.ZERO;
             ProductDiscount discount = getActiveDiscount(variant.getId(), context.activeDiscounts());
             BigDecimal displayPrice = applyDiscount(basePrice, discount);
+            
+            FlashSaleProduct fp = getActiveFlashSale(variant.getId(), context.activeFlashSales());
+            boolean isFlash = fp != null && !fp.isSoldOut();
+            
+            int salePercent = 0;
+            if (isFlash) {
+                displayPrice = fp.getFlashPrice();
+                if (basePrice.compareTo(BigDecimal.ZERO) > 0) {
+                    salePercent = basePrice.subtract(displayPrice)
+                            .multiply(BigDecimal.valueOf(100))
+                            .divide(basePrice, 0, RoundingMode.HALF_UP).intValue();
+                }
+            } else {
+                salePercent = getDiscountPercent(basePrice, discount);
+            }
+
             List<AdminProductVariantDto> groupVariantDtos = group.stream()
-                    .map(v -> toVariantDto(v, context.stockByVariantId().getOrDefault(v.getId(), 0)))
+                    .map(v -> {
+                        AdminProductVariantDto vdto = toVariantDto(v, context.stockByVariantId().getOrDefault(v.getId(), 0));
+                        FlashSaleProduct vfp = getActiveFlashSale(v.getId(), context.activeFlashSales());
+                        if (vfp != null) {
+                            vdto.setIsFlashSale(true);
+                            vdto.setFlashSalePrice(vfp.getFlashPrice());
+                            vdto.setFlashSaleQuantity(vfp.getQuantity());
+                            vdto.setFlashSaleSoldQuantity(vfp.getSoldQuantity());
+                            vdto.setFlashSaleLimitPerUser(vfp.getLimitPerUser());
+                            if (!vfp.isSoldOut()) {
+                                vdto.setPrice(vfp.getFlashPrice());
+                                vdto.setCompareAtPrice(v.getPrice());
+                            }
+                        }
+                        return vdto;
+                    })
                     .toList();
 
             AdminProductDto dto = new AdminProductDto();
@@ -603,7 +655,7 @@ public class ProductAdminService {
             dto.setStock(groupStock);
             dto.setPrice(displayPrice);
             dto.setOriginalPrice(basePrice);
-            dto.setSale(getDiscountPercent(basePrice, discount));
+            dto.setSale(salePercent);
             dto.setAverageRating(reviewStats.averageRating());
             dto.setReviewCount(reviewStats.reviewCount());
             dto.setThumbnailUrl(thumbnailUrl);
@@ -611,9 +663,34 @@ public class ProductAdminService {
             dto.setIsFeatured(isFeatured);
             dto.setCreatedAt(createdAt);
             dto.setReleaseDate(createdAt);
-            dto.setSelectedVariant(toVariantDto(variant, context.stockByVariantId().getOrDefault(variant.getId(), 0)));
+
+            AdminProductVariantDto selectedVdto = toVariantDto(variant, context.stockByVariantId().getOrDefault(variant.getId(), 0));
+            if (isFlash) {
+                selectedVdto.setIsFlashSale(true);
+                selectedVdto.setFlashSalePrice(fp.getFlashPrice());
+                selectedVdto.setFlashSaleQuantity(fp.getQuantity());
+                selectedVdto.setFlashSaleSoldQuantity(fp.getSoldQuantity());
+                selectedVdto.setFlashSaleLimitPerUser(fp.getLimitPerUser());
+                selectedVdto.setPrice(fp.getFlashPrice());
+                selectedVdto.setCompareAtPrice(variant.getPrice());
+            } else if (fp != null) {
+                selectedVdto.setIsFlashSale(true);
+                selectedVdto.setFlashSalePrice(fp.getFlashPrice());
+                selectedVdto.setFlashSaleQuantity(fp.getQuantity());
+                selectedVdto.setFlashSaleSoldQuantity(fp.getSoldQuantity());
+                selectedVdto.setFlashSaleLimitPerUser(fp.getLimitPerUser());
+            }
+            
+            dto.setSelectedVariant(selectedVdto);
             dto.setVariants(groupVariantDtos);
             dto.setVariantItems(groupVariantDtos);
+            
+            if (isFlash) {
+                dto.setIsFlashSale(true);
+                dto.setFlashSalePrice(displayPrice);
+                dto.setFlashSaleId(fp.getSession().getId());
+            }
+            
             return dto;
         }).toList();
     }
@@ -896,6 +973,7 @@ public class ProductAdminService {
         Map<Long, Map<String, String>> specsByProductId = getSpecsByProductId(productIds);
         Map<Long, ReviewStats> reviewStatsByProductId = getReviewStatsByProductId(productIds);
         List<ProductDiscount> activeDiscounts = discountRepository.findAllActiveNow(LocalDateTime.now());
+        List<FlashSaleProduct> activeFlashSales = getActiveFlashSales(variants);
 
         return new ProductListContext(
                 variantsByProductId,
@@ -903,7 +981,8 @@ public class ProductAdminService {
                 imageUrlsByProductId,
                 specsByProductId,
                 reviewStatsByProductId,
-                activeDiscounts
+                activeDiscounts,
+                activeFlashSales
         );
     }
 
@@ -976,10 +1055,11 @@ public class ProductAdminService {
             Map<Long, List<String>> imageUrlsByProductId,
             Map<Long, Map<String, String>> specsByProductId,
             Map<Long, ReviewStats> reviewStatsByProductId,
-            List<ProductDiscount> activeDiscounts
+            List<ProductDiscount> activeDiscounts,
+            List<FlashSaleProduct> activeFlashSales
     ) {
         static ProductListContext empty() {
-            return new ProductListContext(Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), List.of());
+            return new ProductListContext(Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), List.of(), List.of());
         }
     }
 
@@ -1031,6 +1111,13 @@ public class ProductAdminService {
         dto.setCreatedAt(product.getCreatedAt());
         dto.setReleaseDate(product.getCreatedAt());
         dto.setSelectedVariant(toVariantDto(variant, flashStock));
+        if (dto.getSelectedVariant() != null) {
+            dto.getSelectedVariant().setIsFlashSale(true);
+            dto.getSelectedVariant().setFlashSalePrice(flashPrice);
+            dto.getSelectedVariant().setFlashSaleQuantity(flashStock);
+            dto.getSelectedVariant().setFlashSaleSoldQuantity(fp.getSoldQuantity());
+            dto.getSelectedVariant().setFlashSaleLimitPerUser(fp.getLimitPerUser());
+        }
         dto.setIsFlashSale(true);
         dto.setFlashSalePrice(flashPrice);
         return dto;

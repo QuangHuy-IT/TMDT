@@ -2,6 +2,13 @@ import React, { useState, useEffect, useCallback } from 'react';
 import AdminService from '../../services/adminService';
 import { getFlashSaleStatus } from '../../utils/flashSaleTime';
 
+const formatNumberWithDots = (val) => {
+  if (val === undefined || val === null || val === '') return '';
+  const clean = String(val).replace(/\D/g, '');
+  if (!clean) return '';
+  return Number(clean).toLocaleString('vi-VN');
+};
+
 const DATETIME_LOCAL_RE = /^(\d{4})-(\d{2})-(\d{2})[T\s](\d{2}):(\d{2})(?::(\d{2}))?/;
 
 const pad = (n) => String(n).padStart(2, '0');
@@ -262,9 +269,9 @@ const SessionModal = ({ session, campaignId, onClose, onSave, saving }) => {
 };
 
 // ─── Product Form Modal ─────────────────────────────────────────────────────
-const ProductModal = ({ product, sessions, onClose, onSave, saving }) => {
+const ProductModal = ({ product, sessions, defaultSessionId, onClose, onSave, saving }) => {
   const [form, setForm] = useState({
-    sessionId:    product?.sessionId  || sessions[0]?.id || '',
+    sessionId:    product?.sessionId  || defaultSessionId || sessions[0]?.id || '',
     variantId:    product?.variantId  || '',
     flashPrice:   product?.flashPrice || '',
     quantity:     product?.quantity   || '',
@@ -354,9 +361,9 @@ const ProductModal = ({ product, sessions, onClose, onSave, saving }) => {
         <div className="px-6 py-5 space-y-4">
           <div>
             <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">Phiên *</label>
-            <select value={form.sessionId} onChange={(e) => handle('sessionId', e.target.value)}
+            <select value={form.sessionId} onChange={(e) => handle('sessionId', e.target.value)} disabled={true}
               className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-gray-200
-                         focus:outline-none focus:border-red-500/50">
+                         focus:outline-none focus:border-red-500/50 disabled:opacity-60 cursor-not-allowed appearance-none">
               <option value="">Chọn phiên</option>
               {sessions.map((s) => (
                 <option key={s.id} value={s.id}>
@@ -461,9 +468,9 @@ const ProductModal = ({ product, sessions, onClose, onSave, saving }) => {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">Giá flash (VNĐ) *</label>
-              <input type="number" value={form.flashPrice}
-                onChange={(e) => handle('flashPrice', e.target.value)}
-                placeholder="VD: 999000"
+              <input type="text" value={formatNumberWithDots(form.flashPrice)}
+                onChange={(e) => handle('flashPrice', e.target.value.replace(/\D/g, ''))}
+                placeholder="VD: 999.000"
                 className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-gray-200
                            placeholder-gray-600 focus:outline-none focus:border-red-500/50" />
             </div>
@@ -1165,6 +1172,7 @@ const AdminFlashSale = () => {
         <ProductModal
           product={editingProduct}
           sessions={sessions}
+          defaultSessionId={selectedSession?.id}
           onClose={() => setShowProductModal(false)}
           onSave={handleSaveProduct}
           saving={saving}

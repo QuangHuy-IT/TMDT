@@ -281,21 +281,47 @@ export const ProductDetail = () => {
 
   const selectedVariant = product?.selectedVariant || null;
 
+  const originalPrice = useMemo(() => {
+    if (selectedVariant?.compareAtPrice != null) return Number(selectedVariant.compareAtPrice);
+    if (product?.originalPrice != null) return Number(product.originalPrice);
+    if (selectedVariant?.price != null) return Number(selectedVariant.price);
+    return 0;
+  }, [product, selectedVariant]);
+
   const currentPrice = useMemo(() => {
     if (!product) return 0;
-    if (product.isFlashSale && product.flashSalePrice != null) {
-      return Number(product.flashSalePrice);
-    }
     if (selectedVariant?.price != null) {
       return Number(selectedVariant.price);
+    }
+    if (product.isFlashSale && product.flashSalePrice != null) {
+      return Number(product.flashSalePrice);
     }
     return Number(product.price || 0);
   }, [product, selectedVariant]);
 
-  const maxQuantity = useMemo(() => {
-    if (selectedVariant?.stock != null) return Math.max(0, Number(selectedVariant.stock));
-    if (product?.stock != null) return Math.max(0, Number(product.stock));
+  const displayDiscountPercent = useMemo(() => {
+    if (originalPrice > currentPrice && originalPrice > 0) {
+      return Math.round(((originalPrice - currentPrice) / originalPrice) * 100);
+    }
     return 0;
+  }, [originalPrice, currentPrice]);
+
+  const maxQuantity = useMemo(() => {
+    const regularStock = selectedVariant?.stock != null 
+      ? Math.max(0, Number(selectedVariant.stock)) 
+      : (product?.stock != null ? Math.max(0, Number(product.stock)) : 0);
+    
+    if (selectedVariant?.isFlashSale) {
+      const fsQty = Number(selectedVariant.flashSaleQuantity || 0);
+      const fsSold = Number(selectedVariant.flashSaleSoldQuantity || 0);
+      const remainingFs = fsQty - fsSold;
+      
+      if (remainingFs > 0) {
+        const limit = Number(selectedVariant.flashSaleLimitPerUser || selectedVariant.limitPerUser || 1);
+        return Math.max(1, Math.min(regularStock, remainingFs, limit));
+      }
+    }
+    return Math.max(1, regularStock);
   }, [selectedVariant, product]);
 
   const handleQuantityChange = (e) => {
@@ -330,12 +356,7 @@ export const ProductDetail = () => {
     });
   }, [maxQuantity]);
 
-  const originalPrice = useMemo(() => {
-    if (selectedVariant?.compareAtPrice != null) return Number(selectedVariant.compareAtPrice);
-    if (product?.originalPrice != null) return Number(product.originalPrice);
-    if (selectedVariant?.price != null) return Number(selectedVariant.price);
-    return 0;
-  }, [product, selectedVariant]);
+
 
   const basicSpecs = useMemo(() => {
     if (!product?.specifications) return [];
@@ -455,6 +476,12 @@ export const ProductDetail = () => {
         thumbnailUrl: images[0] || '',
         images,
         brand: product.brand || '',
+        isFlashSale: selectedVariant?.isFlashSale || false,
+        flashSalePrice: selectedVariant?.flashSalePrice || null,
+        flashSaleQuantity: selectedVariant?.flashSaleQuantity || null,
+        flashSaleSoldQuantity: selectedVariant?.flashSaleSoldQuantity || null,
+        flashSaleLimitPerUser: selectedVariant?.flashSaleLimitPerUser || selectedVariant?.limitPerUser || null,
+        stock: selectedVariant?.stock || product.stock || 0,
       },
     });
   };
@@ -584,18 +611,23 @@ export const ProductDetail = () => {
 
               {/* Price Block */}
               <div>
-                {product.sale > 0 && (
+                {originalPrice > currentPrice && (
                   <p className="text-sm text-gray-400 line-through mb-0.5">
-                    {Number(selectedVariant?.compareAtPrice || product.originalPrice || 0).toLocaleString('vi-VN')}₫
+                    {Number(originalPrice).toLocaleString('vi-VN')}₫
                   </p>
                 )}
                 <p className="text-3xl font-black text-red-600">
                   {Number(currentPrice || 0).toLocaleString('vi-VN')}₫
                 </p>
-                {(product.sale > 0 || product.isFlashSale) && product.sale > 0 && (
+                {displayDiscountPercent > 0 && (
                   <span className="mt-1 inline-block rounded bg-red-500 px-2 py-0.5 text-[11px] font-bold text-white">
-                    -{product.sale}%
+                    -{displayDiscountPercent}%
                   </span>
+                )}
+                {selectedVariant?.isFlashSale && selectedVariant.flashSaleSoldQuantity >= selectedVariant.flashSaleQuantity && (
+                  <div className="mt-2 text-xs font-bold text-amber-600">
+                    ⚡ Đã hết lượt mua Flash Sale (Quay về giá thường)
+                  </div>
                 )}
               </div>
 

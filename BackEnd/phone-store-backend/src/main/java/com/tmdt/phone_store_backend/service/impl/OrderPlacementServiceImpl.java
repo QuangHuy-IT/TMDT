@@ -20,6 +20,8 @@ import com.tmdt.phone_store_backend.repository.InventoryRepository;
 import com.tmdt.phone_store_backend.repository.OrderItemRepository;
 import com.tmdt.phone_store_backend.repository.OrderRepository;
 import com.tmdt.phone_store_backend.repository.ProductImageRepository;
+import com.tmdt.phone_store_backend.domain.entity.FlashSaleProduct;
+import com.tmdt.phone_store_backend.repository.FlashSaleProductRepository;
 import com.tmdt.phone_store_backend.repository.ProductVariantRepository;
 import com.tmdt.phone_store_backend.repository.UserRepository;
 import com.tmdt.phone_store_backend.repository.VoucherRepository;
@@ -47,6 +49,7 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
     private final ProductImageRepository productImageRepository;
     private final VoucherRepository voucherRepository;
     private final InventoryRepository inventoryRepository;
+    private final FlashSaleProductRepository flashSaleProductRepository;
 
     private static final BigDecimal SHIPPING_FEE = BigDecimal.ZERO;
     private static final BigDecimal TOLERANCE = new BigDecimal("0.01");
@@ -122,6 +125,33 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
                     .orElseThrow(() -> new BadRequestException("Khong tim thay san pham: " + itemDto.getProductName()));
 
             validateUnitPrice(itemDto, variant);
+
+            // Enforce Flash Sale quantity limit and update soldQuantity
+            java.time.LocalDateTime now = java.time.LocalDateTime.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh"));
+            List<FlashSaleProduct> activeFlashSales = flashSaleProductRepository.findActiveByVariantId(variant.getId(), now);
+            if (!activeFlashSales.isEmpty()) {
+                FlashSaleProduct fp = activeFlashSales.get(0);
+                boolean isFlashSalePrice = itemDto.getUnitPrice() != null 
+                        && fp.getFlashPrice() != null 
+                        && itemDto.getUnitPrice().compareTo(fp.getFlashPrice()) == 0;
+                
+                if (isFlashSalePrice) {
+                    int remainingFsQty = fp.getQuantity() - fp.getSoldQuantity();
+                    if (itemDto.getQuantity() > remainingFsQty) {
+                        throw new BadRequestException("Sản phẩm " + itemDto.getProductName() + " đã hết hoặc không đủ số lượng Flash Sale còn lại (còn lại: " + remainingFsQty + ")");
+                    }
+                    if (fp.getLimitPerUser() != null && itemDto.getQuantity() > fp.getLimitPerUser()) {
+                        throw new BadRequestException("Số lượng mua sản phẩm " + itemDto.getProductName() + " vượt quá giới hạn Flash Sale của mỗi khách hàng (tối đa: " + fp.getLimitPerUser() + ")");
+                    }
+                    
+                    // Deduct flash sale stock
+                    fp.setSoldQuantity(fp.getSoldQuantity() + itemDto.getQuantity());
+                    fp.updateStatus();
+                    flashSaleProductRepository.save(fp);
+                    log.info("Flash sale stock deducted for variant {} in session {}: soldQuantity={}",
+                            variant.getId(), fp.getSession().getId(), fp.getSoldQuantity());
+                }
+            }
 
             BigDecimal lineTotal = itemDto.getUnitPrice().multiply(BigDecimal.valueOf(itemDto.getQuantity()));
 
@@ -279,6 +309,29 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
             inventoryRepository.save(inventory);
             log.info("Stock restored for variant {}: {} + {} = {} (status={})",
                     item.getVariant().getId(), currentStock, restoreQty, newStock, inventory.getStockStatus());
+
+            // Restore flash sale quantity if purchased at flash sale price
+            java.time.LocalDateTime placedAt = item.getOrder().getPlacedAt() != null 
+                    ? item.getOrder().getPlacedAt() 
+                    : item.getOrder().getCreatedAt();
+            
+            if (placedAt != null && item.getVariant() != null && item.getUnitPrice() != null) {
+                List<FlashSaleProduct> activeFlashSales = flashSaleProductRepository.findActiveByVariantIdAndTime(
+                        item.getVariant().getId(), 
+                        placedAt
+                );
+                if (!activeFlashSales.isEmpty()) {
+                    FlashSaleProduct fp = activeFlashSales.get(0);
+                    if (fp.getFlashPrice() != null && item.getUnitPrice().compareTo(fp.getFlashPrice()) == 0) {
+                        int currentSold = fp.getSoldQuantity();
+                        fp.setSoldQuantity(Math.max(0, currentSold - restoreQty));
+                        fp.updateStatus();
+                        flashSaleProductRepository.save(fp);
+                        log.info("Flash sale sold quantity restored for variant {} in session {}: {} -> {}",
+                                item.getVariant().getId(), fp.getSession().getId(), currentSold, fp.getSoldQuantity());
+                    }
+                }
+            }
         }
     }
 

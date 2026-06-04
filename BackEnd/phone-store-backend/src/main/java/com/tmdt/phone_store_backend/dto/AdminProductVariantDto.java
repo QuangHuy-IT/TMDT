@@ -31,4 +31,12 @@ public class AdminProductVariantDto {
 
     /** Số tiền đã giảm (hiện tại: discountAmount = số tiền giảm trực tiếp) */
     private BigDecimal saleAmount;
+
+    // Flash sale fields
+    private Boolean isFlashSale;
+    private BigDecimal flashSalePrice;
+    private Integer flashSaleQuantity;
+    private Integer flashSaleSoldQuantity;
+    private Integer flashSaleLimitPerUser;
 }
+

@@ -683,7 +683,7 @@ export const AdminDashboard = () => {
             Xem tất cả →
           </button>
         </div>
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto scrollbar-hide">
           {loadingOrders ? (
             <div className="p-6">
               {[1, 2, 3, 4, 5].map((i) => (
