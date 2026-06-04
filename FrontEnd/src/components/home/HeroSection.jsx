@@ -44,15 +44,22 @@ const HeroSection = ({ banners, isLoading }) => {
           <SwiperSlide key={banner.id}>
             <a
               href={banner.linkUrl || '#'}
-              className="relative block w-full h-full cursor-pointer"
+              className="relative block w-full h-full cursor-pointer overflow-hidden bg-slate-950"
             >
+              {/* Ảnh nền mờ để phủ kín khung hình */}
+              <img
+                src={banner.imageUrl}
+                alt=""
+                className="absolute inset-0 w-full h-full object-cover blur-2xl opacity-30 scale-105 pointer-events-none"
+              />
+              {/* Ảnh chính hiển thị đầy đủ, không bị cắt hay kéo giãn */}
               <img
                 src={banner.imageUrl}
                 alt={banner.title}
-                className="w-full h-full object-cover"
+                className="relative z-10 w-full h-full object-contain"
               />
               {/* Overlay cố định hiển thị text */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-8 md:p-16 pointer-events-none">
+              <div className="absolute inset-0 z-20 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-8 md:p-16 pointer-events-none">
                 <div className="max-w-2xl space-y-3 md:space-y-4">
                   {banner.subtitle && (
                     <span className="inline-block text-orange-400 font-black uppercase tracking-[0.3em] text-xs md:text-sm">

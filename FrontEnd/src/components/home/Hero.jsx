@@ -134,13 +134,20 @@ const Hero = () => {
           <button
             type="button"
             onClick={handleBannerClick}
-            className="block h-full w-full"
+            className="relative block h-full w-full overflow-hidden bg-slate-950"
             aria-label={activeBanner.title}
           >
+            {/* Ảnh nền mờ để phủ kín khung hình */}
+            <img
+              src={activeBanner.imageUrl}
+              alt=""
+              className="absolute inset-0 w-full h-full object-cover blur-2xl opacity-30 scale-105 pointer-events-none"
+            />
+            {/* Ảnh chính hiển thị đầy đủ, không bị cắt hay kéo giãn */}
             <img
               src={activeBanner.imageUrl}
               alt={activeBanner.title}
-              className="h-full w-full object-cover"
+              className="relative z-10 w-full h-full object-contain"
             />
           </button>
 
