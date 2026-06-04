@@ -333,6 +333,14 @@ public class FlashSaleServiceImpl implements FlashSaleService {
             throw new IllegalArgumentException("Giá flash sale phải nhỏ hơn giá gốc của sản phẩm");
         }
 
+        // Auto-assign next sort order if not specified or is 0
+        int sortOrder;
+        if (request.getSortOrder() != null && request.getSortOrder() > 0) {
+            sortOrder = request.getSortOrder();
+        } else {
+            sortOrder = flashSaleProductRepository.findMaxSortOrderBySessionId(request.getSessionId()) + 1;
+        }
+
         FlashSaleProduct flashProduct = FlashSaleProduct.builder()
                 .session(session)
                 .variant(variant)
@@ -341,7 +349,7 @@ public class FlashSaleServiceImpl implements FlashSaleService {
                 .soldQuantity(0)
                 .limitPerUser(request.getLimitPerUser() != null ? request.getLimitPerUser() : 1)
                 .status(FlashSaleProductStatus.ACTIVE)
-                .sortOrder(request.getSortOrder() != null ? request.getSortOrder() : 0)
+                .sortOrder(sortOrder)
                 .build();
 
         FlashSaleProduct saved = flashSaleProductRepository.save(flashProduct);

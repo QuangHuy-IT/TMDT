@@ -72,6 +72,9 @@ public interface FlashSaleProductRepository extends JpaRepository<FlashSaleProdu
     @Query("SELECT COUNT(fp) FROM FlashSaleProduct fp WHERE fp.session.id = :sessionId")
     long countBySessionId(@Param("sessionId") Long sessionId);
 
+    @Query("SELECT COALESCE(MAX(fp.sortOrder), 0) FROM FlashSaleProduct fp WHERE fp.session.id = :sessionId")
+    int findMaxSortOrderBySessionId(@Param("sessionId") Long sessionId);
+
     @Query("""
             SELECT fp FROM FlashSaleProduct fp
             JOIN FETCH fp.session s

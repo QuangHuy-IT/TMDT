@@ -269,15 +269,22 @@ const SessionModal = ({ session, campaignId, onClose, onSave, saving }) => {
 };
 
 // ─── Product Form Modal ─────────────────────────────────────────────────────
-const ProductModal = ({ product, sessions, defaultSessionId, onClose, onSave, saving }) => {
+const ProductModal = ({ product, sessions, defaultSessionId, defaultSortOrder, onClose, onSave, saving }) => {
   const [form, setForm] = useState({
     sessionId:    product?.sessionId  || defaultSessionId || sessions[0]?.id || '',
     variantId:    product?.variantId  || '',
     flashPrice:   product?.flashPrice || '',
     quantity:     product?.quantity   || '',
     limitPerUser: product?.limitPerUser || 1,
-    sortOrder:    product?.sortOrder   || 0,
+    sortOrder:    product?.sortOrder   ?? defaultSortOrder ?? 0,
   });
+
+  // Keep sortOrder in sync when defaultSortOrder changes (new product flow)
+  useEffect(() => {
+    if (!product?.id && defaultSortOrder != null) {
+      setForm((f) => ({ ...f, sortOrder: defaultSortOrder }));
+    }
+  }, [defaultSortOrder, product?.id]);
 
   // ── Product search state ─────────────────────────────────────────────────
   const [products, setProducts]       = useState([]);
@@ -693,6 +700,8 @@ const AdminFlashSale = () => {
   };
 
   // ── Product handlers ──────────────────────────────────────────────────────
+  const nextSortOrder = products.length > 0 ? Math.max(...products.map(p => p.sortOrder)) + 1 : 1;
+
   const openAddProduct = () => {
     setEditingProduct(null);
     setShowProductModal(true);
@@ -1173,6 +1182,7 @@ const AdminFlashSale = () => {
           product={editingProduct}
           sessions={sessions}
           defaultSessionId={selectedSession?.id}
+          defaultSortOrder={!editingProduct ? nextSortOrder : undefined}
           onClose={() => setShowProductModal(false)}
           onSave={handleSaveProduct}
           saving={saving}
